@@ -1,17 +1,75 @@
 #!/usr/bin/env bash
-# Ubuntu 快速安装脚本
-# 用法:
-#   ./install_ubuntu.sh              # 自动安装（使用 GitHub 或 Gitee）
-#   ./install_ubuntu.sh --cn        # 自动安装（使用中国镜像）
-#   ./install_ubuntu.sh --gitee     # 自动安装（使用 Gitee）
-#   ./install_ubuntu.sh --en        # 自动安装（英文界面）
+#
+# DEPRECATED: 此脚本已废弃，请直接使用 install.sh
+#
+# 此脚本已废弃，推荐直接使用 install.sh
+#
+# Ubuntu Quick Install Script (Deprecated)
+# Usage:
+#   ./install_ubuntu.sh              # Auto-install (GitHub)
+#   ./install_ubuntu.sh --cn        # Auto-install (China mirror)
+#   ./install_ubuntu.sh --gitee     # Auto-install (Gitee)
+#
+# Deprecated: Please use install.sh directly
+#   curl https://raw.githubusercontent.com/RT-Thread/env/master/install.sh | bash -s -- -y
+#   curl https://gitee.com/RT-Thread-Mirror/env/raw/master/install.sh | bash -s -- -y --cn
+#
 
-# 获取脚本所在目录
+set -e
+
+# Get script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# 检查是否传递了 -y 参数，如果没有则添加
-if [[ ! " $@ " =~ " -y " ]]; then
-    exec "$SCRIPT_DIR/install.sh" -y "$@"
-else
-    exec "$SCRIPT_DIR/install.sh" "$@"
+# Show deprecation notice
+echo "============================================================"
+echo "   DEPRECATED / 已废弃"
+echo "============================================================"
+echo ""
+echo "This script is deprecated. Please use install.sh directly:"
+echo ""
+echo "  # Using GitHub:"
+echo "  curl https://raw.githubusercontent.com/RT-Thread/env/master/install.sh | bash -s -- -y"
+echo ""
+echo "  # Using China mirror (Gitee):"
+echo "  curl https://gitee.com/RT-Thread-Mirror/env/raw/master/install.sh | bash -s -- -y --cn"
+echo ""
+echo "============================================================"
+echo ""
+
+# Check for --help or no arguments
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]] || [[ $# -eq 0 ]]; then
+    exit 0
 fi
+
+# Parse arguments for mirror selection
+USE_CN="false"
+USE_GITEE="false"
+OTHER_ARGS=""
+
+for arg in "$@"; do
+    case "$arg" in
+        --cn)
+            USE_CN="true"
+            ;;
+        --gitee)
+            USE_GITEE="true"
+            USE_CN="true"
+            ;;
+        *)
+            OTHER_ARGS="$OTHER_ARGS $arg"
+            ;;
+    esac
+done
+
+# Determine URL
+if [[ "$USE_CN" == "true" ]]; then
+    INSTALL_URL="https://gitee.com/RT-Thread-Mirror/env/raw/master/install.sh"
+else
+    INSTALL_URL="https://raw.githubusercontent.com/RT-Thread/env/master/install.sh"
+fi
+
+echo "Downloading install.sh from: $INSTALL_URL"
+echo ""
+
+# Download and execute install.sh directly (without writing to disk)
+curl -fsSL "$INSTALL_URL" | bash -s -- -y $OTHER_ARGS
