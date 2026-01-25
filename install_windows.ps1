@@ -1,17 +1,20 @@
 #
 # RT-Thread ENV Installation Script (Windows)
+# Unified installation script for Windows
 # Supports: English / 中文
 #
 # Usage:
-#   .\install_windows.ps1                        # Interactive installation (prompts for confirmation)
-#   .\install_windows.ps1 -y                       # Auto-install (no prompts, default answers)
-#   .\install_windows.ps1 --pyocd                  # Install pyocd
-#   .\install_windows.ps1 --env-root <path>        # Set custom .env directory path
-#   .\install_windows.ps1 --cn                     # Use Chinese mirror (npmmirror, Gitee)
-#   .\install_windows.ps1 --cn --env-root <path>  # Use custom path + CN mirror
-#   .\install_windows.ps1 --gitee                  # Use Gitee mirror
-#   .\install_windows.ps1 --en                       # Force English messages
-#   .\install_windows.ps1 --zh                       # Force Chinese messages
+#   .\install_windows.ps1 [-y] [--cn|--gitee|--no-mirror] [--pyocd] [--env-root <path>] [--en|--zh] [--embed-py] [-h|--help]
+#
+# Options:
+#   -y              Auto-install without prompts
+#   --cn/--gitee    Use China mirror (Gitee, PyPI TUNA)
+#   --no-mirror      Force use official source
+#   --pyocd          Install pyocd for debugging
+#   --env-root       Set custom install directory
+#   --en/--zh        Force language (English/Chinese)
+#   --embed-py        Force install portable Python (ignore system Python)
+#   -h/--help        Show this help message
 #
 
 # Requires administrator privileges
@@ -22,7 +25,8 @@
 # ============================================================================
 
 # Environment directory (can be overridden by --env-root or $env:ENV_ROOT)
-$env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\.env" }
+$ENV_DEFAULT_DIR = ".rtenv"
+$env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\$ENV_DEFAULT_DIR" }
 
 # Virtual environment directory name
 $Global:VENV_DIR = "rt-venv"
@@ -56,8 +60,48 @@ $GIT_DOWNLOAD_URL = "https://git-scm.com/download/win"
 
 $Global:LANG_CURRENT = "en"
 $Global:USE_CN = $false
+$Global:USE_CN_SET = $false
 $Global:INSTALL_PYOCD = $false
 $Global:AUTO_MODE = $false
+$Global:NEED_HELP = $false
+$Global:USE_EMBED_PYTHON = $false
+
+function Print-Help {
+    if ($Global:LANG_CURRENT -eq "zh") {
+        Write-Host "RT-Thread ENV 安装程序"
+        Write-Host ""
+        Write-Host "用法: .\install_windows.ps1 [选项]"
+        Write-Host ""
+        Write-Host "选项:"
+        Write-Host "  -y, --yes, --auto    自动安装，无需提示"
+        Write-Host "  --cn, --gitee        使用中国镜像（Gitee，清华 PyPI）"
+        Write-Host "  --no-mirror          强制使用官方源"
+        Write-Host "  --pyocd              安装 pyocd（用于调试）"
+        Write-Host "  --env-root <path>    设置自定义安装目录"
+        Write-Host "  --en, --english      强制显示英文信息"
+        Write-Host "  --zh, --chinese      强制显示中文信息"
+        Write-Host "  --embed-py           强制安装便携式 Python（忽略系统 Python）"
+        Write-Host "  -h, --help           显示此帮助信息"
+        Write-Host ""
+    } else {
+        Write-Host "RT-Thread ENV Installation Script"
+        Write-Host ""
+        Write-Host "Usage: .\install_windows.ps1 [OPTIONS]"
+        Write-Host ""
+        Write-Host "Options:"
+        Write-Host "  -y, --yes, --auto    Auto-install without prompts"
+        Write-Host "  --cn, --gitee        Use China mirror (Gitee, PyPI TUNA)"
+        Write-Host "  --no-mirror          Force use official source"
+        Write-Host "  --pyocd              Install pyocd for debugging"
+        Write-Host "  --env-root <path>    Set custom install directory"
+        Write-Host "  --en, --english      Force English messages"
+        Write-Host "  --zh, --chinese      Force Chinese messages"
+        Write-Host "  --embed-py           Force install portable Python (ignore system Python)"
+        Write-Host "  -h, --help           Show this help message"
+        Write-Host ""
+    }
+    exit 0
+}
 
 function Detect-China {
     # Check if user is in China (by IP or system locale)
@@ -103,27 +147,42 @@ function Detect-Language {
 
     $Global:LANG_CURRENT = "en"
     $Global:USE_CN = $false
+    $Global:USE_CN_SET = $false
     $Global:INSTALL_PYOCD = $false
-    $Global:INSTALL_OPENOCD = $false
     $Global:AUTO_MODE = $false
+    $Global:NEED_HELP = $false
+    $Global:USE_EMBED_PYTHON = $false
 
     foreach ($arg in $Args) {
-        if ($arg -eq "-y" -or $arg -eq "--yes" -or $arg -eq "--auto") {
+        if ($arg -eq "-h" -or $arg -eq "--help") {
+            $Global:NEED_HELP = $true
+        } elseif ($arg -eq "-y" -or $arg -eq "--yes" -or $arg -eq "--auto") {
             $Global:AUTO_MODE = $true
         } elseif ($arg -eq "--en" -or $arg -eq "--english") {
             $Global:LANG_CURRENT = "en"
         } elseif ($arg -eq "--zh" -or $arg -eq "--chinese" -or $arg -eq "--中文") {
             $Global:LANG_CURRENT = "zh"
+        } elseif ($arg -eq "--env-root") {
+            $idx = [Array]::IndexOf($Args, $arg)
+            if ($idx -lt $Args.Length - 1) {
+                $env:ENV_ROOT = $Args[$idx + 1]
+            }
         } elseif ($arg -eq "--cn" -or $arg -eq "--gitee") {
             $Global:USE_CN = $true
+            $Global:USE_CN_SET = $true
             $Global:LANG_CURRENT = "zh"
+        } elseif ($arg -eq "--no-mirror") {
+            $Global:USE_CN = $false
+            $Global:USE_CN_SET = $true
         } elseif ($arg -eq "--pyocd") {
             $Global:INSTALL_PYOCD = $true
+        } elseif ($arg -eq "--embed") {
+            $Global:USE_EMBED_PYTHON = $true
         }
     }
 
     # IP detection (lower priority, only if not explicitly set)
-    if (-not $Global:USE_CN) {
+    if (-not $Global:USE_CN_SET) {
         $Global:USE_CN = Detect-China
     }
 
@@ -131,7 +190,43 @@ function Detect-Language {
     if ($Global:USE_CN) {
         Write-LogInfo "using_cn_mirror"
     } else {
-        Write-LogInfo "using_github"
+        Write-LogInfo "using_official_source"
+    }
+
+    # Show help if requested
+    if ($Global:NEED_HELP) {
+        Print-Help
+    }
+}
+        } elseif ($arg -eq "--cn" -or $arg -eq "--gitee") {
+            $Global:USE_CN = $true
+            $Global:USE_CN_SET = $true
+            $Global:LANG_CURRENT = "zh"
+        } elseif ($arg -eq "--no-mirror") {
+            $Global:USE_CN = $false
+            $Global:USE_CN_SET = $true
+        } elseif ($arg -eq "--pyocd") {
+            $Global:INSTALL_PYOCD = $true
+        } elseif ($arg -eq "--embed") {
+            $Global:USE_EMBED_PYTHON = $true
+        }
+    }
+
+    # IP detection (lower priority, only if not explicitly set)
+    if (-not $Global:USE_CN_SET) {
+        $Global:USE_CN = Detect-China
+    }
+
+    # Log IP detection result
+    if ($Global:USE_CN) {
+        Write-LogInfo "using_cn_mirror"
+    } else {
+        Write-LogInfo "using_official_source"
+    }
+
+    # Show help if requested
+    if ($Global:NEED_HELP) {
+        Print-Help
     }
 }
 
@@ -147,10 +242,15 @@ $MSG_EN_warning = "WARNING"
 $MSG_EN_error = "ERROR"
 $MSG_EN_checking_python = "Checking Python..."
 $MSG_EN_python_found = "Python found: %s"
-$MSG_EN_python_not_found = "Python is not installed. Will install Python 3.12.10."
-$MSG_EN_installing_python = "Installing Python 3.12.10..."
-$MSG_EN_downloading_python = "Downloading Python..."
-$MSG_EN_python_installed = "Python installed. Please restart terminal and run this script again."
+$MSG_EN_checking_python_version = "Checking Python version..."
+$MSG_EN_python_version = "Python version: %s"
+$MSG_EN_python_version_too_low = "Python version %s is too old (requires >= 3.6). Installing portable Python..."
+$MSG_EN_python_not_found = "Python not found. Installing portable Python..."
+$MSG_EN_using_system_python = "Using system Python..."
+$MSG_EN_using_portable_python = "Installing portable Python..."
+$MSG_EN_installing_portable_python = "Installing portable Python %s..."
+$MSG_EN_downloading_portable_python = "Downloading portable Python..."
+$MSG_EN_python_installed = "Python installed successfully."
 $MSG_EN_checking_git = "Checking Git..."
 $MSG_EN_git_found = "Git found: %s"
 $MSG_EN_git_not_found = "Git is not installed. Will install Git v2.52.0.windows.1."
@@ -176,11 +276,11 @@ $MSG_EN_installing_windows = "Installing dependencies (Windows)..."
 $MSG_EN_unsupported_os = "Unsupported OS: %s"
 $MSG_EN_missing_gcc = "Missing GCC compiler, please install manually"
 $MSG_EN_installing_packages = "Installing Python packages..."
-$MSG_EN_env_root_exists = "Environment directory already exists: %s"
+$MSG_EN_env_root_exists = "RT-Thread ENV directory already exists: %s"
 $MSG_EN_env_root_prompt = "Existing RT-Thread ENV detected. Do you want to delete and reinstall?"
 $MSG_EN_env_root_confirm = "Are you sure you want to delete? [y/N] "
-$MSG_EN_removing_env_root = "Removing existing environment..."
-$MSG_EN_env_root_removed = "Existing environment removed"
+$MSG_EN_removing_env_root = "Removing existing RT-Thread ENV..."
+$MSG_EN_env_root_removed = "Existing RT-Thread ENV removed"
 $MSG_EN_installation_cancelled = "Installation cancelled"
 $MSG_EN_venv_not_found = "Virtual environment not found, please recreate"
 $MSG_EN_upgrading_pip = "Upgrading pip..."
@@ -191,15 +291,13 @@ $MSG_EN_pyocd_install_failed = "pyocd installation failed, please check network 
 $MSG_EN_pyocd_install_prompt = "Do you want to install pyocd (for debugging Cortex-M devices)?"
 $MSG_EN_pyocd_install_confirm = "Install pyocd? [y/N] "
 $MSG_EN_installation_skip_existing = "RT-Thread ENV already exists, skipping installation (use -y to force reinstall)"
-$MSG_EN_missing_python = "Python 3 not found, please install first"
-$MSG_EN_python_version_check = "Checking Python version..."
-$MSG_EN_python_version = "Python version: %s"
 $MSG_EN_python_version_failed = "Failed to get Python version information"
 $MSG_EN_creating_venv = "Creating virtual environment..."
 $MSG_EN_venv_created = "Virtual environment created"
 $MSG_EN_venv_exists = "Virtual environment already exists"
 $MSG_EN_activating_venv = "Activating virtual environment..."
 $MSG_EN_using_cn_mirror = "Using China mirror"
+$MSG_EN_using_official_source = "Using official source"
 $MSG_EN_using_github = "Using GitHub"
 $MSG_EN_using_pypi_mirror = "Using PyPI mirror: %s"
 $MSG_EN_installed_packages = "Python packages installed successfully"
@@ -227,10 +325,15 @@ $MSG_ZH_warning = "警告"
 $MSG_ZH_error = "错误"
 $MSG_ZH_checking_python = "正在检查 Python..."
 $MSG_ZH_python_found = "找到 Python: %s"
-$MSG_ZH_python_not_found = "未安装 Python。将安装 Python 3.12.10。"
-$MSG_ZH_installing_python = "正在安装 Python 3.12.10..."
-$MSG_ZH_downloading_python = "正在下载 Python..."
-$MSG_ZH_python_installed = "Python 已安装。请重新启动终端并再次运行此脚本。"
+$MSG_ZH_checking_python_version = "正在检查 Python 版本..."
+$MSG_ZH_python_version = "Python 版本: %s"
+$MSG_ZH_python_version_too_low = "Python 版本 %s 过低（需要 >= 3.6）。将安装便携式 Python..."
+$MSG_ZH_python_not_found = "未安装 Python。将安装便携式 Python。"
+$MSG_ZH_using_system_python = "使用系统 Python..."
+$MSG_ZH_using_portable_python = "正在安装便携式 Python..."
+$MSG_ZH_installing_portable_python = "正在安装便携式 Python %s..."
+$MSG_ZH_downloading_portable_python = "正在下载便携式 Python..."
+$MSG_ZH_python_installed = "Python 已安装成功。"
 $MSG_ZH_checking_git = "正在检查 Git..."
 $MSG_ZH_git_found = "找到 Git: %s"
 $MSG_ZH_git_not_found = "未安装 Git。将安装 Git v2.52.0.windows.1。"
@@ -257,11 +360,11 @@ $MSG_ZH_installing_windows = "正在安装依赖 (Windows)..."
 $MSG_ZH_unsupported_os = "不支持的操作系统: %s"
 $MSG_ZH_missing_gcc = "缺少 GCC 编译器，请手动安装"
 $MSG_ZH_installing_packages = "正在安装 Python 包..."
-$MSG_ZH_env_root_exists = "环境目录已存在: %s"
+$MSG_ZH_env_root_exists = "RT-Thread ENV 目录已存在: %s"
 $MSG_ZH_env_root_prompt = "检测到已存在的RT-Thread ENV。是否要删除并重新安装？"
 $MSG_ZH_env_root_confirm = "确定要删除吗？[y/N] "
-$MSG_ZH_removing_env_root = "正在删除现有环境..."
-$MSG_ZH_env_root_removed = "现有环境已删除"
+$MSG_ZH_removing_env_root = "正在删除现有RT-Thread ENV ..."
+$MSG_ZH_env_root_removed = "现有 RT-Thread ENV 已删除"
 $MSG_ZH_installation_cancelled = "安装已取消"
 $MSG_ZH_venv_not_found = "找不到虚拟环境，请重新创建"
 $MSG_ZH_upgrading_pip = "正在升级 pip..."
@@ -272,15 +375,13 @@ $MSG_ZH_pyocd_install_failed = "pyocd 安装失败，请检查网络连接或权
 $MSG_ZH_pyocd_install_prompt = "是否要安装 pyocd (用于调试 Cortex-M 设备)？"
 $MSG_ZH_pyocd_install_confirm = "安装 pyocd？[y/N] "
 $MSG_ZH_installation_skip_existing = "RT-Thread ENV 已存在，跳过安装（使用 -y 参数强制重新安装）"
-$MSG_ZH_missing_python = "未找到 Python 3，请先安装"
-$MSG_ZH_python_version_check = "正在检查 Python 版本..."
-$MSG_ZH_python_version = "Python 版本: %s"
 $MSG_ZH_python_version_failed = "无法获取 Python 版本信息"
 $MSG_ZH_creating_venv = "正在创建虚拟环境..."
 $MSG_ZH_venv_created = "虚拟环境创建完成"
 $MSG_ZH_venv_exists = "虚拟环境已存在"
 $MSG_ZH_activating_venv = "正在激活虚拟环境..."
 $MSG_ZH_using_cn_mirror = "使用中国镜像源"
+$MSG_ZH_using_official_source = "使用官方源"
 $MSG_ZH_using_github = "使用 GitHub 源"
 $MSG_ZH_using_pypi_mirror = "使用 PyPI 镜像: %s"
 $MSG_ZH_installed_packages = "Python 包安装完成"
@@ -382,7 +483,7 @@ function Generate-KconfigFile {
 }
 
 # ============================================================================
-# Python Installation
+# Python Installation (Windows-specific)
 # ============================================================================
 
 $PYTHON_VERSION = "3.12.10"
@@ -399,7 +500,7 @@ $GIT_FALLBACK_URL = "https://github.com/git-for-windows/git/releases/download/v2
 function Install-Python {
     param([bool]$UseCNMirror)
 
-    Write-LogInfo "downloading_python"
+    Write-LogInfo "downloading_embed_python"
     $archivePath = Join-Path $env:TEMP $PYTHON_ARCHIVE
 
     # Determine download URL based on mirror setting
@@ -408,7 +509,7 @@ function Install-Python {
     # Download Python embed archive
     Invoke-WebRequest -Uri $pythonUrl -OutFile $archivePath -UseBasicParsing
 
-    Write-LogInfo "installing_python"
+    Write-LogInfo "installing_embed_python"
 
     # Extract Python to ENV_ROOT directory
     $pythonTargetDir = "$env:ENV_ROOT\python"
@@ -417,7 +518,7 @@ function Install-Python {
     }
     New-Item -ItemType Directory -Path $pythonTargetDir -Force | Out-Null
 
-    # Extract the zip file
+    # Extract zip file
     Expand-Archive -Path $archivePath -DestinationPath $pythonTargetDir -Force
 
     # Cleanup archive
@@ -440,11 +541,11 @@ function Install-Python {
         Write-LogSuccess "pip_installed"
     }
 
-    Write-LogSuccess "python_installed"
+    Write-LogSuccess "embed_python_installed"
 }
 
 # ============================================================================
-# Git Installation
+# Git Installation (Windows-specific)
 # ============================================================================
 
 $GIT_FALLBACK_VERSION = "v2.52.0.windows.1"
@@ -558,7 +659,71 @@ function Install-Git {
 # Python Environment Setup
 # ============================================================================
 
+function Find-PythonAnd-CheckVersion {
+    # Find Python and check if version >= 3.6
+    # Returns: $null if not found, version number string if found and >= 3.6, "low" if found but < 3.6
+
+    # First check for Python in ENV_ROOT (prioritized location)
+    $envRootPython = Join-Path $env:ENV_ROOT "python"
+    $envRootPythonExe = Join-Path $envRootPython "python.exe"
+    if (Test-Path $envRootPythonExe) {
+        try {
+            $version = & $envRootPythonExe --version 2>&1 | Select-String "Python"
+            if ($?) {
+                $pythonCmd = $envRootPythonExe
+                # Extract version number (format: Python 3.x.y or Python 3.x.y.z)
+                $versionString = $version.Line -replace 'Python ', ''
+                # Parse version and check if >= 3.6
+                $versionParts = $versionString -split '[ .]'
+                if ($versionParts.Count -ge 2) {
+                    $major = [int]$versionParts[0]
+                    $minor = [int]$versionParts[1]
+                    if ($major -gt 3 -or ($major -eq 3 -and $minor -ge 6)) {
+                        return $versionString
+                    } else {
+                        return "low"
+                    }
+                }
+                Write-LogSuccess "python_found" "$($version.Line)"
+                return $pythonCmd
+            }
+        } catch {
+            # Fall through to system search
+        }
+    }
+
+    # Search for Python in system PATH
+    foreach ($cmd in @("python", "python3", "py")) {
+        try {
+            $version = & $cmd --version 2>&1 | Select-String "Python"
+            if ($?) {
+                $pythonCmd = $cmd
+                # Extract version number
+                $versionString = $version.Line -replace 'Python ', ''
+                # Parse version and check if >= 3.6
+                $versionParts = $versionString -split '[ .]'
+                if ($versionParts.Count -ge 2) {
+                    $major = [int]$versionParts[0]
+                    $minor = [int]$versionParts[1]
+                    if ($major -gt 3 -or ($major -eq 3 -and $minor -ge 6)) {
+                        return $versionString
+                    } else {
+                        return "low"
+                    }
+                }
+                Write-LogSuccess "python_found" "$($version.Line)"
+                return $pythonCmd
+            }
+        } catch {
+            continue
+        }
+    }
+
+    return $null
+}
+
 function Find-Python {
+    # Find Python without version check (used for venv creation)
     $pythonCmd = $null
 
     # First check for Python in ENV_ROOT (prioritized location)
@@ -703,27 +868,18 @@ function Show-NextSteps {
 }
 
 # ============================================================================
-# Main Function
+# Installation Steps Functions
 # ============================================================================
 
-function Main {
-    param([string[]]$Args)
-
-    # Detect language and mirror
-    Detect-Language $Args
-
-    # Show banner
-    Show-Banner
-
-    # Check if ENV_ROOT already exists and prompt for reinstallation
+function Check-ExistingEnv {
+    # Check if ENV_ROOT already exists and handle reinstallation
     if ((Test-Path $env:ENV_ROOT) -and (Test-Path "$env:ENV_ROOT\env.ps1")) {
         Write-LogWarning "env_root_exists" $env:ENV_ROOT
         if ($Global:AUTO_MODE) {
-            # Auto mode: skip existing environment
-            Write-LogInfo "installation_skip_existing"
-            exit 0
+            Write-LogInfo "removing_env_root"
+            Remove-Item -Path $env:ENV_ROOT -Recurse -Force
+            Write-LogSuccess "env_root_removed"
         } else {
-            # Interactive mode: prompt user
             Write-Host ""
             Write-Host "$(Get-Message 'env_root_prompt')"
             $response = Read-Host "$(Get-Message 'env_root_confirm')"
@@ -737,19 +893,41 @@ function Main {
             }
         }
     }
+}
 
-    # Check Python
-    Write-LogInfo "python_version_check"
-    $python = Find-Python
+function Ensure-Dependencies {
+    # Check Python version and decide whether to use system Python or install portable version
+    $pythonVersion = Find-PythonAndCheckVersion
+    $usePortablePython = $false
 
-    if (-not $python) {
+    if ($pythonVersion) {
+        # Python found, check version
+        if ($pythonVersion -eq "low") {
+            # Version < 3.6, use portable Python
+            $usePortablePython = $true
+            Write-LogInfo "python_version_too_low"
+        } else {
+            # Version >= 3.6, use system Python unless --embed specified
+            if ($Global:USE_EMBED_PYTHON) {
+                $usePortablePython = $true
+                Write-LogInfo "using_portable_python"
+            } else {
+                $usePortablePython = $false
+                Write-LogInfo "using_system_python"
+            }
+        }
+    } else {
+        # Python not found, install portable version
+        $usePortablePython = $true
         Write-LogInfo "python_not_found"
-        Install-Python -UseCNMirror $Global:USE_CN
-        # Refresh Python path after installation
-        $python = Find-Python
     }
 
-    # Check Git
+    # Install or use Python
+    if ($usePortablePython) {
+        Install-Python -UseCNMirror $Global:USE_CN
+    }
+
+    # Check and install Git if missing
     if (-not (Test-Command "git")) {
         Write-LogInfo "git_not_found"
         Install-Git -UseCNMirror $Global:USE_CN
@@ -761,12 +939,14 @@ function Main {
 
     $gitVersion = git --version 2>&1
     Write-LogSuccess "git_found" $gitVersion
+}
 
+function Setup-Repositories {
     # Set repository configuration based on mirror selection
-    if ($Global:USE_CN) {
-        $repoConfig = @($REPO_PACKAGES_GITEE, $REPO_ENV_GITEE, $REPO_SDK_GITEE)
+    $repoConfig = if ($Global:USE_CN) {
+        @($REPO_PACKAGES_GITEE, $REPO_ENV_GITEE, $REPO_SDK_GITEE)
     } else {
-        $repoConfig = @($REPO_PACKAGES_GITHUB, $REPO_ENV_GITHUB, $REPO_SDK_GITHUB)
+        @($REPO_PACKAGES_GITHUB, $REPO_ENV_GITHUB, $REPO_SDK_GITHUB)
     }
 
     # Clone repositories
@@ -785,17 +965,14 @@ function Main {
     }
 
     Write-Host ""
+}
 
-    # Create virtual environment
-    Create-Venv
-
-    # Prompt for pyocd installation if not already specified
+function Prompt-Pyocd {
+    # Prompt user for pyocd installation (optional debugging tool)
     if (-not $Global:INSTALL_PYOCD) {
         if ($Global:AUTO_MODE) {
-            # Auto mode: don't install pyocd by default
             $Global:INSTALL_PYOCD = $false
         } else {
-            # Interactive mode: prompt user
             Write-Host ""
             Write-Host "$(Get-Message 'pyocd_install_prompt')"
             $response = Read-Host "$(Get-Message 'pyocd_install_confirm')"
@@ -804,15 +981,47 @@ function Main {
             }
         }
     }
+}
 
-    # Install Python packages
+# ============================================================================
+# Main Function
+# ============================================================================
+
+function Main {
+    param([string[]]$Args)
+
+    # Step 1: Detect language and mirror settings
+    Detect-Language $Args
+
+    # Step 2: Print installation banner
+    Show-Banner
+
+    # Step 3: Check if ENV_ROOT already exists
+    Check-ExistingEnv
+
+    # Step 4: Ensure Python and Git are installed
+    Ensure-Dependencies
+
+    # Step 5: Clone repositories and generate configuration
+    Setup-Repositories
+
+    # Step 6: Create virtual environment
+    Create-Venv
+
+    # Step 7: Prompt user for pyocd installation
+    Prompt-Pyocd
+
+    # Step 8: Install Python packages and pyocd (if requested)
     Write-LogInfo "installing_packages"
     Install-PythonPackages -UseCNMirror $Global:USE_CN -ScriptsDir "$env:ENV_ROOT\tools\scripts" -InstallPyocd $Global:INSTALL_PYOCD
     Write-Host ""
 
-    # Show next steps
+    # Step 9: Show next steps
     Show-NextSteps
 }
 
-# Run main function
+# ============================================================================
+# Run Main Function
+# ============================================================================
+
 Main $Args
