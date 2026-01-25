@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
+# Ubuntu 快速安装脚本
+# 用法:
+#   ./install_ubuntu.sh              # 自动安装（使用 GitHub 或 Gitee）
+#   ./install_ubuntu.sh --cn        # 自动安装（使用中国镜像）
+#   ./install_ubuntu.sh --gitee     # 自动安装（使用 Gitee）
+#   ./install_ubuntu.sh --en        # 自动安装（英文界面）
 
-sudo apt-get update
-sudo apt-get -qq install python3 python3-pip gcc git libncurses5-dev -y
-pip install scons requests tqdm kconfiglib pyyaml
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-url=https://raw.githubusercontent.com/RT-Thread/env/master/touch_env.sh
-if [ $1 ] && [ $1 = --gitee ]; then
-    url=https://gitee.com/RT-Thread-Mirror/env/raw/master/touch_env.sh
+# 检查是否传递了 -y 参数，如果没有则添加
+if [[ ! " $@ " =~ " -y " ]]; then
+    exec "$SCRIPT_DIR/install.sh" -y "$@"
+else
+    exec "$SCRIPT_DIR/install.sh" "$@"
 fi
-
-wget $url -O touch_env.sh
-chmod 777 touch_env.sh
-./touch_env.sh $@
-rm touch_env.sh

@@ -40,15 +40,17 @@ from cmds import *
 from vars import Export
 from version import get_rt_env_version
 
-def show_version_warning():
+def show_version():
     rtt_ver = get_rtt_verion()
     rt_env_name, rt_env_ver = get_rt_env_version()
+    print('===================================================================')
+    print('Welcome to %s %s' % (rt_env_name, rt_env_ver))
+    print('===================================================================')
+
+def show_version_warning():
+    rtt_ver = get_rtt_verion()
 
     if rtt_ver <= (5, 1, 0) and rtt_ver != (0, 0, 0):
-        print('===================================================================')
-        print('Welcome to %s %s' % (rt_env_name, rt_env_ver))
-        print('===================================================================')
-        # print('')
         print('env v2.0 has made the following important changes:')
         print('1. Upgrading Python version from v2 to v3')
         print('2. Replacing kconfig-frontends with Python kconfiglib')
