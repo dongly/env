@@ -5,16 +5,16 @@
 # Supports: English / 中文
 #
 # Usage:
-#   ./install.sh                           # Interactive installation (prompts for confirmation)
-#   ./install.sh -y                        # Auto-install (no prompts, default answers)
-#   ./install.sh --pyocd                  # Install pyocd
-#   ./install.sh --env-root <path>        # Set custom .env directory path
-#   ./install.sh --cn                     # Use Chinese mirror (npmmirror, Gitee)
-#   ./install.sh --cn --env-root <path>  # Use custom path + CN mirror
-#   ./install.sh --gitee                  # Use Gitee mirror
-#   ./install.sh --no-mirror              # Force use official source (disable mirrors)
-#   ./install.sh --en                     # Force English messages
-#   ./install.sh --zh                     # Force Chinese messages
+#   ./install.sh [-y] [--cn|--gitee|--no-mirror] [--pyocd] [--env-root <path>] [--en|--zh] [-h|--help]
+#
+# Options:
+#   -y           Auto-install without prompts
+#   --cn/--gitee Use China mirror (Gitee, PyPI TUNA)
+#   --no-mirror  Force use official source
+#   --pyocd      Install pyocd for debugging
+#   --env-root   Set custom install directory
+#   --en/--zh    Force language (English/Chinese)
+#   -h/--help    Show this help message
 #
 
 # ============================================================================
@@ -36,7 +36,8 @@ else
 fi
 
 # Environment directory (can be overridden by --env-root or $ENV_ROOT)
-: "${ENV_ROOT:=$REAL_USER_HOME/.env}"
+ENV_DEFAULT_DIR=".rtenv"
+: "${ENV_ROOT:=$REAL_USER_HOME/$ENV_DEFAULT_DIR}"
 
 # Virtual environment directory name
 VENV_DIR="rt-venv"
@@ -116,6 +117,41 @@ generate_kconfig_file() {
 
 LANG_CURRENT="en"
 
+print_help() {
+    if [ "$LANG_CURRENT" = "zh" ]; then
+        echo "RT-Thread ENV 安装程序"
+        echo ""
+        echo "用法: $0 [选项]"
+        echo ""
+        echo "选项:"
+        echo "  -y, --yes, --auto    自动安装，无需提示"
+        echo "  --cn, --gitee        使用中国镜像（Gitee，清华 PyPI）"
+        echo "  --no-mirror          强制使用官方源"
+        echo "  --pyocd              安装 pyocd（用于调试）"
+        echo "  --env-root <path>    设置自定义安装目录"
+        echo "  --en, --english      强制显示英文信息"
+        echo "  --zh, --chinese      强制显示中文信息"
+        echo "  -h, --help           显示此帮助信息"
+        echo ""
+    else
+        echo "RT-Thread ENV Installation Script"
+        echo ""
+        echo "Usage: $0 [OPTIONS]"
+        echo ""
+        echo "Options:"
+        echo "  -y, --yes, --auto    Auto-install without prompts"
+        echo "  --cn, --gitee        Use China mirror (Gitee, PyPI TUNA)"
+        echo "  --no-mirror          Force use official source"
+        echo "  --pyocd              Install pyocd for debugging"
+        echo "  --env-root <path>    Set custom install directory"
+        echo "  --en, --english      Force English messages"
+        echo "  --zh, --chinese      Force Chinese messages"
+        echo "  -h, --help           Show this help message"
+        echo ""
+    fi
+    exit 0
+}
+
 detect_china() {
     # Check if user is in China (by IP or system locale)
     use_cn="false"
@@ -157,9 +193,13 @@ detect_language() {
     use_cn_set="false"
     install_pyocd="false"
     auto_mode="false"
+    need_help="false"
 
     for arg in "$@"; do
         case "$arg" in
+            -h|--help)
+                need_help="true"
+                ;;
             -y|--yes|--auto)
                 auto_mode="true"
                 ;;
@@ -168,7 +208,6 @@ detect_language() {
                 ;;
             --zh|--chinese|--中文)
                 LANG_CURRENT="zh"
-                return
                 ;;
             --env-root)
                 shift
@@ -199,6 +238,11 @@ detect_language() {
         log_info "using_cn_mirror"
     else
         log_info "using_official_source"
+    fi
+    
+    if [ "$need_help" = "true" ]; then
+        print_help
+        exit 0
     fi
 }
 
@@ -602,48 +646,43 @@ print_banner() {
 }
 
 print_next_steps() {
+    local env_dir="$ENV_ROOT"
+    local current_shell
+    current_shell=$(detect_shell)
+
+    local shell_config
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        shell_config="~/.zshrc"
+    else
+        if [ "$current_shell" = "zsh" ]; then
+            shell_config="~/.zshrc"
+        else
+            shell_config="~/.bashrc"
+        fi
+    fi
+
     echo ""
     echo "============================================================"
     log_success "setup_complete"
     echo "============================================================"
     echo ""
-    log_info "next_steps"
+    log_info "$(get_message 'next_steps')"
     echo ""
-    log_info "activate_env"
-    local env_dir="$ENV_ROOT"
-    local activate_cmd="source $env_dir/env.sh"
-    echo "$activate_cmd"
+    echo "$(get_message 'activate_env')"
+    echo "   source $env_dir/env.sh"
     echo ""
-    log_info "add_to_profile"
-    
-    # Detect current shell
-    local current_shell
-    current_shell=$(detect_shell)
-    
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS: default to zsh
-        echo "$(printf "$(get_message 'add_zshrc')" "$env_dir")"
-        echo "$(get_message 'source_zshrc')"
-    else
-        # Linux: detect shell
-        if [ "$current_shell" = "zsh" ]; then
-            echo "$(printf "$(get_message 'add_zshrc')" "$env_dir")"
-            echo "$(get_message 'source_zshrc')"
-        else
-            # bash or unknown
-            echo "$(printf "$(get_message 'add_bashrc')" "$env_dir")"
-            echo "$(get_message 'source_bashrc')"
-        fi
-    fi
+    echo "$(get_message 'add_to_profile')"
+    echo "   echo 'source $env_dir/env.sh' >> $shell_config"
+    echo "   source $shell_config"
     echo ""
-    log_info "install_toolchain"
+    echo "$(get_message 'install_toolchain')"
     echo "   $(get_message 'install_toolchain_cmd')"
     echo ""
-    log_info "after_activation"
-    echo "$(get_message 'menuconfig')"
-    echo "$(get_message 'pkgs')"
-    echo "$(get_message 'scons')"
-    echo "$(get_message 'sdk')"
+    echo "$(get_message 'after_activation')"
+    echo "   - menuconfig    : $(get_message 'menuconfig' | sed 's/- menuconfig    : //')"
+    echo "   - pkgs          : $(get_message 'pkgs' | sed 's/- pkgs          : //')"
+    echo "   - scons         : $(get_message 'scons' | sed 's/- scons         : //')"
+    echo "   - sdk           : $(get_message 'sdk' | sed 's/- sdk           : //')"
     echo ""
 }
 
