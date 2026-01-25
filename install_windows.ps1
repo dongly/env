@@ -55,7 +55,7 @@ $IPINFO_URL = "https://ipinfo.io/json"
 $GIT_DOWNLOAD_URL = "https://git-scm.com/download/win"
 
 # ============================================================================
-# Language Detection
+# Argument Parsing
 # ============================================================================
 
 $Global:LANG_CURRENT = "en"
@@ -142,7 +142,7 @@ function Detect-China {
     return $use_cn
 }
 
-function Detect-Language {
+function Parse-Args {
     param([string[]]$Args)
 
     $Global:LANG_CURRENT = "en"
@@ -959,8 +959,8 @@ function Prompt-Pyocd {
 function Main {
     param([string[]]$Args)
 
-    # Step 1: Detect language and mirror settings
-    Detect-Language $Args
+    # Step 1: Parse command line arguments
+    Parse-Args $Args
 
     # Step 2: Print installation banner
     Show-Banner

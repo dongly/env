@@ -112,7 +112,7 @@ generate_kconfig_file() {
 }
 
 # ============================================================================
-# Language Detection
+# Argument Parsing
 # ============================================================================
 
 LANG_CURRENT="en"
@@ -187,7 +187,7 @@ detect_china() {
     fi
 }
 
-detect_language() {
+parse_args() {
     LANG_CURRENT="en"
     use_cn="false"
     use_cn_set="false"
@@ -769,8 +769,8 @@ fix_ownership() {
 main() {
     set -e  # Exit on error
 
-    # Step 1: Detect language and mirror settings from command line arguments
-    detect_language "$@"
+    # Step 1: Parse command line arguments
+    parse_args "$@"
 
     # Step 2: Print installation banner
     print_banner
