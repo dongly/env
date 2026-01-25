@@ -198,37 +198,6 @@ function Detect-Language {
         Print-Help
     }
 }
-        } elseif ($arg -eq "--cn" -or $arg -eq "--gitee") {
-            $Global:USE_CN = $true
-            $Global:USE_CN_SET = $true
-            $Global:LANG_CURRENT = "zh"
-        } elseif ($arg -eq "--no-mirror") {
-            $Global:USE_CN = $false
-            $Global:USE_CN_SET = $true
-        } elseif ($arg -eq "--pyocd") {
-            $Global:INSTALL_PYOCD = $true
-        } elseif ($arg -eq "--embed") {
-            $Global:USE_EMBED_PYTHON = $true
-        }
-    }
-
-    # IP detection (lower priority, only if not explicitly set)
-    if (-not $Global:USE_CN_SET) {
-        $Global:USE_CN = Detect-China
-    }
-
-    # Log IP detection result
-    if ($Global:USE_CN) {
-        Write-LogInfo "using_cn_mirror"
-    } else {
-        Write-LogInfo "using_official_source"
-    }
-
-    # Show help if requested
-    if ($Global:NEED_HELP) {
-        Print-Help
-    }
-}
 
 # ============================================================================
 # Messages
