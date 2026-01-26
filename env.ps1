@@ -7,6 +7,11 @@ $env:RT_VENV_DIR = if ($env:RT_VENV_DIR) { $env:RT_VENV_DIR } else { "$env:ENV_R
 
 if (Test-Path "$env:RT_VENV_DIR\Scripts\Activate.ps1") {
     . "$env:RT_VENV_DIR\Scripts\Activate.ps1"
+    
+    # Show welcome message using rt-env command
+    if (Get-Command rt-env -ErrorAction SilentlyContinue) {
+        rt-env -v
+    }
 } else {
     Write-Host "Virtual environment($env:RT_VENV_DIR\Scripts\Activate.ps1) not found. Please run the installation script first."
     exit 1

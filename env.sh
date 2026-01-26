@@ -8,6 +8,11 @@
 # Activate Python virtual environment
 if [ -f "$ENV_ROOT/$RT_VENV_DIR/bin/activate" ]; then
     source "$ENV_ROOT/$RT_VENV_DIR/bin/activate"
+    
+    # Show welcome message using rt-env command
+    if command -v rt-env &> /dev/null; then
+        rt-env -v
+    fi
 else
     echo "Virtual environment not found. Please run the installation script first."
     exit 1

@@ -43,8 +43,16 @@ from version import get_rt_env_version
 def show_version():
     rtt_ver = get_rtt_verion()
     rt_env_name, rt_env_ver = get_rt_env_version()
+    
     print('===================================================================')
     print('Welcome to %s %s' % (rt_env_name, rt_env_ver))
+    print('===================================================================')
+    print('Environment Information:')
+    print('  - ENV_ROOT: %s' % get_env_root())
+    print('  - PKGS_ROOT: %s' % get_package_root())
+    print('  - BSP_ROOT: %s' % get_bsp_root())
+    if rtt_ver != (0, 0, 0):
+        print('  - RT-Thread Version: %d.%d.%d' % rtt_ver)
     print('===================================================================')
 
 def show_version_warning():
@@ -74,7 +82,9 @@ def init_argparse():
 
     rt_env_name, rt_env_ver = get_rt_env_version()
     env_ver_str = '%s %s' % (rt_env_name, rt_env_ver)
-    parser.add_argument('-v', '--version', action='version', version=env_ver_str)
+    
+    # Override -v to show welcome message instead of version
+    parser.add_argument('-v', '--version', action='store_true', help='Show environment information')
 
     cmd_system.add_parser(subs)
     cmd_menuconfig.add_parser(subs)
@@ -226,7 +236,11 @@ def main():
     parser = init_argparse()
     args = parser.parse_args()
 
-    if not vars(args):
+    if args.version:
+        # -v flag, show welcome message
+        show_version()
+        show_version_warning()
+    elif not vars(args):
         parser.print_help()
     else:
         args.func(args)
