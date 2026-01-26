@@ -4,7 +4,7 @@
 # Supports: English / 中文
 #
 # Usage:
-#   .\install.ps1 [-y] [-c] [-o] [-p] [-e <path>] [-E|-Z] [-P] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [-h]
+#   .\install.ps1 [-y] [-c] [-o] [-p] [-e <path>] [-E|-Z] [-P] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--skip-long-path] [-h]
 #
 # Options:
 #   -y, --yes, --auto    Auto-install without prompts
@@ -18,6 +18,7 @@
 #   --packages <repo>[#<branch>]  Specify custom packages repository and branch
 #   --env <repo>[#<branch>]  Specify custom env repository and branch
 #   --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
+#   --skip-long-path     Skip enabling Windows long path support
 #   -h, --help           Show this help message
 #
 
@@ -30,6 +31,7 @@ $pyocdMode = $false
 $pythonMode = $false
 $enMode = $false
 $zhMode = $false
+$skipLongPath = $false
 $envRootValue = ""
 $customPackagesRepo = ""
 $customPackagesBranch = ""
@@ -131,7 +133,22 @@ foreach ($arg in $args) {
                 $envRootValue = $args[$idx]
             }
         }
+        "--skip-long-path" {
+            $skipLongPath = $true
+        }
     }
+}
+
+# ============================================================================
+# Check PowerShell Version
+# ============================================================================
+
+$requiredPSVersion = "5.1"
+$psVersion = $PSVersionTable.PSVersion
+if ($psVersion.Major -lt 5 -or ($psVersion.Major -eq 5 -and $psVersion.Minor -lt 1)) {
+    Write-Host "Error: This script requires PowerShell $requiredPSVersion or later." -ForegroundColor Red
+    Write-Host "Current version: $($psVersion)" -ForegroundColor Red
+    exit 1
 }
 
 # ============================================================================
@@ -141,18 +158,6 @@ foreach ($arg in $args) {
 # Environment directory (can be overridden by --env-root or $env:ENV_ROOT)
 $ENV_DEFAULT_DIR = ".rtenv"
 $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\$ENV_DEFAULT_DIR" }
-
-# Validate ENV_ROOT (no spaces or special characters)
-if ($env:ENV_ROOT -match "\s") {
-    Write-Host "Error: ENV_ROOT cannot contain spaces" -ForegroundColor Red
-    exit 1
-}
-
-# Validate ENV_ROOT (no non-ASCII characters)
-if ($env:ENV_ROOT -match "[^\x00-\x7F]") {
-    Write-Host "Error: ENV_ROOT cannot contain non-ASCII characters" -ForegroundColor Red
-    exit 1
-}
 
 # Virtual environment directory name
 $Global:VENV_DIR = "venv\rt-env"
@@ -173,9 +178,6 @@ $REPO_SDK_GITEE = "https://gitee.com/RT-Thread-Mirror/sdk.git"
 
 # PyPI mirror configurations
 $PYPI_MIRROR_CN = "https://pypi.tuna.tsinghua.edu.cn/simple"
-
-# get-pip.py download URLs
-$GETPIP_URL = "https://bootstrap.pypa.io/get-pip.py"
 
 # IP detection service
 $IPINFO_URL = "https://ipinfo.io/json"
@@ -225,9 +227,13 @@ function Print-Help {
         Write-Host "  -E, --en, --english  强制显示英文信息"
         Write-Host "  -Z, --zh, --chinese  强制显示中文信息"
         Write-Host "  -P, --python         强制安装便携式 Python（忽略系统 Python）"
-        Write-Host "  --packages <repo>[#<branch>]  指定 packages 仓库地址及分支"
-        Write-Host "  --env <repo>[#<branch>]  指定 env 仓库地址及分支"
-        Write-Host "  --sdk <repo>[#<branch>]  指定 sdk 仓库地址及分支"
+        Write-Host "  --packages <repo>    指定 packages 仓库地址和分支"
+        Write-Host "                        格式: url[#branch]"
+        Write-Host "  --env <repo>         指定 env 仓库地址和分支"
+        Write-Host "                        格式: url[#branch]"
+        Write-Host "  --sdk <repo>         指定 sdk 仓库地址和分支"
+        Write-Host "                        格式: url[#branch]"
+        Write-Host "  --skip-long-path     跳过启用 Windows 长路径支持"
         Write-Host "  -h, --help           显示此帮助信息"
         Write-Host ""
     }
@@ -245,9 +251,13 @@ function Print-Help {
         Write-Host "  -E, --en, --english  Force English messages"
         Write-Host "  -Z, --zh, --chinese  Force Chinese messages"
         Write-Host "  -P, --python         Force install portable Python (ignore system Python)"
-        Write-Host "  --packages <repo>[#<branch>]  Specify custom packages repository and branch"
-        Write-Host "  --env <repo>[#<branch>]  Specify custom env repository and branch"
-        Write-Host "  --sdk <repo>[#<branch>]  Specify custom sdk repository and branch"
+        Write-Host "  --packages <repo>    Specify custom packages repository and branch"
+        Write-Host "                        Format: url[#branch]"
+        Write-Host "  --env <repo>         Specify custom env repository and branch"
+        Write-Host "                        Format: url[#branch]"
+        Write-Host "  --sdk <repo>         Specify custom sdk repository and branch"
+        Write-Host "                        Format: url[#branch]"
+        Write-Host "  --skip-long-path     Skip enabling Windows long path support"
         Write-Host "  -h, --help           Show this help message"
         Write-Host ""
     }
@@ -313,7 +323,6 @@ $MSG_EN_python_installed = "Python installed successfully."
 $MSG_EN_checking_git = "Checking Git..."
 $MSG_EN_git_found = "Git found: {0}"
 $MSG_EN_installing_pip = "Installing pip..."
-$MSG_EN_downloading_get_pip = "Downloading get-pip.py..."
 $MSG_EN_pip_installed = "pip installed successfully"
 $MSG_EN_downloading_git = "Downloading Git..."
 $MSG_EN_installing_git = "Installing Git..."
@@ -353,8 +362,6 @@ $MSG_EN_env_root_removed = "Existing RT-Thread ENV removed: {0}"
 $MSG_EN_installation_cancelled = "Installation cancelled"
 $MSG_EN_venv_not_found = "Virtual environment not found, please recreate"
 $MSG_EN_upgrading_pip = "Upgrading pip..."
-$MSG_EN_installing_virtualenv = "Installing virtualenv..."
-$MSG_EN_virtualenv_installed = "virtualenv installed successfully"
 $MSG_EN_pip_install_failed = "pip installation failed"
 $MSG_EN_package_install_failed = "Package installation failed, please check network connection or permissions"
 $MSG_EN_pyocd_install_prompt = "Do you want to install pyocd (for debugging Cortex-M devices)?"
@@ -415,9 +422,6 @@ $MSG_ZH_checking_git = "正在检查 Git..."
 $MSG_ZH_git_found = "找到 Git: {0}"
 $MSG_ZH_git_not_found = "未安装 Git。将安装 Git v2.52.0.windows.1。"
 $MSG_ZH_installing_pip = "正在安装 pip..."
-$MSG_ZH_downloading_get_pip = "正在下载 get-pip.py..."
-$MSG_ZH_installing_virtualenv = "正在安装 virtualenv..."
-$MSG_ZH_virtualenv_installed = "virtualenv 安装成功"
 $MSG_ZH_pip_installed = "pip 安装成功"
 $MSG_ZH_pip_install_failed = "pip 安装失败"
 $MSG_ZH_downloading_git = "正在下载 Git..."
@@ -766,7 +770,7 @@ function Install-Git {
 # ============================================================================
 
 $PYTHON_VERSION = "3.13.11"
-$PYTHON_ARCHIVE = "python-$PYTHON_VERSION-embed-amd64.zip"
+$PYTHON_ARCHIVE = "python-3.13.11-amd64.zip"
 # Python download URLs
 $PYTHON_URL_DEFAULT = "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
 $PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
@@ -782,7 +786,9 @@ function Install-Python {
 
     Download-PortablePython -UseCNMirror $UseCNMirror
     Extract-PortablePython
-    Enable-LongPathSupport
+    if (-not $skipLongPath) {
+        Enable-LongPathSupport
+    }
     Configure-PythonPth
     Install-Pip -UseCNMirror $UseCNMirror
 
@@ -815,7 +821,7 @@ function Download-PortablePython {
 }
 
 function Extract-PortablePython {
-    Write-LogInfo "installing_portable_python"
+    Write-LogInfo "installing_portable_python" $PYTHON_VERSION
 
     $archivePath = Join-Path $env:TEMP $PYTHON_ARCHIVE
     $pythonTargetDir = "$env:ENV_ROOT\python"
@@ -825,8 +831,43 @@ function Extract-PortablePython {
     }
     New-Item -ItemType Directory -Path $pythonTargetDir -Force | Out-Null
 
-    # Extract zip file
-    Expand-Archive -Path $archivePath -DestinationPath $pythonTargetDir -Force
+    # Extract zip file, excluding Doc directory
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    Add-Type -AssemblyName System.IO.Compression
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
+    try {
+        foreach ($entry in $zip.Entries) {
+            if ($entry.FullName -like 'Doc/*' -or $entry.FullName -eq 'Doc') { continue }
+            $entryPath = Join-Path $pythonTargetDir $entry.FullName
+            if ($entry.Name -eq '') {
+                # Directory entry
+                New-Item -ItemType Directory -Path $entryPath -Force | Out-Null
+            }
+            else {
+                $entryDir = Split-Path $entryPath -Parent
+                if (-not (Test-Path $entryDir)) {
+                    New-Item -ItemType Directory -Path $entryDir -Force | Out-Null
+                }
+                # Use .NET 4.5+ method to extract file
+                $stream = [System.IO.File]::Create($entryPath)
+                try {
+                    $entryStream = $entry.Open()
+                    try {
+                        $entryStream.CopyTo($stream)
+                    }
+                    finally {
+                        $entryStream.Dispose()
+                    }
+                }
+                finally {
+                    $stream.Dispose()
+                }
+            }
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
 
     # Cleanup archive
     Remove-Item $archivePath -ErrorAction SilentlyContinue
@@ -911,71 +952,37 @@ catch {
 function Configure-PythonPth {
     # Modify python3xx._pth to enable site-packages and ensurepip
     $pythonTargetDir = "$env:ENV_ROOT\python"
-    $pthFile = Get-ChildItem -Path $pythonTargetDir -Filter "*._pth"
-    if ($pthFile) {
-        $pthContent = Get-Content -Path $pthFile.FullName -Raw
-        # Uncomment import site to enable site-packages
-        $pthContent = $pthContent -replace "#import site", "import site"
-        Set-Content -Path $pthFile.FullName -Value $pthContent -NoNewline
+    try {
+        $pthFile = Get-ChildItem -Path $pythonTargetDir -Filter "*._pth" -ErrorAction Stop
+        if ($pthFile) {
+            $pthContent = Get-Content -Path $pthFile.FullName -Raw -ErrorAction Stop
+            # Uncomment import site to enable site-packages
+            $pthContent = $pthContent -replace "#import site", "import site"
+            Set-Content -Path $pthFile.FullName -Value $pthContent -NoNewline -ErrorAction Stop
+        }
+    }
+    catch {
+        Write-LogWarning "pip_install_failed"
     }
 }
 
 function Install-Pip {
     param([bool]$UseCNMirror)
 
-    # Install pip using get-pip.py (embedded Python 3.13+ doesn't have ensurepip)
     $pythonTargetDir = "$env:ENV_ROOT\python"
     $pythonExe = Join-Path $pythonTargetDir "python.exe"
     
     if (Test-Path $pythonExe) {
         Write-LogInfo "installing_pip"
         
-        # Download get-pip.py
-        try {
-            Write-LogInfo "downloading_get_pip"
-            $getPipContent = Invoke-WebRequest -Uri $GETPIP_URL -UseBasicParsing -ErrorAction Stop
-        }
-        catch {
-            Write-LogError "download_failed" $_.Exception.Message
+        # Use ensurepip to install pip
+        $process = Start-Process -FilePath $pythonExe -ArgumentList "-m", "ensurepip", "--upgrade" -NoNewWindow -Wait -PassThru
+        if ($process.ExitCode -ne 0) {
+            Write-LogError "pip_install_failed"
             exit 1
         }
-
-        # Pip mirror setting (used after pip is installed)
-        $pipMirror = if ($UseCNMirror) { "--index-url $PYPI_MIRROR_CN" } else { "" }
         
-        # Write get-pip.py to temp file and run (suppress stderr)
-        $tempScript = [System.IO.Path]::GetTempFileName() + ".py"
-        $tempErr = [System.IO.Path]::GetTempFileName()
-        try {
-            $getPipContent.Content | Set-Content -Path $tempScript -Encoding utf8
-            $pipArgs = "`"$tempScript`" --ignore-installed"
-            Start-Process -FilePath $pythonExe -ArgumentList $pipArgs -NoNewWindow -Wait -RedirectStandardError $tempErr 2>&1 | Out-Null
-        }
-        finally {
-            if (Test-Path $tempScript) { Remove-Item $tempScript -ErrorAction SilentlyContinue }
-            if (Test-Path $tempErr) { Remove-Item $tempErr -ErrorAction SilentlyContinue }
-        }
-
-        # Check if pip was installed
-        $pipExe = Join-Path $pythonTargetDir "Scripts\pip.exe"
-        if (Test-Path $pipExe) {
-            Write-LogSuccess "pip_installed"
-
-            # Also install virtualenv for virtual environment creation
-            Write-LogInfo "installing_virtualenv"
-            $tempErr2 = [System.IO.Path]::GetTempFileName()
-            try {
-                $venvArgs = "-m pip install virtualenv $pipMirror"
-                Start-Process -FilePath $pythonExe -ArgumentList $venvArgs -NoNewWindow -Wait -RedirectStandardError $tempErr2 2>&1 | Out-Null
-            }
-            finally {
-                if (Test-Path $tempErr2) { Remove-Item $tempErr2 -ErrorAction SilentlyContinue }
-            }
-            Write-LogSuccess "virtualenv_installed"
-        }
-        else {
-            Write-LogError "pip_install_failed"
-        }
+        Write-LogSuccess "pip_installed"
     }
 }
 
@@ -983,65 +990,56 @@ function Install-Pip {
 # Python Environment Setup
 # ============================================================================
 
-function Find-Python {
-    param([switch]$CheckVersion)
-    # Find Python
-    # If -CheckVersion is set: Returns version string if >= 3.6, "low" if < 3.6, $null if not found
-    # If -CheckVersion is not set: Returns python command path, $null if not found
+function Find-SystemPython {
+    # Find Python in common installation paths first, then system PATH
+    # Returns: array of python paths, $null if not found
 
-    # First check for Python in ENV_ROOT (prioritized location)
-    $envRootPython = Join-Path $env:ENV_ROOT "python"
-    $envRootPythonExe = Join-Path $envRootPython "python.exe"
-    if (Test-Path $envRootPythonExe) {
-        try {
-            $version = & $envRootPythonExe --version 2>&1 | Select-String "Python"
-            if ($?) {
-                $pythonCmd = $envRootPythonExe
-                if ($CheckVersion) {
-                    $versionString = $version.Line -replace 'Python ', ''
-                    $versionParts = $versionString -split '[ .]'
-                    if ($versionParts.Count -ge 2) {
-                        $major = [int]$versionParts[0]
-                        $minor = [int]$versionParts[1]
-                        if ($major -gt 3 -or ($major -eq 3 -and $minor -ge 6)) {
-                            return $versionString
-                        }
-                        else {
-                            return "low"
-                        }
-                    }
+    $userProfile = $env:USERPROFILE
+    $localAppData = $env:LOCALAPPDATA
+    $programFiles = $env:ProgramFiles
+    $programFilesX86 = ${env:ProgramFiles(x86)}
+    $drives = Get-PSDrive -PSProvider FileSystem | Select-Object -ExpandProperty Root
+    $foundPaths = @()
+
+    $searchPaths = @()
+    $searchPaths += "$localAppData\Programs\Python\python.exe"
+    $searchPaths += "$localAppData\Programs\Python\Python*\python.exe"
+    $searchPaths += "$programFiles\Python\python.exe"
+    $searchPaths += "$programFilesX86\Python\python.exe"
+    $searchPaths += "$programFiles\Python\Python*\python.exe"
+    $searchPaths += "$programFilesX86\Python\Python*\python.exe"
+    $searchPaths += "$localAppData\Microsoft\WindowsApps\python.exe"
+    $searchPaths += "$userProfile\Anaconda3\python.exe"
+    $searchPaths += "$userProfile\Miniconda3\python.exe"
+    $searchPaths += "$userProfile\conda\python.exe"
+
+    foreach ($drive in $drives) {
+        $searchPaths += "$drive\Python*\python.exe"
+        $searchPaths += "$drive\Anaconda3\python.exe"
+        $searchPaths += "$drive\Miniconda3\python.exe"
+    }
+
+    # Collect all valid Python paths
+    foreach ($pythonPath in $searchPaths) {
+        if (Test-Path $pythonPath) {
+            try {
+                $version = & $pythonPath --version 2>&1 | Select-String "Python"
+                if ($?) {
+                    $foundPaths += $pythonPath
                 }
-                Write-LogSuccess "python_found" "$($version.Line)"
-                return $pythonCmd
             }
-        }
-        catch {
-            # Fall through to system search
+            catch {
+                continue
+            }
         }
     }
 
-    # Search for Python in system PATH
+    # Also check system PATH
     foreach ($cmd in @("python", "python3", "py")) {
         try {
             $version = & $cmd --version 2>&1 | Select-String "Python"
             if ($?) {
-                $pythonCmd = $cmd
-                if ($CheckVersion) {
-                    $versionString = $version.Line -replace 'Python ', ''
-                    $versionParts = $versionString -split '[ .]'
-                    if ($versionParts.Count -ge 2) {
-                        $major = [int]$versionParts[0]
-                        $minor = [int]$versionParts[1]
-                        if ($major -gt 3 -or ($major -eq 3 -and $minor -ge 6)) {
-                            return $versionString
-                        }
-                        else {
-                            return "low"
-                        }
-                    }
-                }
-                Write-LogSuccess "python_found" "$($version.Line)"
-                return $pythonCmd
+                $foundPaths += $cmd
             }
         }
         catch {
@@ -1049,78 +1047,108 @@ function Find-Python {
         }
     }
 
+    # Remove duplicates and ensure array
+    $uniquePaths = @()
+    if ($foundPaths.Count -gt 0) {
+        $uniquePaths = @($foundPaths | Get-Unique | Where-Object { $_ })
+    }
+
+    if ($uniquePaths.Count -eq 0) {
+        return $null
+    }
+    elseif ($uniquePaths.Count -eq 1) {
+        return $uniquePaths[0]
+    }
+    else {
+        # Multiple Python found, let user choose
+        Write-Host ""
+        Write-Host "Multiple Python installations found:"
+        for ($i = 0; $i -lt $uniquePaths.Count; $i++) {
+            $ver = & $uniquePaths[$i] --version 2>&1 | Select-String "Python"
+            Write-Host "  $($i + 1)). $($uniquePaths[$i]) - $($ver.Line)"
+        }
+        Write-Host ""
+
+        $choice = Read-Host "Select Python installation (1-$($uniquePaths.Count))"
+        $idx = [int]$choice - 1
+        if ($idx -ge 0 -and $idx -lt $uniquePaths.Count) {
+            return $uniquePaths[$idx]
+        }
+        else {
+            return $uniquePaths[0]
+        }
+    }
+}
+
+function Get-PythonVersionString {
+    param([Parameter(Mandatory = $true)][string]$PythonPath)
+    # Get Python version string
+    # Returns: version string like "3.12.10", $null if not found
+
+    try {
+        $version = & $PythonPath --version 2>&1 | Select-String "Python"
+        if ($?) {
+            return $version.Line -replace 'Python ', ''
+        }
+    }
+    catch {
+        return $null
+    }
     return $null
 }
 
+function Test-PythonVersion {
+    param([Parameter(Mandatory = $true)][string]$VersionString)
+    # Test if Python version >= 3.6
+    # Returns: $true if >= 3.6, $false if < 3.6 or invalid
+
+    $versionParts = $VersionString -split '[ .]'
+    if ($versionParts.Count -ge 2) {
+        $major = [int]$versionParts[0]
+        $minor = [int]$versionParts[1]
+        if ($major -gt 3 -or ($major -eq 3 -and $minor -ge 6)) {
+            return $true
+        }
+    }
+    return $false
+}
+
 function Create-Venv {
-    $pythonCmd = Find-Python
+    $pythonCmd = Find-SystemPython
 
     if (-not $pythonCmd) {
         Write-LogError "missing_python"
         exit 1
     }
 
-    # Create virtual environment if it doesn't exist
     $venvPath = Join-Path $env:ENV_ROOT $Global:VENV_DIR
-    if (-not (Test-Path $venvPath)) {
-        Write-LogInfo "creating_venv" $venvPath
-        if ($Global:USE_EMBED_PYTHON) {
-            # Use virtualenv for embedded Python (no venv module)
-            $virtualenvCmd = "& `"$pythonCmd`" -m virtualenv `"$venvPath`" -p `"$pythonCmd`""
-            try {
-                Invoke-Expression $virtualenvCmd 2>&1 | Write-Host
-            }
-            catch {
-                Write-LogError "venv_not_found"
-                exit 1
-            }
+    $shouldCreate = $false
+
+    # Check if venv exists
+    if (Test-Path $venvPath) {
+        if ($Global:AUTO_MODE) {
+            Write-LogInfo "skip_venv_creation"
+            return
         }
         else {
-            # Use venv for system Python
-            & $pythonCmd -m venv $venvPath
-        }
-        
-        # Check if venv was created successfully
-        if (Test-Path (Join-Path $venvPath "Scripts\python.exe")) {
-            Write-LogSuccess "venv_created"
-        }
-        else {
-            Write-LogError "venv_not_found"
-            exit 1
-        }
-    }
-    else {
-        if (-not $Global:AUTO_MODE) {
             $response = Read-Host "$(Get-Message 'venv_exists_confirm') (y/n)"
             if ($response -ne 'y' -and $response -ne 'Y') {
                 Write-LogInfo "skip_venv_creation"
                 return
             }
-            # 用户选择 y，删除并重新创建
             Write-LogInfo "removing_existing_venv"
             Remove-Item -Path $venvPath -Recurse -Force
+            $shouldCreate = $true
         }
-        else {
-            Write-LogInfo "skip_venv_creation"
-            return
-        }
+    }
+    else {
+        $shouldCreate = $true
+    }
+
+    if ($shouldCreate) {
         Write-LogInfo "creating_venv" $venvPath
-        if ($Global:USE_EMBED_PYTHON) {
-            # Use virtualenv for embedded Python (no venv module)
-            $virtualenvCmd = "& `"$pythonCmd`" -m virtualenv `"$venvPath`" -p `"$pythonCmd`""
-            try {
-                Invoke-Expression $virtualenvCmd 2>&1 | Out-Null
-            }
-            catch {
-                Write-LogError "venv_not_found"
-                exit 1
-            }
-        }
-        else {
-            # Use venv for system Python
-            & $pythonCmd -m venv $venvPath
-        }
-        
+        & $pythonCmd -m venv $venvPath
+
         # Check if venv was created successfully
         if (Test-Path (Join-Path $venvPath "Scripts\python.exe")) {
             Write-LogSuccess "venv_created"
@@ -1148,6 +1176,10 @@ function Install-PythonPackages {
     # Upgrade pip using virtual environment's Python
     Write-LogInfo "upgrading_pip"
     & $venvPython -m pip install --upgrade pip
+    if ($LASTEXITCODE -ne 0) {
+        Write-LogError "pip_install_failed"
+        exit 1
+    }
 
     # Build pip install command arguments
     $pipArgs = @()
@@ -1287,26 +1319,35 @@ function Check-ExistingEnv {
 
 function Ensure-Dependencies {
     # Check Python version and decide whether to use system Python or install portable version
-    $pythonVersion = Find-Python -CheckVersion
+    $pythonPath = Find-SystemPython
     $usePortablePython = $false
 
-    if ($pythonVersion) {
+    if ($pythonPath) {
         # Python found, check version
-        if ($pythonVersion -eq "low") {
-            # Version < 3.6, use portable Python
-            $usePortablePython = $true
-            Write-LogInfo "python_version_too_low"
-        }
-        else {
-            # Version >= 3.6, use system Python unless --embed specified
-            if ($Global:USE_EMBED_PYTHON) {
+        $pythonVersion = Get-PythonVersionString -PythonPath $pythonPath
+        if ($pythonVersion) {
+            $isValidVersion = Test-PythonVersion -VersionString $pythonVersion
+            if (-not $isValidVersion) {
+                # Version < 3.6, use portable Python
                 $usePortablePython = $true
-                Write-LogInfo "using_portable_python"
+                Write-LogInfo "python_version_too_low"
             }
             else {
-                $usePortablePython = $false
-                Write-LogInfo "using_system_python"
+                # Version >= 3.6, use system Python unless --embed specified
+                if ($Global:USE_EMBED_PYTHON) {
+                    $usePortablePython = $true
+                    Write-LogInfo "using_portable_python"
+                }
+                else {
+                    $usePortablePython = $false
+                    Write-LogInfo "using_system_python"
+                }
             }
+        }
+        else {
+            # Failed to get version, install portable Python
+            $usePortablePython = $true
+            Write-LogInfo "python_version_check_failed"
         }
     }
     else {
@@ -1415,22 +1456,20 @@ function Prompt-Pyocd {
     }
 
     # Prompt user for pyocd installation (optional debugging tool)
-    if (-not $Global:INSTALL_PYOCD) {
-        if ($Global:AUTO_MODE) {
+    if ($Global:AUTO_MODE) {
+        $Global:INSTALL_PYOCD = $false
+    }
+    else {
+        Write-Host ""
+        Write-Host "$(Get-Message 'pyocd_install_prompt')"
+        $confirmMsg = "$(Get-Message 'pyocd_install_confirm')"
+        Write-Host "$confirmMsg " -NoNewline -ForegroundColor Yellow
+        $response = Read-Host
+        if ($response -match "^[Nn]$") {
             $Global:INSTALL_PYOCD = $false
         }
         else {
-            Write-Host ""
-            Write-Host "$(Get-Message 'pyocd_install_prompt')"
-            $confirmMsg = "$(Get-Message 'pyocd_install_confirm')"
-            Write-Host "$confirmMsg " -NoNewline -ForegroundColor Yellow
-            $response = Read-Host
-            if ($response -match "^[Nn]$") {
-                $Global:INSTALL_PYOCD = $false
-            }
-            else {
-                $Global:INSTALL_PYOCD = $true
-            }
+            $Global:INSTALL_PYOCD = $true
         }
     }
 }
@@ -1470,15 +1509,28 @@ function Main {
     $Global:CUSTOM_SDK_REPO = $customSdkRepo
     $Global:CUSTOM_SDK_BRANCH = $customSdkBranch
 
-    # Check if running with -y flag without admin privileges
-    if ($autoMode -and -not $isAdmin) {
-        Write-LogError "admin_required"
-        Write-LogWarning "run_as_admin"
+    # Validate and set ENV_ROOT after argument parsing
+    if ($envRootValue -ne "") {
+        $env:ENV_ROOT = $envRootValue
+    }
+
+    # Validate ENV_ROOT (no spaces or special characters)
+    if ($env:ENV_ROOT -match "\s") {
+        Write-Host "Error: ENV_ROOT cannot contain spaces" -ForegroundColor Red
         exit 1
     }
 
-    if ($envRootValue -ne "") {
-        $env:ENV_ROOT = $envRootValue
+    # Validate ENV_ROOT (no non-ASCII characters)
+    if ($env:ENV_ROOT -match "[^\x00-\x7F]") {
+        Write-Host "Error: ENV_ROOT cannot contain non-ASCII characters" -ForegroundColor Red
+        exit 1
+    }
+
+    # Check if running with -y flag without admin privileges
+    if ($autoMode -and -not $isAdmin -and -not $skipLongPath) {
+        Write-LogError "admin_required"
+        Write-LogWarning "run_as_admin"
+        exit 1
     }
 
     # Show help and exit if requested
