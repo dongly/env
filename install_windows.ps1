@@ -4,29 +4,39 @@
 # Supports: English / 中文
 #
 # Usage:
-#   .\install_windows.ps1 [-y] [--cn|--gitee|--no-mirror] [--pyocd] [--env-root <path>] [--en|--zh] [--python] [-h|--help]
+#   .\install_windows.ps1 [-y] [-c] [-o] [-p] [-e <path>] [-E|-Z] [-P] [--packages <repo>[:<branch>]] [--env <repo>[:<branch>]] [--sdk <repo>[:<branch>]] [-h]
 #
 # Options:
-#   -y              Auto-install without prompts
-#   --cn/--gitee    Use China mirror (Gitee, PyPI TUNA)
-#   --no-mirror      Force use official source
-#   --pyocd          Install pyocd for debugging
-#   --env-root       Set custom install directory
-#   --en/--zh        Force language (English/Chinese)
-#   --python          Force install portable Python (ignore system Python)
-#   -h/--help        Show this help message
+#   -y, --yes, --auto    Auto-install without prompts
+#   -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)
+#   -o, --official       Force use official source
+#   -p, --pyocd          Install pyocd for debugging
+#   -e, --env-root <path> Set custom install directory
+#   -E, --en, --english  Force English messages
+#   -Z, --zh, --chinese  Force Chinese messages
+#   -P, --python         Force install portable Python (ignore system Python)
+#   --packages <repo>[:<branch>]  Specify custom packages repository and branch
+#   --env <repo>[:<branch>]  Specify custom env repository and branch
+#   --sdk <repo>[:<branch>]  Specify custom sdk repository and branch
+#   -h, --help           Show this help message
 #
 
 # Parameter variables
 $autoMode = $false
 $helpMode = $false
 $cnMode = $false
-$noMirrorMode = $false
+$officialMode = $false
 $pyocdMode = $false
 $pythonMode = $false
 $enMode = $false
 $zhMode = $false
 $envRootValue = ""
+$customPackagesRepo = ""
+$customPackagesBranch = ""
+$customEnvRepo = ""
+$customEnvBranch = ""
+$customSdkRepo = ""
+$customSdkBranch = ""
 
 # Process all arguments (support both - and -- formats)
 foreach ($arg in $args) {
@@ -36,18 +46,52 @@ foreach ($arg in $args) {
         "--auto" { $autoMode = $true }
         "-h" { $helpMode = $true }
         "--help" { $helpMode = $true }
+        "-c" { $cnMode = $true }
         "--cn" { $cnMode = $true }
         "--gitee" { $cnMode = $true }
-        "--no-mirror" { $noMirrorMode = $true }
+        "-o" { $officialMode = $true }
+        "--official" { $officialMode = $true }
+        "-p" { $pyocdMode = $true }
         "--pyocd" { $pyocdMode = $true }
+        "-P" { $pythonMode = $true }
         "--python" { $pythonMode = $true }
-        "-python" { $pythonMode = $true }
+        "-E" { $enMode = $true }
         "--en" { $enMode = $true }
-        "-en" { $enMode = $true }
         "--english" { $enMode = $true }
+        "-Z" { $zhMode = $true }
         "--zh" { $zhMode = $true }
-        "-zh" { $zhMode = $true }
         "--chinese" { $zhMode = $true }
+        "--packages" {
+            $idx = $args.IndexOf($arg) + 1
+            if ($idx -lt $args.Count) {
+                $result = Parse-RepoArg -RepoArg $args[$idx]
+                $customPackagesRepo = $result.Repo
+                $customPackagesBranch = $result.Branch
+            }
+        }
+        "--env" {
+            $idx = $args.IndexOf($arg) + 1
+            if ($idx -lt $args.Count) {
+                $result = Parse-RepoArg -RepoArg $args[$idx]
+                $customEnvRepo = $result.Repo
+                $customEnvBranch = $result.Branch
+            }
+        }
+        "--sdk" {
+            $idx = $args.IndexOf($arg) + 1
+            if ($idx -lt $args.Count) {
+                $result = Parse-RepoArg -RepoArg $args[$idx]
+                $customSdkRepo = $result.Repo
+                $customSdkBranch = $result.Branch
+            }
+        }
+        "-e" {
+            # Get next argument as env_root value
+            $idx = $args.IndexOf($arg) + 1
+            if ($idx -lt $args.Count) {
+                $envRootValue = $args[$idx]
+            }
+        }
         "--env-root" {
             # Get next argument as env_root value
             $idx = $args.IndexOf($arg) + 1
@@ -67,7 +111,7 @@ $ENV_DEFAULT_DIR = ".rtenv"
 $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\$ENV_DEFAULT_DIR" }
 
 # Virtual environment directory name
-$Global:VENV_DIR = "rt-venv"
+$Global:VENV_DIR = "venv/rt-env"
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -115,6 +159,12 @@ $Global:INSTALL_PYOCD = $false
 $Global:AUTO_MODE = $false
 $Global:NEED_HELP = $false
 $Global:USE_EMBED_PYTHON = $false
+$Global:CUSTOM_PACKAGES_REPO = ""
+$Global:CUSTOM_PACKAGES_BRANCH = ""
+$Global:CUSTOM_ENV_REPO = ""
+$Global:CUSTOM_ENV_BRANCH = ""
+$Global:CUSTOM_SDK_REPO = ""
+$Global:CUSTOM_SDK_BRANCH = ""
 
 function Print-Help {
     if ($Global:LANG_CURRENT -eq "zh") {
@@ -124,13 +174,16 @@ function Print-Help {
         Write-Host ""
         Write-Host "选项:"
         Write-Host "  -y, --yes, --auto    自动安装，无需提示"
-        Write-Host "  --cn, --gitee        使用中国镜像（Gitee，清华 PyPI）"
-        Write-Host "  --no-mirror          强制使用官方源"
-        Write-Host "  --pyocd              安装 pyocd（用于调试）"
-        Write-Host "  --env-root <path>    设置自定义安装目录"
-        Write-Host "  --en, --english      强制显示英文信息"
-        Write-Host "  --zh, --chinese      强制显示中文信息"
-        Write-Host "  --python             强制安装便携式 Python（忽略系统 Python）"
+        Write-Host "  -c, --cn, --gitee    使用中国镜像（Gitee，清华 PyPI）"
+        Write-Host "  -o, --official       强制使用官方源"
+        Write-Host "  -p, --pyocd          安装 pyocd（用于调试）"
+        Write-Host "  -e, --env-root <path> 设置自定义安装目录"
+        Write-Host "  -E, --en, --english  强制显示英文信息"
+        Write-Host "  -Z, --zh, --chinese  强制显示中文信息"
+        Write-Host "  -P, --python         强制安装便携式 Python（忽略系统 Python）"
+        Write-Host "  --packages <repo>[:<branch>]  指定 packages 仓库地址及分支"
+        Write-Host "  --env <repo>[:<branch>]  指定 env 仓库地址及分支"
+        Write-Host "  --sdk <repo>[:<branch>]  指定 sdk 仓库地址及分支"
         Write-Host "  -h, --help           显示此帮助信息"
         Write-Host ""
     } else {
@@ -140,17 +193,41 @@ function Print-Help {
         Write-Host ""
         Write-Host "Options:"
         Write-Host "  -y, --yes, --auto    Auto-install without prompts"
-        Write-Host "  --cn, --gitee        Use China mirror (Gitee, PyPI TUNA)"
-        Write-Host "  --no-mirror          Force use official source"
-        Write-Host "  --pyocd              Install pyocd for debugging"
-        Write-Host "  --env-root <path>    Set custom install directory"
-        Write-Host "  --en, --english      Force English messages"
-        Write-Host "  --zh, --chinese      Force Chinese messages"
-        Write-Host "  --python             Force install portable Python (ignore system Python)"
+        Write-Host "  -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)"
+        Write-Host "  -o, --official       Force use official source"
+        Write-Host "  -p, --pyocd          Install pyocd for debugging"
+        Write-Host "  -e, --env-root <path> Set custom install directory"
+        Write-Host "  -E, --en, --english  Force English messages"
+        Write-Host "  -Z, --zh, --chinese  Force Chinese messages"
+        Write-Host "  -P, --python         Force install portable Python (ignore system Python)"
+        Write-Host "  --packages <repo>[:<branch>]  Specify custom packages repository and branch"
+        Write-Host "  --env <repo>[:<branch>]  Specify custom env repository and branch"
+        Write-Host "  --sdk <repo>[:<branch>]  Specify custom sdk repository and branch"
+        Write-Host "  -h, --help           Show this help message"
         Write-Host "  -h, --help           Show this help message"
         Write-Host ""
     }
     exit 0
+}
+
+function Parse-RepoArg {
+    param(
+        [string]$RepoArg
+    )
+    
+    # Parse repo and branch (format: repo_url[:branch])
+    if ($RepoArg -match ":") {
+        $parts = $RepoArg -split ":", 2
+        return @{
+            Repo = $parts[0]
+            Branch = $parts[1]
+        }
+    } else {
+        return @{
+            Repo = $RepoArg
+            Branch = ""
+        }
+    }
 }
 
 function Detect-China {
@@ -209,12 +286,14 @@ $MSG_EN_downloading_portable_python = "Downloading portable Python..."
 $MSG_EN_python_installed = "Python installed successfully."
 $MSG_EN_checking_git = "Checking Git..."
 $MSG_EN_git_found = "Git found: {0}"
-$MSG_EN_git_not_found = "Git is not installed. Will install Git v2.52.0.windows.1."
 $MSG_EN_installing_pip = "Installing pip..."
 $MSG_EN_downloading_get_pip = "Downloading get-pip.py..."
 $MSG_EN_pip_installed = "pip installed successfully"
+$MSG_EN_downloading_git = "Downloading Git..."
 $MSG_EN_installing_git = "Installing Git..."
 $MSG_EN_git_installed = "Git installed. Please restart terminal and run this script again."
+$MSG_EN_admin_required = "Error: The -y/--yes flag requires administrator privileges."
+$MSG_EN_run_as_admin = "Please run this script as administrator."
 $MSG_EN_fetching_git_from_npmmirror = "Fetching Git version from npmmirror..."
 $MSG_EN_fetching_git_from_github = "Fetching Git version from GitHub API..."
 $MSG_EN_git_version_found = "Git version found: {0}"
@@ -227,6 +306,9 @@ $MSG_EN_restart_required = "Please restart terminal and run this script again to
 $MSG_EN_git_not_found = "Git is not installed. Please install Git first."
 $MSG_EN_please_install_git = "Please install Git first"
 $MSG_EN_install_git_windows = "Windows: Download and install Git from $GIT_DOWNLOAD_URL"
+$MSG_EN_enabling_long_paths = "Enabling Windows long path support..."
+$MSG_EN_long_paths_enabled = "Windows long path support enabled"
+$MSG_EN_long_paths_enable_failed = "Failed to enable long path support (may require admin privileges)"
 $MSG_EN_cloning = "Cloning {0} to {1}"
 $MSG_EN_cloned = "Cloned {0}"
 $MSG_EN_dir_exists = "Directory already exists: {0}"
@@ -276,6 +358,9 @@ $MSG_EN_menuconfig = "     - menuconfig    : Configure RT-Thread"
 $MSG_EN_pkgs = "     - pkgs          : Package manager"
 $MSG_EN_scons = "     - scons         : Build RT-Thread"
 $MSG_EN_sdk = "     - sdk           : Install toolchains"
+$MSG_EN_using_custom_repo = "Using custom repository: {0}"
+$MSG_EN_using_custom_branch = "Using branch: {0}"
+$MSG_EN_using_custom_repo_branch = "Using custom repository: {0} (branch: {1})"
 
 # Chinese messages
 $MSG_ZH_banner_title = "RT-Thread ENV 安装程序"
@@ -303,8 +388,11 @@ $MSG_ZH_installing_virtualenv = "正在安装 virtualenv..."
 $MSG_ZH_virtualenv_installed = "virtualenv 安装成功"
 $MSG_ZH_pip_installed = "pip 安装成功"
 $MSG_ZH_pip_install_failed = "pip 安装失败"
+$MSG_ZH_downloading_git = "正在下载 Git..."
 $MSG_ZH_installing_git = "正在安装 Git..."
 $MSG_ZH_git_installed = "Git 已安装。请重新启动终端并再次运行此脚本。"
+$MSG_ZH_admin_required = "错误: -y/--yes 参数需要管理员权限。"
+$MSG_ZH_run_as_admin = "请以管理员身份运行此脚本。"
 $MSG_ZH_fetching_git_from_npmmirror = "正在从 npmmirror 获取 Git 版本..."
 $MSG_ZH_fetching_git_from_github = "正在从 GitHub API 获取 Git 版本..."
 $MSG_ZH_git_version_found = "找到 Git 版本: {0}"
@@ -317,6 +405,9 @@ $MSG_ZH_restart_required = "请重新启动终端并再次运行此脚本以继�
 $MSG_ZH_git_not_found = "未安装 Git。请先安装 Git。"
 $MSG_ZH_please_install_git = "请先安装 Git"
 $MSG_ZH_install_git_windows = "Windows: 从 $GIT_DOWNLOAD_URL 下载并安装 Git"
+$MSG_ZH_enabling_long_paths = "正在启用 Windows 长路径支持..."
+$MSG_ZH_long_paths_enabled = "Windows 长路径支持已启用"
+$MSG_ZH_long_paths_enable_failed = "启用长路径支持失败（可能需要管理员权限）"
 $MSG_ZH_cloning = "正在克隆: {0} 到 {1}"
 $MSG_ZH_cloned = "已克隆: {0}"
 $MSG_ZH_dir_exists = "目录已存在: {0}"
@@ -364,6 +455,9 @@ $MSG_ZH_menuconfig = "     - menuconfig    : 配置 RT-Thread"
 $MSG_ZH_pkgs = "     - pkgs          : 包管理器"
 $MSG_ZH_scons = "     - scons         : 编译 RT-Thread"
 $MSG_ZH_sdk = "     - sdk           : 安装工具链"
+$MSG_ZH_using_custom_repo = "使用自定义仓库: {0}"
+$MSG_ZH_using_custom_branch = "使用分支: {0}"
+$MSG_ZH_using_custom_repo_branch = "使用自定义仓库: {0} (分支: {1})"
 
 # Message retrieval function
 function Get-Message {
@@ -447,11 +541,18 @@ function Test-Command {
 }
 
 function Clone-Repository {
-    param([string]$Url, [string]$Destination, [int]$Depth = 1)
+    param([string]$Url, [string]$Destination, [int]$Depth = 1, [string]$Branch = "")
 
     if (-not (Test-Path -Path $Destination)) {
         Write-LogInfo "cloning" $Url $Destination
-        $process = Start-Process -FilePath "git" -ArgumentList "clone", "--depth", $Depth, $Url, $Destination -NoNewWindow -Wait -PassThru
+        
+        $cloneArgs = @("clone", "--depth", $Depth)
+        if ($Branch) {
+            $cloneArgs += @("--branch", $Branch)
+        }
+        $cloneArgs += @($Url, $Destination)
+        
+        $process = Start-Process -FilePath "git" -ArgumentList $cloneArgs -NoNewWindow -Wait -PassThru
         if ($process.ExitCode -ne 0) {
             Write-LogError "git_clone_failed" "Exit code: $($process.ExitCode)"
             exit 1
@@ -486,6 +587,7 @@ $PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION
 # Git download URLs
 $GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
 $GIT_GITHUB_API_URL = "https://api.github.com/repos/git-for-windows/git/releases/latest"
+$GIT_FALLBACK_VERSION = "v2.52.0.windows.1"
 $GIT_FALLBACK_URL = "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-v2.52.0.windows.1-64-bit.exe"
 
 function Install-Python {
@@ -514,6 +616,22 @@ function Install-Python {
 
     # Cleanup archive
     Remove-Item $archivePath -ErrorAction SilentlyContinue
+
+    # Enable Windows long path support (260 character limit)
+    # This requires administrator privileges
+    try {
+        $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
+        $registryKey = "LongPathsEnabled"
+        $currentValue = (Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).$registryKey
+
+        if ($currentValue -ne 1) {
+            Write-LogInfo "enabling_long_paths"
+            Set-ItemProperty -Path $registryPath -Name $registryKey -Value 1 -Type DWord -Force
+            Write-LogSuccess "long_paths_enabled"
+        }
+    } catch {
+        Write-LogWarning "long_paths_enable_failed"
+    }
 
     # Modify python3xx._pth to enable site-packages and ensurepip
     $pthFile = Get-ChildItem -Path $pythonTargetDir -Filter "*._pth"
@@ -580,9 +698,6 @@ function Install-Python {
 # Git Installation (Windows-specific)
 # ============================================================================
 
-$GIT_FALLBACK_VERSION = "v2.52.0.windows.1"
-$GIT_FALLBACK_URL = "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-v2.52.0.windows.1-64-bit.exe"
-
 function Get-LatestGitVersion {
     param([bool]$UseCNMirror)
 
@@ -597,7 +712,7 @@ function Get-LatestGitVersion {
 
             # Filter out rc, prerelease, mingit versions
             $filteredVersions = $versions | Where-Object {
-                $_.name -notmatch "-rc$" -and
+                $_.name -notmatch "-rc[0-9]" -and
                 $_.name -notmatch "-prerelease$" -and
                 $_.name -notmatch "-mingit$"
             }
@@ -609,16 +724,23 @@ function Get-LatestGitVersion {
                 $latest = $sortedVersions[0]
                 $versionNumber = $latest.name -replace '/$', ''
 
-                # Construct installer filename
-                $installerName = "Git-$versionNumber-64-bit.exe"
-                $downloadUrl = $latest.url + $installerName
+                # Query the specific version directory to get file list
+                $versionUrl = "$GIT_NPMMIRROR_URL$versionNumber/"
+                $versionResponse = Invoke-RestMethod -Uri $versionUrl -Method Get -UseBasicParsing
 
-                Write-LogSuccess "git_version_found" "$versionNumber (from npmmirror)"
-                return @{
-                    Version = $versionNumber
-                    Installer = $installerName
-                    Url = $downloadUrl
-                    Source = "npmmirror"
+                # Find the 64-bit installer (Git-X.X.X-64-bit.exe)
+                $installerFile = $versionResponse | Where-Object {
+                    $_.name -match "^Git-\d+\.\d+\.\d+-64-bit\.exe$"
+                }
+
+                if ($installerFile) {
+                    Write-LogSuccess "git_version_found" "$versionNumber (from npmmirror)"
+                    return @{
+                        Version = $versionNumber
+                        Installer = $installerFile.name
+                        Url = $installerFile.url
+                        Source = "npmmirror"
+                    }
                 }
             }
         } catch {
@@ -629,14 +751,21 @@ function Get-LatestGitVersion {
     # Fallback to GitHub API (for non-CN users or if npmmirror fails)
     try {
         Write-LogInfo "fetching_git_from_github"
-        $response = Invoke-RestMethod -Uri $GIT_GITHUB_API_URL -Method Get -UseBasicParsing
+        $response = Invoke-RestMethod -Uri $GIT_GITHUB_API_URL -Method Get -UseBasicParsing -ErrorAction Stop
+
+        # Check if response is valid JSON (not HTML page)
+        if ($response -is [string]) {
+            throw "Received HTML instead of JSON"
+        }
 
         $tagName = $response.tag_name
         $versionNumber = $tagName -replace '^v', ''
 
         # Find the 64-bit installer
+        # Note: The installer filename uses version number without the ".windows.1" suffix
+        # e.g., "Git-2.52.0-64-bit.exe" not "Git-v2.52.0.windows.1-64-bit.exe"
         $installerAsset = $response.assets | Where-Object {
-            $_.name -match "Git-$tagName-64-bit\.exe$"
+            $_.name -match "^Git-\d+\.\d+\.\d+-64-bit\.exe$"
         }
 
         if ($installerAsset) {
@@ -663,7 +792,10 @@ function Get-LatestGitVersion {
 }
 
 function Install-Git {
-    param([bool]$UseCNMirror)
+    param(
+        [bool]$UseCNMirror,
+        [bool]$Interactive = $false
+    )
 
     # Get latest Git version dynamically
     $gitInfo = Get-LatestGitVersion -UseCNMirror $UseCNMirror
@@ -678,8 +810,27 @@ function Install-Git {
 
     Write-LogInfo "installing_git"
 
-    # Install Git silently
-    Start-Process -FilePath $installerPath -ArgumentList @("/silent") -Wait
+    if ($Interactive) {
+        # Interactive installation - show installer UI with default options
+        Start-Process -FilePath $installerPath -Wait
+    } else {
+        # Silent installation with progress display
+        # /SILENT: Silent installation with progress bar
+        # /SUPPRESSMSGBOXES: Suppress message boxes
+        # /NORESTART: Prevent restart
+        # /COMPONENTS="": Install all components
+        # /TASKS="desktopicon,winterminal": Add desktop icon and Windows Terminal profile
+        # /MERGETASKS="desktopicon,winterminal": Additional tasks to merge
+        # /DEFAULTBRANCH="main": Set default branch name to main
+        Start-Process -FilePath $installerPath -ArgumentList @(
+            "/SILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/COMPONENTS=",
+            '/TASKS="desktopicon,winterminal"',
+            "/DEFAULTBRANCH=main"
+        ) -Wait
+    }
 
     # Cleanup
     Remove-Item $installerPath -ErrorAction SilentlyContinue
@@ -980,7 +1131,8 @@ function Ensure-Dependencies {
     # Check and install Git if missing
     if (-not (Test-Command "git")) {
         Write-LogInfo "git_not_found"
-        Install-Git -UseCNMirror $Global:USE_CN
+        # When -y is used, install Git silently; otherwise show interactive installer
+        Install-Git -UseCNMirror $Global:USE_CN -Interactive (-not $Global:AUTO_MODE)
         Write-Host ""
         Write-LogWarning "restart_required"
         Read-Host -Prompt "Press Enter to exit..."
@@ -993,22 +1145,64 @@ function Ensure-Dependencies {
 }
 
 function Setup-Repositories {
-    # Set repository configuration based on mirror selection
+    # Set repository configuration based on mirror selection or custom mode
+    $urlPackages = ""
+    $urlEnv = ""
+    $urlSdk = ""
+
+    # Check for custom repositories
+    $useCustomPackages = $false
+    $useCustomEnv = $false
+    $useCustomSdk = $false
+
+    if ($Global:CUSTOM_PACKAGES_REPO) {
+        $useCustomPackages = $true
+        $urlPackages = $Global:CUSTOM_PACKAGES_REPO
+        if ($Global:CUSTOM_PACKAGES_BRANCH) {
+            Write-LogInfo "using_custom_repo_branch" $Global:CUSTOM_PACKAGES_REPO $Global:CUSTOM_PACKAGES_BRANCH
+        } else {
+            Write-LogInfo "using_custom_repo" $Global:CUSTOM_PACKAGES_REPO
+        }
+    }
+
+    if ($Global:CUSTOM_ENV_REPO) {
+        $useCustomEnv = $true
+        $urlEnv = $Global:CUSTOM_ENV_REPO
+        if ($Global:CUSTOM_ENV_BRANCH) {
+            Write-LogInfo "using_custom_repo_branch" $Global:CUSTOM_ENV_REPO $Global:CUSTOM_ENV_BRANCH
+        } else {
+            Write-LogInfo "using_custom_repo" $Global:CUSTOM_ENV_REPO
+        }
+    }
+
+    if ($Global:CUSTOM_SDK_REPO) {
+        $useCustomSdk = $true
+        $urlSdk = $Global:CUSTOM_SDK_REPO
+        if ($Global:CUSTOM_SDK_BRANCH) {
+            Write-LogInfo "using_custom_repo_branch" $Global:CUSTOM_SDK_REPO $Global:CUSTOM_SDK_BRANCH
+        } else {
+            Write-LogInfo "using_custom_repo" $Global:CUSTOM_SDK_REPO
+        }
+    }
+
+    # Use standard repositories for any not specified
     $repoConfig = if ($Global:USE_CN) {
         @($REPO_PACKAGES_GITEE, $REPO_ENV_GITEE, $REPO_SDK_GITEE)
     } else {
         @($REPO_PACKAGES_GITHUB, $REPO_ENV_GITHUB, $REPO_SDK_GITHUB)
     }
 
+    if (-not $useCustomPackages) { $urlPackages = $repoConfig[0] }
+    if (-not $useCustomEnv) { $urlEnv = $repoConfig[1] }
+    if (-not $useCustomSdk) { $urlSdk = $repoConfig[2] }
+
     # Clone repositories
-    Clone-Repository -Url $repoConfig[0] -Destination "$env:ENV_ROOT\packages\packages" -Depth 1
-    Clone-Repository -Url $repoConfig[2] -Destination "$env:ENV_ROOT\packages\sdk" -Depth 1
+    Clone-Repository -Url $urlPackages -Destination "$env:ENV_ROOT\packages\packages" -Depth 1 -Branch $Global:CUSTOM_PACKAGES_BRANCH
+    Clone-Repository -Url $urlSdk -Destination "$env:ENV_ROOT\packages\sdk" -Depth 1 -Branch $Global:CUSTOM_SDK_BRANCH
+    Clone-Repository -Url $urlEnv -Destination "$env:ENV_ROOT\tools\scripts" -Depth 1 -Branch $Global:CUSTOM_ENV_BRANCH
 
     # Generate Kconfig file
     Generate-KconfigFile -EnvRoot "$env:ENV_ROOT"
-
-    # Clone env scripts
-    Clone-Repository -Url $repoConfig[1] -Destination "$env:ENV_ROOT\tools\scripts" -Depth 1
 
     if (Test-Path "$env:ENV_ROOT\tools\scripts\env.ps1") {
         Copy-Item -Path "$env:ENV_ROOT\tools\scripts\env.ps1" -Destination "$env:ENV_ROOT\env.ps1" -Force
@@ -1046,9 +1240,12 @@ function Prompt-Pyocd {
 function Main {
     param([string[]]$ParsedArgs)
 
+    # Check for administrator privilege when -y is specified
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
     # 使用全局参数变量
     $useCn = $cnMode
-    $useNoMirror = $noMirrorMode
+    $useOfficial = $officialMode
     $installPyocd = $pyocdMode
     $needHelp = $helpMode
     $langEn = $enMode
@@ -1059,11 +1256,24 @@ function Main {
     # 设置全局变量
     $Global:LANG_CURRENT = if ($langZh) { "zh" } elseif ($langEn) { "en" } else { Get-SystemLanguage }
     $Global:USE_CN = $useCn
-    $Global:USE_CN_SET = $useCn -or $useNoMirror
+    $Global:USE_CN_SET = $useCn -or $useOfficial
     $Global:INSTALL_PYOCD = $installPyocd
     $Global:AUTO_MODE = $autoMode
     $Global:NEED_HELP = $needHelp
     $Global:USE_EMBED_PYTHON = $useEmbedPython
+    $Global:CUSTOM_PACKAGES_REPO = $customPackagesRepo
+    $Global:CUSTOM_PACKAGES_BRANCH = $customPackagesBranch
+    $Global:CUSTOM_ENV_REPO = $customEnvRepo
+    $Global:CUSTOM_ENV_BRANCH = $customEnvBranch
+    $Global:CUSTOM_SDK_REPO = $customSdkRepo
+    $Global:CUSTOM_SDK_BRANCH = $customSdkBranch
+
+    # Check if running with -y flag without admin privileges
+    if ($autoMode -and -not $isAdmin) {
+        Write-LogError "admin_required"
+        Write-LogWarning "run_as_admin"
+        exit 1
+    }
 
     if ($envRootValue -ne "") {
         $env:ENV_ROOT = $envRootValue
@@ -1078,6 +1288,11 @@ function Main {
     # IP detection (lower priority, only if not explicitly set)
     if (-not $Global:USE_CN_SET) {
         $Global:USE_CN = Detect-China -LangEn $langEn -LangZh $langZh
+    }
+
+    # Override with --official flag
+    if ($useOfficial) {
+        $Global:USE_CN = $false
     }
 
     # Step 2: Print installation banner

@@ -5,16 +5,20 @@
 # Supports: English / 中文
 #
 # Usage:
-#   ./install.sh [-y] [--cn|--gitee|--no-mirror] [--pyocd] [--env-root <path>] [--en|--zh] [-h|--help]
+#   ./install.sh [-y] [-c] [-o] [-p] [-e <path>] [-E|-Z] [-d <repo>[:<branch>]] [--packages <repo>[:<branch]>] [--env <repo>[:<branch]>] [--sdk <repo>[:<branch>]] [-h]
 #
 # Options:
-#   -y           Auto-install without prompts
-#   --cn/--gitee Use China mirror (Gitee, PyPI TUNA)
-#   --no-mirror  Force use official source
-#   --pyocd      Install pyocd for debugging
-#   --env-root   Set custom install directory
-#   --en/--zh    Force language (English/Chinese)
-#   -h/--help    Show this help message
+#   -y, --yes, --auto    Auto-install without prompts
+#   -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)
+#   -o, --official       Force use official source
+#   -p, --pyocd          Install pyocd for debugging
+#   -e, --env-root <path> Set custom install directory
+#   -E, --en, --english  Force English messages
+#   -Z, --zh, --chinese  Force Chinese messages
+#   --packages <repo>[:<branch>]  Specify custom packages repository and branch
+#   --env <repo>[:<branch>]  Specify custom env repository and branch
+#   --sdk <repo>[:<branch>]  Specify custom sdk repository and branch
+#   -h, --help           Show this help message
 #
 
 # ============================================================================
@@ -40,7 +44,7 @@ ENV_DEFAULT_DIR=".rtenv"
 : "${ENV_ROOT:=$REAL_USER_HOME/$ENV_DEFAULT_DIR}"
 
 # Virtual environment directory name
-VENV_DIR="rt-venv"
+VENV_DIR="venv/rt-env"
 
 # Repository configurations
 # GitHub (default)
@@ -87,10 +91,15 @@ clone_repo() {
     local url="$1"
     local destination="$2"
     local depth="${3:-1}"
+    local branch="${4:-}"
 
     if [ ! -d "$destination" ]; then
         log_info "cloning" "$url" "$destination"
-        if ! git clone --depth "$depth" "$url" "$destination" 2>&1; then
+        local clone_args=("--depth" "$depth")
+        if [ -n "$branch" ]; then
+            clone_args+=("--branch" "$branch")
+        fi
+        if ! git clone "${clone_args[@]}" "$url" "$destination" 2>&1; then
             log_error "clone_failed" "$url"
             exit 1
         fi
@@ -125,12 +134,15 @@ print_help() {
         echo ""
         echo "选项:"
         echo "  -y, --yes, --auto    自动安装，无需提示"
-        echo "  --cn, --gitee        使用中国镜像（Gitee，清华 PyPI）"
-        echo "  --no-mirror          强制使用官方源"
-        echo "  --pyocd              安装 pyocd（用于调试）"
-        echo "  --env-root <path>    设置自定义安装目录"
-        echo "  --en, --english      强制显示英文信息"
-        echo "  --zh, --chinese      强制显示中文信息"
+        echo "  -c, --cn, --gitee    使用中国镜像（Gitee，清华 PyPI）"
+        echo "  -o, --official       强制使用官方源"
+        echo "  -p, --pyocd          安装 pyocd（用于调试）"
+        echo "  -e, --env-root <path> 设置自定义安装目录"
+        echo "  -E, --en, --english  强制显示英文信息"
+        echo "  -Z, --zh, --chinese  强制显示中文信息"
+        echo "  --packages <repo>[:<branch>]  指定 packages 仓库地址及分支"
+        echo "  --env <repo>[:<branch>]  指定 env 仓库地址及分支"
+        echo "  --sdk <repo>[:<branch>]  指定 sdk 仓库地址及分支"
         echo "  -h, --help           显示此帮助信息"
         echo ""
     else
@@ -140,16 +152,33 @@ print_help() {
         echo ""
         echo "Options:"
         echo "  -y, --yes, --auto    Auto-install without prompts"
-        echo "  --cn, --gitee        Use China mirror (Gitee, PyPI TUNA)"
-        echo "  --no-mirror          Force use official source"
-        echo "  --pyocd              Install pyocd for debugging"
-        echo "  --env-root <path>    Set custom install directory"
-        echo "  --en, --english      Force English messages"
-        echo "  --zh, --chinese      Force Chinese messages"
+        echo "  -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)"
+        echo "  -o, --official       Force use official source"
+        echo "  -p, --pyocd          Install pyocd for debugging"
+        echo "  -e, --env-root <path> Set custom install directory"
+        echo "  -E, --en, --english  Force English messages"
+        echo "  -Z, --zh, --chinese  Force Chinese messages"
+        echo "  --packages <repo>[:<branch>]  Specify custom packages repository and branch"
+        echo "  --env <repo>[:<branch>]  Specify custom env repository and branch"
+        echo "  --sdk <repo>[:<branch>]  Specify custom sdk repository and branch"
         echo "  -h, --help           Show this help message"
         echo ""
     fi
     exit 0
+}
+
+parse_repo_arg() {
+    local repo_arg="$1"
+    local repo_name="$2"
+    
+    # Parse repo and branch (format: repo_url[:branch])
+    if [[ "$repo_arg" == *":"* ]]; then
+        repo="${repo_arg%:*}"
+        branch="${repo_arg##*:}"
+    else
+        repo="$repo_arg"
+        branch=""
+    fi
 }
 
 detect_china() {
@@ -191,9 +220,16 @@ parse_args() {
     LANG_CURRENT="en"
     use_cn="false"
     use_cn_set="false"
+    use_official="false"
     install_pyocd="false"
     auto_mode="false"
     need_help="false"
+    custom_packages_repo=""
+    custom_packages_branch=""
+    custom_env_repo=""
+    custom_env_branch=""
+    custom_sdk_repo=""
+    custom_sdk_branch=""
 
     for arg in "$@"; do
         case "$arg" in
@@ -203,26 +239,44 @@ parse_args() {
             -y|--yes|--auto)
                 auto_mode="true"
                 ;;
-            --en|--english)
+            -E|--en|--english)
                 LANG_CURRENT="en"
                 ;;
-            --zh|--chinese|--中文)
+            -Z|--zh|--chinese)
                 LANG_CURRENT="zh"
                 ;;
-            --env-root)
+            -e|--env-root)
                 shift
                 ENV_ROOT="$1"
                 ;;
-            --cn|--gitee)
+            --packages)
+                            shift
+                            parse_repo_arg "$1" "packages"
+                            custom_packages_repo="$repo"
+                            custom_packages_branch="$branch"
+                            ;;
+                        --env)
+                            shift
+                            parse_repo_arg "$1" "env"
+                            custom_env_repo="$repo"
+                            custom_env_branch="$branch"
+                            ;;
+                        --sdk)
+                            shift
+                            parse_repo_arg "$1" "sdk"
+                            custom_sdk_repo="$repo"
+                            custom_sdk_branch="$branch"
+                            ;;
+            -c|--cn|--gitee)
                 use_cn="true"
                 use_cn_set="true"
                 LANG_CURRENT="zh"
                 ;;
-            --no-mirror)
-                use_cn="false"
+            -o|--official)
+                use_official="true"
                 use_cn_set="true"
                 ;;
-            --pyocd)
+            -p|--pyocd)
                 install_pyocd="true"
                 ;;
         esac
@@ -231,6 +285,11 @@ parse_args() {
     # IP detection (lower priority, only if not explicitly set)
     if [ "$use_cn_set" = "false" ]; then
         detect_china
+    fi
+
+    # Override with --official flag
+    if [ "$use_official" = "true" ]; then
+        use_cn="false"
     fi
 
     # Log IP detection result
@@ -316,6 +375,9 @@ get_message() {
                 sdk) echo "     - sdk           : 安装工具链" ;;
                 fixing_ownership) echo "正在修复文件所有权..." ;;
                 ownership_fixed) echo "文件所有权已修复" ;;
+                using_custom_repo) echo "使用自定义仓库: %s" ;;
+                using_custom_branch) echo "使用分支: %s" ;;
+                using_custom_repo_branch) echo "使用自定义仓库: %s (分支: %s)" ;;
                 *) echo "$key" ;;
             esac
             ;;
@@ -376,6 +438,9 @@ get_message() {
                 sdk) echo "     - sdk           : Install toolchains" ;;
                 fixing_ownership) echo "Fixing file ownership..." ;;
                 ownership_fixed) echo "File ownership fixed" ;;
+                using_custom_repo) echo "Using custom repository: {0}" ;;
+                using_custom_branch) echo "Using branch: {0}" ;;
+                using_custom_repo_branch) echo "Using custom repository: {0} (branch: {1})" ;;
                 *) echo "$key" ;;
             esac
             ;;
@@ -730,20 +795,106 @@ check_existing_env() {
 
 # Clone repositories and generate configuration
 setup_repos() {
-    local repo_config
-    if [ "$use_cn" = "true" ]; then
-        repo_config="$REPO_PACKAGES_GITEE|$REPO_ENV_GITEE|$REPO_SDK_GITEE"
-    else
-        repo_config="$REPO_PACKAGES_GITHUB|$REPO_ENV_GITHUB|$REPO_SDK_GITHUB"
+    local url_packages url_env url_sdk
+
+    # Determine repository URLs based on individual custom options
+    # Check individual custom options
+    local use_custom_packages=false
+    local use_custom_env=false
+    local use_custom_sdk=false
+
+
+    if [ -n "$custom_packages_repo" ]; then
+        use_custom_packages=true
+        url_packages="$custom_packages_repo"
+        if [ -n "$custom_packages_branch" ]; then
+            log_info "using_custom_repo_branch" "$custom_packages_repo" "$custom_packages_branch"
+        else
+            log_info "using_custom_repo" "$custom_packages_repo"
+        fi
     fi
 
-    local url_packages url_env url_sdk
-    IFS='|' read -r url_packages url_env url_sdk <<< "$repo_config"
 
-    clone_repo "$url_packages" "$ENV_ROOT/packages/packages" 1
-    clone_repo "$url_sdk" "$ENV_ROOT/packages/sdk" 1
+
+        if [ -n "$custom_env_repo" ]; then
+        use_custom_env=true
+        url_env="$custom_env_repo"
+        if [ -n "$custom_env_branch" ]; then
+            log_info "using_custom_repo_branch" "$custom_env_repo" "$custom_env_branch"
+        else
+            log_info "using_custom_repo" "$custom_env_repo"
+        fi
+    fi
+
+    
+
+            url_env="$custom_env_repo"
+
+    
+
+            if [ -n "$custom_env_branch" ]; then
+
+    
+
+                log_info "using_custom_repo" "$custom_env_repo"
+
+    
+
+                log_info "using_custom_branch" "$custom_env_branch"
+
+    
+
+            else
+
+    
+
+                log_info "using_custom_repo" "$custom_env_repo"
+
+    
+
+            fi
+
+    
+
+        fi
+
+    
+
+        
+
+    
+
+        if [ -n "$custom_sdk_repo" ]; then
+        use_custom_sdk=true
+        url_sdk="$custom_sdk_repo"
+        if [ -n "$custom_sdk_branch" ]; then
+            log_info "using_custom_repo_branch" "$custom_sdk_repo" "$custom_sdk_branch"
+        else
+            log_info "using_custom_repo" "$custom_sdk_repo"
+        fi
+    fi
+
+
+    # Use standard repositories for any not specified
+    if [ "$use_custom_packages" = "false" ]; then
+        url_packages=$(if [ "$use_cn" = "true" ]; then echo "$REPO_PACKAGES_GITEE"; else echo "$REPO_PACKAGES_GITHUB"; fi)
+    fi
+
+    if [ "$use_custom_env" = "false" ]; then
+        url_env=$(if [ "$use_cn" = "true" ]; then echo "$REPO_ENV_GITEE"; else echo "$REPO_ENV_GITHUB"; fi)
+    fi
+
+    if [ "$use_custom_sdk" = "false" ]; then
+        url_sdk=$(if [ "$use_cn" = "true" ]; then echo "$REPO_SDK_GITEE"; else echo "$REPO_SDK_GITHUB"; fi)
+    fi
+
+
+    # Clone repositories
+    clone_repo "$url_packages" "$ENV_ROOT/packages/packages" 1 "$custom_packages_branch"
+    clone_repo "$url_sdk" "$ENV_ROOT/packages/sdk" 1 "$custom_sdk_branch"
+    clone_repo "$url_env" "$ENV_ROOT/tools/scripts" 1 "$custom_env_branch"
+
     generate_kconfig_file "$ENV_ROOT"
-    clone_repo "$url_env" "$ENV_ROOT/tools/scripts" 1
 
     if [ -f "$ENV_ROOT/tools/scripts/env.sh" ]; then
         cp "$ENV_ROOT/tools/scripts/env.sh" "$ENV_ROOT/env.sh"
