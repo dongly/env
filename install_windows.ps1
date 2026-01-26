@@ -4,7 +4,7 @@
 # Supports: English / 中文
 #
 # Usage:
-#   .\install_windows.ps1 [-y] [-c] [-o] [-p] [-e <path>] [-E|-Z] [-P] [--packages <repo>[:<branch>]] [--env <repo>[:<branch>]] [--sdk <repo>[:<branch>]] [-h]
+#   .\install_windows.ps1 [-y] [-c] [-o] [-p] [-e <path>] [-E|-Z] [-P] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [-h]
 #
 # Options:
 #   -y, --yes, --auto    Auto-install without prompts
@@ -15,9 +15,9 @@
 #   -E, --en, --english  Force English messages
 #   -Z, --zh, --chinese  Force Chinese messages
 #   -P, --python         Force install portable Python (ignore system Python)
-#   --packages <repo>[:<branch>]  Specify custom packages repository and branch
-#   --env <repo>[:<branch>]  Specify custom env repository and branch
-#   --sdk <repo>[:<branch>]  Specify custom sdk repository and branch
+#   --packages <repo>[#<branch>]  Specify custom packages repository and branch
+#   --env <repo>[#<branch>]  Specify custom env repository and branch
+#   --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
 #   -h, --help           Show this help message
 #
 
@@ -37,6 +37,37 @@ $customEnvRepo = ""
 $customEnvBranch = ""
 $customSdkRepo = ""
 $customSdkBranch = ""
+
+# Parse-RepoArg function must be defined before it's used in argument parsing
+function Parse-RepoArg {
+    param(
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$RepoArg
+    )
+    
+    # Parse repo and branch (format: repo_url[#branch])
+    # Use # as separator to avoid conflicts with URL protocols and SSH ports
+    
+    if ($RepoArg -match "#") {
+        $parts = $RepoArg -split "#", 2
+        if ($parts.Count -ne 2) {
+            throw "Invalid repository format: $RepoArg"
+        }
+        if ([string]::IsNullOrWhiteSpace($parts[0])) {
+            throw "Repository URL cannot be empty"
+        }
+        return @{
+            Repo = $parts[0].Trim()
+            Branch = $parts[1].Trim()
+        }
+    } else {
+        return @{
+            Repo = $RepoArg.Trim()
+            Branch = ""
+        }
+    }
+}
 
 # Process all arguments (support both - and -- formats)
 foreach ($arg in $args) {
@@ -193,9 +224,9 @@ function Print-Help {
         Write-Host "  -E, --en, --english  强制显示英文信息"
         Write-Host "  -Z, --zh, --chinese  强制显示中文信息"
         Write-Host "  -P, --python         强制安装便携式 Python（忽略系统 Python）"
-        Write-Host "  --packages <repo>[:<branch>]  指定 packages 仓库地址及分支"
-        Write-Host "  --env <repo>[:<branch>]  指定 env 仓库地址及分支"
-        Write-Host "  --sdk <repo>[:<branch>]  指定 sdk 仓库地址及分支"
+        Write-Host "  --packages <repo>[#<branch>]  指定 packages 仓库地址及分支"
+        Write-Host "  --env <repo>[#<branch>]  指定 env 仓库地址及分支"
+        Write-Host "  --sdk <repo>[#<branch>]  指定 sdk 仓库地址及分支"
         Write-Host "  -h, --help           显示此帮助信息"
         Write-Host ""
     } else {
@@ -212,41 +243,13 @@ function Print-Help {
         Write-Host "  -E, --en, --english  Force English messages"
         Write-Host "  -Z, --zh, --chinese  Force Chinese messages"
         Write-Host "  -P, --python         Force install portable Python (ignore system Python)"
-        Write-Host "  --packages <repo>[:<branch>]  Specify custom packages repository and branch"
-        Write-Host "  --env <repo>[:<branch>]  Specify custom env repository and branch"
-        Write-Host "  --sdk <repo>[:<branch>]  Specify custom sdk repository and branch"
+        Write-Host "  --packages <repo>[#<branch>]  Specify custom packages repository and branch"
+        Write-Host "  --env <repo>[#<branch>]  Specify custom env repository and branch"
+        Write-Host "  --sdk <repo>[#<branch>]  Specify custom sdk repository and branch"
         Write-Host "  -h, --help           Show this help message"
         Write-Host ""
     }
     exit 0
-}
-
-function Parse-RepoArg {
-    param(
-        [Parameter(Mandatory=$true)]
-        [ValidateNotNullOrEmpty()]
-        [string]$RepoArg
-    )
-    
-    # Parse repo and branch (format: repo_url[:branch])
-    if ($RepoArg -match ":") {
-        $parts = $RepoArg -split ":", 2
-        if ($parts.Count -ne 2) {
-            throw "Invalid repository format: $RepoArg"
-        }
-        if ([string]::IsNullOrWhiteSpace($parts[0])) {
-            throw "Repository URL cannot be empty"
-        }
-        return @{
-            Repo = $parts[0].Trim()
-            Branch = $parts[1].Trim()
-        }
-    } else {
-        return @{
-            Repo = $RepoArg.Trim()
-            Branch = ""
-        }
-    }
 }
 
 function Detect-China {
