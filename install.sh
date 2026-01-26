@@ -25,9 +25,9 @@
 # Configuration
 # ============================================================================
 
-# Verify script is running in bash
-if [ -z "$BASH_VERSION" ]; then
-    echo "Error: This script must be run with bash, not sh" >&2
+# Verify script is running in bash or zsh
+if [ -z "$BASH_VERSION" ] && [ -z "$ZSH_VERSION" ]; then
+    echo "Error: This script must be run with bash or zsh, not sh" >&2
     exit 1
 fi
 
@@ -52,6 +52,12 @@ ENV_DEFAULT_DIR=".rtenv"
 # Validate ENV_ROOT (no spaces or special characters)
 if [[ "$ENV_ROOT" == *" "* ]] || [[ "$ENV_ROOT" == *$'\t'* ]]; then
     echo "Error: ENV_ROOT cannot contain spaces or tabs" >&2
+    exit 1
+fi
+
+# Validate ENV_ROOT (no non-ASCII characters)
+if LC_ALL=C.UTF-8 locale -ck "$ENV_ROOT" 2>&1 | grep -q "non-ASCII"; then
+    echo "Error: ENV_ROOT cannot contain non-ASCII characters" >&2
     exit 1
 fi
 
@@ -269,15 +275,15 @@ parse_args() {
                 ;;
             --packages)
                             shift
-                            IFS=$'\n' read -r custom_packages_repo custom_packages_branch <<< "$(parse_repo_arg "$1" "packages")"
+                            read -r custom_packages_repo custom_packages_branch <<< "$(parse_repo_arg "$1" "packages")"
                             ;;
                         --env)
                             shift
-                            IFS=$'\n' read -r custom_env_repo custom_env_branch <<< "$(parse_repo_arg "$1" "env")"
+                            read -r custom_env_repo custom_env_branch <<< "$(parse_repo_arg "$1" "env")"
                             ;;
                         --sdk)
                             shift
-                            IFS=$'\n' read -r custom_sdk_repo custom_sdk_branch <<< "$(parse_repo_arg "$1" "sdk")"
+                            read -r custom_sdk_repo custom_sdk_branch <<< "$(parse_repo_arg "$1" "sdk")"
                             ;;
             -c|--cn|--gitee)
                 use_cn="true"
@@ -340,9 +346,11 @@ get_message() {
                 installing_suse) echo "正在安装依赖 (SUSE/openSUSE)..." ;;
                 installing_arch) echo "正在安装依赖 (Arch/Manjaro)..." ;;
                 installing_fedora) echo "正在安装依赖 (Fedora/RHEL/CentOS)..." ;;
+                installing_alpine) echo "正在安装依赖 (Alpine)..." ;;
                 unsupported_os) echo "不支持的操作系统: %s" ;;
                 missing_gcc) echo "缺少 GCC 编译器，请手动安装" ;;
                 installing_macos) echo "正在安装依赖 (macOS)..." ;;
+                installing_alpine) echo "正在安装依赖 (Alpine)..." ;;
                 installing_packages) echo "正在安装 Python 包..." ;;
                 env_root_exists) echo "RT-Thread ENV 目录已存在: %s" ;;
                 env_root_prompt) echo "检测到已存在的RT-Thread ENV。是否要删除并重新安装？" ;;
@@ -412,9 +420,11 @@ get_message() {
                 installing_suse) echo "Installing dependencies (SUSE/openSUSE)..." ;;
                 installing_arch) echo "Installing dependencies (Arch/Manjaro)..." ;;
                 installing_fedora) echo "Installing dependencies (Fedora/RHEL/CentOS)..." ;;
+                installing_alpine) echo "Installing dependencies (Alpine)..." ;;
                 unsupported_os) echo "Unsupported OS: %s" ;;
                 missing_gcc) echo "Missing GCC compiler, please install manually" ;;
                 installing_macos) echo "Installing dependencies (macOS)..." ;;
+                installing_alpine) echo "Installing dependencies (Alpine)..." ;;
                 installing_packages) echo "Installing Python packages..." ;;
                 using_cn_mirror) echo "Using China mirror" ;;
                 using_official_source) echo "Using official source" ;;
@@ -554,6 +564,10 @@ install_dependencies_linux() {
         rhel|centos|fedora)
             log_info "installing_fedora"
             sudo dnf install -y python3 python3-pip git gcc ncurses-devel
+            ;;
+        alpine)
+            log_info "installing_alpine"
+            apk add --no-cache python3 py3-pip git gcc ncurses-dev linux-headers musl-dev
             ;;
         *)
             log_error "unsupported_os" "$distro"

@@ -116,6 +116,12 @@ if ($env:ENV_ROOT -match "\s") {
     exit 1
 }
 
+# Validate ENV_ROOT (no non-ASCII characters)
+if ($env:ENV_ROOT -match "[^\x00-\x7F]") {
+    Write-Host "Error: ENV_ROOT cannot contain non-ASCII characters" -ForegroundColor Red
+    exit 1
+}
+
 # Virtual environment directory name
 $Global:VENV_DIR = "venv/rt-env"
 
