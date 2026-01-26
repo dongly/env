@@ -361,13 +361,13 @@ $MSG_EN_pyocd_install_prompt = "Do you want to install pyocd (for debugging Cort
 $MSG_EN_pyocd_install_confirm = "Install pyocd? [Y/n]: "
 $MSG_EN_installation_skip_existing = "RT-Thread ENV already exists, skipping installation (use -y to force reinstall)"
 $MSG_EN_python_version_failed = "Failed to get Python version information"
-$MSG_EN_creating_venv = "Creating virtual environment..."
+$MSG_EN_creating_venv = "Creating virtual environment at: {0}"
 $MSG_EN_venv_created = "Virtual environment created"
 $MSG_EN_venv_exists = "Virtual environment already exists"
 $MSG_EN_venv_exists_confirm = "Virtual environment already exists, do you want to delete and recreate?"
 $MSG_EN_skip_venv_creation = "Skipping virtual environment creation"
 $MSG_EN_removing_existing_venv = "Removing existing virtual environment..."
-$MSG_EN_activating_venv = "Activating virtual environment..."
+$MSG_EN_activating_venv = "Activating virtual environment at: {0}"
 $MSG_EN_using_cn_mirror = "Using China mirror"
 $MSG_EN_using_official_source = "Using official source"
 $MSG_EN_using_github = "Using GitHub"
@@ -464,13 +464,13 @@ $MSG_ZH_pyocd_install_prompt = "是否要安装 pyocd (用于调试 Cortex-M 设
 $MSG_ZH_pyocd_install_confirm = "安装 pyocd？[Y/n]: "
 $MSG_ZH_installation_skip_existing = "RT-Thread ENV 已存在，跳过安装（使用 -y 参数强制重新安装）"
 $MSG_ZH_python_version_failed = "无法获取 Python 版本信息"
-$MSG_ZH_creating_venv = "正在创建虚拟环境..."
+$MSG_ZH_creating_venv = "正在创建虚拟环境: {0}"
 $MSG_ZH_venv_created = "虚拟环境创建完成"
 $MSG_ZH_venv_exists = "虚拟环境已存在"
 $MSG_ZH_venv_exists_confirm = "虚拟环境已存在，是否删除并重新创建？"
 $MSG_ZH_skip_venv_creation = "跳过虚拟环境创建"
 $MSG_ZH_removing_existing_venv = "正在删除现有虚拟环境..."
-$MSG_ZH_activating_venv = "正在激活虚拟环境..."
+$MSG_ZH_activating_venv = "正在激活虚拟环境: {0}"
 $MSG_ZH_using_cn_mirror = "使用中国镜像源"
 $MSG_ZH_using_official_source = "使用官方源"
 $MSG_ZH_using_github = "使用 GitHub 源"
@@ -1061,21 +1061,35 @@ function Create-Venv {
     }
 
     # Create virtual environment if it doesn't exist
-    $venvPath = "$env:ENV_ROOT\$Global:VENV_DIR"
+    $venvPath = Join-Path $env:ENV_ROOT $Global:VENV_DIR
     if (-not (Test-Path $venvPath)) {
-        Write-LogInfo "creating_venv"
+        Write-LogInfo "creating_venv" $venvPath
         if ($Global:USE_EMBED_PYTHON) {
             # Use virtualenv for embedded Python (no venv module)
-            & $pythonCmd -m virtualenv $venvPath 2>&1 | Out-Null
+            $virtualenvCmd = "& `"$pythonCmd`" -m virtualenv `"$venvPath`" -p `"$pythonCmd`""
+            try {
+                Invoke-Expression $virtualenvCmd 2>&1 | Write-Host
+            }
+            catch {
+                Write-LogError "venv_not_found"
+                exit 1
+            }
         }
         else {
             # Use venv for system Python
             & $pythonCmd -m venv $venvPath
         }
-        Write-LogSuccess "venv_created"
+        
+        # Check if venv was created successfully
+        if (Test-Path (Join-Path $venvPath "Scripts\python.exe")) {
+            Write-LogSuccess "venv_created"
+        }
+        else {
+            Write-LogError "venv_not_found"
+            exit 1
+        }
     }
     else {
-        Write-Host "$(Get-Message 'venv_exists')" -ForegroundColor Yellow
         if (-not $Global:AUTO_MODE) {
             $response = Read-Host "$(Get-Message 'venv_exists_confirm') (y/n)"
             if ($response -ne 'y' -and $response -ne 'Y') {
@@ -1090,23 +1104,41 @@ function Create-Venv {
             Write-LogInfo "skip_venv_creation"
             return
         }
-        Write-LogInfo "creating_venv"
+        Write-LogInfo "creating_venv" $venvPath
         if ($Global:USE_EMBED_PYTHON) {
-            & $pythonCmd -m virtualenv $venvPath 2>&1 | Out-Null
+            # Use virtualenv for embedded Python (no venv module)
+            $virtualenvCmd = "& `"$pythonCmd`" -m virtualenv `"$venvPath`" -p `"$pythonCmd`""
+            try {
+                Invoke-Expression $virtualenvCmd 2>&1 | Out-Null
+            }
+            catch {
+                Write-LogError "venv_not_found"
+                exit 1
+            }
         }
         else {
+            # Use venv for system Python
             & $pythonCmd -m venv $venvPath
         }
-        Write-LogSuccess "venv_created"
+        
+        # Check if venv was created successfully
+        if (Test-Path (Join-Path $venvPath "Scripts\python.exe")) {
+            Write-LogSuccess "venv_created"
+        }
+        else {
+            Write-LogError "venv_not_found"
+            exit 1
+        }
     }
 }
 
 function Install-PythonPackages {
     param([bool]$UseCNMirror, [string]$ScriptsDir, [bool]$InstallPyocd)
 
-    Write-LogInfo "activating_venv"
-    $activateScript = "$env:ENV_ROOT\$Global:VENV_DIR\Scripts\Activate.ps1"
-    $venvPython = "$env:ENV_ROOT\$Global:VENV_DIR\Scripts\python.exe"
+    $venvPath = Join-Path $env:ENV_ROOT $Global:VENV_DIR
+    Write-LogInfo "activating_venv" $venvPath
+    $activateScript = Join-Path $venvPath "Scripts\Activate.ps1"
+    $venvPython = Join-Path $venvPath "Scripts\python.exe"
 
     if (-not (Test-Path $venvPython)) {
         Write-LogError "venv_not_found"
