@@ -25,10 +25,16 @@
 # Configuration
 # ============================================================================
 
+# Verify script is running in bash
+if [ -z "$BASH_VERSION" ]; then
+    echo "Error: This script must be run with bash, not sh" >&2
+    exit 1
+fi
+
 # Get the real user's home directory (handles sudo case)
 if [ -n "$SUDO_USER" ]; then
     # Running with sudo, use the original user's home
-    REAL_USER_HOME=$(eval echo ~$SUDO_USER)
+    REAL_USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
     REAL_USER="$SUDO_USER"
     # Get the real user's default shell from /etc/passwd
     REAL_USER_SHELL=$(getent passwd "$SUDO_USER" | cut -d: -f7)
@@ -42,6 +48,12 @@ fi
 # Environment directory (can be overridden by --env-root or $ENV_ROOT)
 ENV_DEFAULT_DIR=".rtenv"
 : "${ENV_ROOT:=$REAL_USER_HOME/$ENV_DEFAULT_DIR}"
+
+# Validate ENV_ROOT (no spaces or special characters)
+if [[ "$ENV_ROOT" == *" "* ]] || [[ "$ENV_ROOT" == *$'\t'* ]]; then
+    echo "Error: ENV_ROOT cannot contain spaces or tabs" >&2
+    exit 1
+fi
 
 # Virtual environment directory name
 VENV_DIR="venv/rt-env"
@@ -101,10 +113,18 @@ clone_repo() {
         fi
         if ! git clone "${clone_args[@]}" "$url" "$destination" 2>&1; then
             log_error "clone_failed" "$url"
+            # Clean up partial clone
+            rm -rf "$destination" 2>/dev/null || true
             exit 1
         fi
         log_success "cloned" "$destination"
     else
+        # Verify it's a valid git repository
+        if ! git -C "$destination" rev-parse --git-dir &>/dev/null; then
+            log_error "invalid_git_repo" "$destination"
+            rm -rf "$destination" 2>/dev/null || true
+            exit 1
+        fi
         log_success "dir_exists" "$destination"
     fi
 }
@@ -173,11 +193,9 @@ parse_repo_arg() {
     
     # Parse repo and branch (format: repo_url[:branch])
     if [[ "$repo_arg" == *":"* ]]; then
-        repo="${repo_arg%:*}"
-        branch="${repo_arg##*:}"
+        printf "%s\n%s" "${repo_arg%:*}" "${repo_arg##*:}"
     else
-        repo="$repo_arg"
-        branch=""
+        printf "%s\n%s" "$repo_arg" ""
     fi
 }
 
@@ -251,21 +269,15 @@ parse_args() {
                 ;;
             --packages)
                             shift
-                            parse_repo_arg "$1" "packages"
-                            custom_packages_repo="$repo"
-                            custom_packages_branch="$branch"
+                            IFS=$'\n' read -r custom_packages_repo custom_packages_branch <<< "$(parse_repo_arg "$1" "packages")"
                             ;;
                         --env)
                             shift
-                            parse_repo_arg "$1" "env"
-                            custom_env_repo="$repo"
-                            custom_env_branch="$branch"
+                            IFS=$'\n' read -r custom_env_repo custom_env_branch <<< "$(parse_repo_arg "$1" "env")"
                             ;;
                         --sdk)
                             shift
-                            parse_repo_arg "$1" "sdk"
-                            custom_sdk_repo="$repo"
-                            custom_sdk_branch="$branch"
+                            IFS=$'\n' read -r custom_sdk_repo custom_sdk_branch <<< "$(parse_repo_arg "$1" "sdk")"
                             ;;
             -c|--cn|--gitee)
                 use_cn="true"
@@ -420,7 +432,6 @@ get_message() {
                 installing_pyocd) echo "Installing pyocd..." ;;
                 pyocd_install_prompt) echo "Do you want to install pyocd (for debugging Cortex-M devices)?" ;;
                 pyocd_install_confirm) echo "Install pyocd? [y/N] " ;;
-                installation_skip_existing) echo "RT-Thread ENV already exists, skipping installation (use -y to force reinstall)" ;;
                 next_steps) echo "Next steps:" ;;
                 activate_env) echo "1. Activate RT-Thread ENV:" ;;
                 activate_cmd) echo "   source %s/env.sh" ;;
@@ -821,51 +832,13 @@ setup_repos() {
         url_env="$custom_env_repo"
         if [ -n "$custom_env_branch" ]; then
             log_info "using_custom_repo_branch" "$custom_env_repo" "$custom_env_branch"
-        else
-            log_info "using_custom_repo" "$custom_env_repo"
-        fi
-    fi
-
-    
-
-            url_env="$custom_env_repo"
-
-    
-
-            if [ -n "$custom_env_branch" ]; then
-
-    
-
-                log_info "using_custom_repo" "$custom_env_repo"
-
-    
-
-                log_info "using_custom_branch" "$custom_env_branch"
-
-    
-
-            else
-
-    
-
-                log_info "using_custom_repo" "$custom_env_repo"
-
-    
-
-            fi
-
-    
-
-        fi
-
-    
-
-        
-
-    
-
-        if [ -n "$custom_sdk_repo" ]; then
-        use_custom_sdk=true
+                    else
+                        log_info "using_custom_repo" "$custom_env_repo"
+                    fi
+                fi
+            
+                if [ -n "$custom_sdk_repo" ]; then
+                    use_custom_sdk=true
         url_sdk="$custom_sdk_repo"
         if [ -n "$custom_sdk_branch" ]; then
             log_info "using_custom_repo_branch" "$custom_sdk_repo" "$custom_sdk_branch"

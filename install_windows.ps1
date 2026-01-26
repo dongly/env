@@ -110,6 +110,12 @@ foreach ($arg in $args) {
 $ENV_DEFAULT_DIR = ".rtenv"
 $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\$ENV_DEFAULT_DIR" }
 
+# Validate ENV_ROOT (no spaces or special characters)
+if ($env:ENV_ROOT -match "\s") {
+    Write-Host "Error: ENV_ROOT cannot contain spaces" -ForegroundColor Red
+    exit 1
+}
+
 # Virtual environment directory name
 $Global:VENV_DIR = "venv/rt-env"
 
@@ -204,7 +210,6 @@ function Print-Help {
         Write-Host "  --env <repo>[:<branch>]  Specify custom env repository and branch"
         Write-Host "  --sdk <repo>[:<branch>]  Specify custom sdk repository and branch"
         Write-Host "  -h, --help           Show this help message"
-        Write-Host "  -h, --help           Show this help message"
         Write-Host ""
     }
     exit 0
@@ -212,19 +217,27 @@ function Print-Help {
 
 function Parse-RepoArg {
     param(
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
         [string]$RepoArg
     )
     
     # Parse repo and branch (format: repo_url[:branch])
     if ($RepoArg -match ":") {
         $parts = $RepoArg -split ":", 2
+        if ($parts.Count -ne 2) {
+            throw "Invalid repository format: $RepoArg"
+        }
+        if ([string]::IsNullOrWhiteSpace($parts[0])) {
+            throw "Repository URL cannot be empty"
+        }
         return @{
-            Repo = $parts[0]
-            Branch = $parts[1]
+            Repo = $parts[0].Trim()
+            Branch = $parts[1].Trim()
         }
     } else {
         return @{
-            Repo = $RepoArg
+            Repo = $RepoArg.Trim()
             Branch = ""
         }
     }
@@ -337,6 +350,8 @@ $MSG_EN_creating_venv = "Creating virtual environment..."
 $MSG_EN_venv_created = "Virtual environment created"
 $MSG_EN_venv_exists = "Virtual environment already exists"
 $MSG_EN_venv_exists_confirm = "Virtual environment already exists, do you want to delete and recreate?"
+$MSG_EN_skip_venv_creation = "Skipping virtual environment creation"
+$MSG_EN_removing_existing_venv = "Removing existing virtual environment..."
 $MSG_EN_activating_venv = "Activating virtual environment..."
 $MSG_EN_using_cn_mirror = "Using China mirror"
 $MSG_EN_using_official_source = "Using official source"
@@ -434,6 +449,8 @@ $MSG_ZH_creating_venv = "正在创建虚拟环境..."
 $MSG_ZH_venv_created = "虚拟环境创建完成"
 $MSG_ZH_venv_exists = "虚拟环境已存在"
 $MSG_ZH_venv_exists_confirm = "虚拟环境已存在，是否删除并重新创建？"
+$MSG_ZH_skip_venv_creation = "跳过虚拟环境创建"
+$MSG_ZH_removing_existing_venv = "正在删除现有虚拟环境..."
 $MSG_ZH_activating_venv = "正在激活虚拟环境..."
 $MSG_ZH_using_cn_mirror = "使用中国镜像源"
 $MSG_ZH_using_official_source = "使用官方源"
@@ -600,7 +617,18 @@ function Install-Python {
     $pythonUrl = if ($UseCNMirror) { $PYTHON_URL_CN } else { $PYTHON_URL_DEFAULT }
 
     # Download Python embed archive
-    Invoke-WebRequest -Uri $pythonUrl -OutFile $archivePath -UseBasicParsing
+    try {
+        Invoke-WebRequest -Uri $pythonUrl -OutFile $archivePath -UseBasicParsing -ErrorAction Stop
+    } catch {
+        Write-LogError "download_failed" $_.Exception.Message
+        exit 1
+    }
+    
+    # Verify file was downloaded successfully
+    if (-not (Test-Path $archivePath) -or (Get-Item $archivePath).Length -eq 0) {
+        Write-LogError "download_failed" "File not found or empty"
+        exit 1
+    }
 
     Write-LogInfo "installing_portable_python"
 
@@ -932,14 +960,14 @@ function Create-Venv {
         if (-not $Global:AUTO_MODE) {
             $response = Read-Host "$(Get-Message 'venv_exists_confirm') (y/n)"
             if ($response -ne 'y' -and $response -ne 'Y') {
-                Write-Host "跳过虚拟环境创建" -ForegroundColor Cyan
+                Write-LogInfo "skip_venv_creation"
                 return
             }
             # 用户选择 y，删除并重新创建
-            Write-Host "正在删除现有虚拟环境..." -ForegroundColor Cyan
+            Write-LogInfo "removing_existing_venv"
             Remove-Item -Path $venvPath -Recurse -Force
         } else {
-            Write-Host "跳过虚拟环境创建" -ForegroundColor Cyan
+            Write-LogInfo "skip_venv_creation"
             return
         }
         Write-LogInfo "creating_venv"
