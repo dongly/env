@@ -1479,29 +1479,14 @@ function Prompt-Pyocd {
 # ============================================================================
 
 function Main {
-    param([string[]]$ParsedArgs)
-
-    # Check for administrator privilege when -y is specified
-    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-
-    # 使用全局参数变量
-    $useCn = $cnMode
-    $useOfficial = $officialMode
-    $installPyocd = $pyocdMode
-    $needHelp = $helpMode
-    $langEn = $enMode
-    $langZh = $zhMode
-    $useEmbedPython = $pythonMode
-    $autoMode = $autoMode
-
-    # 设置全局变量
-    $Global:LANG_CURRENT = if ($langZh) { "zh" } elseif ($langEn) { "en" } else { Get-SystemLanguage }
-    $Global:USE_CN = $useCn
-    $Global:USE_CN_SET = $useCn -or $useOfficial
-    $Global:INSTALL_PYOCD = $installPyocd
+    # Initialize globals
+    $Global:LANG_CURRENT = if ($zhMode) { "zh" } elseif ($enMode) { "en" } else { Get-SystemLanguage }
+    $Global:USE_CN = $cnMode
+    $Global:USE_CN_SET = $cnMode -or $officialMode
+    $Global:INSTALL_PYOCD = $pyocdMode
     $Global:AUTO_MODE = $autoMode
-    $Global:NEED_HELP = $needHelp
-    $Global:USE_EMBED_PYTHON = $useEmbedPython
+    $Global:NEED_HELP = $helpMode
+    $Global:USE_EMBED_PYTHON = $pythonMode
     $Global:CUSTOM_PACKAGES_REPO = $customPackagesRepo
     $Global:CUSTOM_PACKAGES_BRANCH = $customPackagesBranch
     $Global:CUSTOM_ENV_REPO = $customEnvRepo
@@ -1509,24 +1494,19 @@ function Main {
     $Global:CUSTOM_SDK_REPO = $customSdkRepo
     $Global:CUSTOM_SDK_BRANCH = $customSdkBranch
 
-    # Validate and set ENV_ROOT after argument parsing
-    if ($envRootValue -ne "") {
-        $env:ENV_ROOT = $envRootValue
-    }
-
-    # Validate ENV_ROOT (no spaces or special characters)
+    # Set and validate ENV_ROOT
+    if ($envRootValue) { $env:ENV_ROOT = $envRootValue }
     if ($env:ENV_ROOT -match "\s") {
         Write-Host "Error: ENV_ROOT cannot contain spaces" -ForegroundColor Red
         exit 1
     }
-
-    # Validate ENV_ROOT (no non-ASCII characters)
     if ($env:ENV_ROOT -match "[^\x00-\x7F]") {
         Write-Host "Error: ENV_ROOT cannot contain non-ASCII characters" -ForegroundColor Red
         exit 1
     }
 
-    # Check if running with -y flag without admin privileges
+    # Check admin privilege for auto mode
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if ($autoMode -and -not $isAdmin -and -not $skipLongPath) {
         Write-LogError "admin_required"
         Write-LogWarning "run_as_admin"
@@ -1539,40 +1519,40 @@ function Main {
         return
     }
 
-    # IP detection (lower priority, only if not explicitly set)
+    # Detect China if not explicitly set
     if (-not $Global:USE_CN_SET) {
-        $Global:USE_CN = Detect-China -LangEn $langEn -LangZh $langZh
+        $Global:USE_CN = Detect-China
     }
 
     # Override with --official flag
-    if ($useOfficial) {
+    if ($officialMode) {
         $Global:USE_CN = $false
     }
 
-    # Step 2: Print installation banner
+    # Step 1: Print installation banner
     Show-Banner
 
-    # Step 3: Check if ENV_ROOT already exists
+    # Step 2: Check if ENV_ROOT already exists
     Check-ExistingEnv
 
-    # Step 4: Ensure Python and Git are installed
+    # Step 3: Ensure Python and Git are installed
     Ensure-Dependencies
 
-    # Step 5: Clone repositories and generate configuration
+    # Step 4: Clone repositories and generate configuration
     Setup-Repositories
 
-    # Step 6: Create virtual environment
+    # Step 5: Create virtual environment
     Create-Venv
 
-    # Step 7: Prompt user for pyocd installation
+    # Step 6: Prompt user for pyocd installation
     Prompt-Pyocd
 
-    # Step 8: Install Python packages and pyocd (if requested)
+    # Step 7: Install Python packages and pyocd (if requested)
     Write-LogInfo "installing_packages"
     Install-PythonPackages -UseCNMirror $Global:USE_CN -ScriptsDir "$env:ENV_ROOT\tools\scripts" -InstallPyocd $Global:INSTALL_PYOCD
     Write-Host ""
 
-    # Step 9: Show next steps
+    # Step 8: Show next steps
     Show-NextSteps
 }
 
