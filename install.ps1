@@ -4,7 +4,7 @@
 # Supports: English / 中文
 #
 # Usage:
-#   .\install_windows.ps1 [-y] [-c] [-o] [-p] [-e <path>] [-E|-Z] [-P] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [-h]
+#   .\install.ps1 [-y] [-c] [-o] [-p] [-e <path>] [-E|-Z] [-P] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [-h]
 #
 # Options:
 #   -y, --yes, --auto    Auto-install without prompts
@@ -213,7 +213,7 @@ function Print-Help {
     if ($Global:LANG_CURRENT -eq "zh") {
         Write-Host "RT-Thread ENV 安装程序"
         Write-Host ""
-        Write-Host "用法: .\install_windows.ps1 [选项]"
+        Write-Host "用法: .\install.ps1 [选项]"
         Write-Host ""
         Write-Host "选项:"
         Write-Host "  -y, --yes, --auto    自动安装，无需提示"
@@ -232,7 +232,7 @@ function Print-Help {
     } else {
         Write-Host "RT-Thread ENV Installation Script"
         Write-Host ""
-        Write-Host "Usage: .\install_windows.ps1 [OPTIONS]"
+        Write-Host "Usage: .\install.ps1 [OPTIONS]"
         Write-Host ""
         Write-Host "Options:"
         Write-Host "  -y, --yes, --auto    Auto-install without prompts"

@@ -5,10 +5,10 @@ $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\.r
 # Virtual environment directory name
 $env:RT_VENV_DIR = if ($env:RT_VENV_DIR) { $env:RT_VENV_DIR } else { "$env:ENV_ROOT\venv\rt-env" }
 
-if (Test-Path "$env:ENV_ROOT\$env:RT_VENV_DIR\Scripts\Activate.ps1") {
-    . "$env:ENV_ROOT\$env:RT_VENV_DIR\Scripts\Activate.ps1"
+if (Test-Path "$env:RT_VENV_DIR\Scripts\Activate.ps1") {
+    . "$env:RT_VENV_DIR\Scripts\Activate.ps1"
 } else {
-    Write-Host "Virtual environment not found. Please run the installation script first."
+    Write-Host "Virtual environment($env:RT_VENV_DIR\Scripts\Activate.ps1) not found. Please run the installation script first."
     exit 1
 }
 
