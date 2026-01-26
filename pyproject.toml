@@ -18,11 +18,11 @@ dependencies = [
 ]
 
 [project.scripts]
-rt-env = "env.env:main"
-menuconfig = "env.env:menuconfig"
-pkgs = "env.env:pkgs"
-sdk = "env.env:sdk"
-system = "env.env:system"
+rt-env = "env:main"
+menuconfig = "env:menuconfig"
+pkgs = "env:pkgs"
+sdk = "env:sdk"
+system = "env:system"
 
 [tool.setuptools]
 package-dir = {"" = "."}

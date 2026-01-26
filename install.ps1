@@ -41,7 +41,7 @@ $customSdkBranch = ""
 # Parse-RepoArg function must be defined before it's used in argument parsing
 function Parse-RepoArg {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$RepoArg
     )
@@ -58,12 +58,13 @@ function Parse-RepoArg {
             throw "Repository URL cannot be empty"
         }
         return @{
-            Repo = $parts[0].Trim()
+            Repo   = $parts[0].Trim()
             Branch = $parts[1].Trim()
         }
-    } else {
+    }
+    else {
         return @{
-            Repo = $RepoArg.Trim()
+            Repo   = $RepoArg.Trim()
             Branch = ""
         }
     }
@@ -71,7 +72,7 @@ function Parse-RepoArg {
 
 # Process all arguments (support both - and -- formats)
 foreach ($arg in $args) {
-    switch -Wildcard ($arg.ToLower()) {
+    switch -CaseSensitive ($arg) {
         "-y" { $autoMode = $true }
         "--yes" { $autoMode = $true }
         "--auto" { $autoMode = $true }
@@ -86,10 +87,10 @@ foreach ($arg in $args) {
         "--pyocd" { $pyocdMode = $true }
         "-P" { $pythonMode = $true }
         "--python" { $pythonMode = $true }
-        "-E" { $enMode = $true }
+        "-e" { $enMode = $true }
         "--en" { $enMode = $true }
         "--english" { $enMode = $true }
-        "-Z" { $zhMode = $true }
+        "-z" { $zhMode = $true }
         "--zh" { $zhMode = $true }
         "--chinese" { $zhMode = $true }
         "--packages" {
@@ -154,7 +155,7 @@ if ($env:ENV_ROOT -match "[^\x00-\x7F]") {
 }
 
 # Virtual environment directory name
-$Global:VENV_DIR = "venv/rt-env"
+$Global:VENV_DIR = "venv\rt-env"
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -229,7 +230,8 @@ function Print-Help {
         Write-Host "  --sdk <repo>[#<branch>]  指定 sdk 仓库地址及分支"
         Write-Host "  -h, --help           显示此帮助信息"
         Write-Host ""
-    } else {
+    }
+    else {
         Write-Host "RT-Thread ENV Installation Script"
         Write-Host ""
         Write-Host "Usage: .\install.ps1 [OPTIONS]"
@@ -267,7 +269,8 @@ function Detect-China {
         if ($ip_info.country -eq "CN") {
             $use_cn = $true
         }
-    } catch {
+    }
+    catch {
         # Fallback to timezone
     }
 
@@ -278,7 +281,8 @@ function Detect-China {
             if ($timezone -like "*Shanghai*" -or $timezone -like "*China*" -or $timezone -like "*Beijing*") {
                 $use_cn = $true
             }
-        } catch {
+        }
+        catch {
             # Fallback to locale
         }
     }
@@ -331,6 +335,8 @@ $MSG_EN_install_git_windows = "Windows: Download and install Git from $GIT_DOWNL
 $MSG_EN_enabling_long_paths = "Enabling Windows long path support..."
 $MSG_EN_long_paths_enabled = "Windows long path support enabled"
 $MSG_EN_long_paths_enable_failed = "Failed to enable long path support (may require admin privileges)"
+$MSG_EN_need_admin_privilege = "Enabling long paths requires administrator privileges"
+$MSG_EN_elevating_to_enable_long_paths = "Attempting to enable long paths (UAC prompt may appear)"
 $MSG_EN_cloning = "Cloning {0} to {1}"
 $MSG_EN_cloned = "Cloned {0}"
 $MSG_EN_dir_exists = "Directory already exists: {0}"
@@ -341,7 +347,7 @@ $MSG_EN_missing_gcc = "Missing GCC compiler, please install manually"
 $MSG_EN_installing_packages = "Installing Python packages..."
 $MSG_EN_env_root_exists = "RT-Thread ENV directory already exists: {0}"
 $MSG_EN_env_root_prompt = "Existing RT-Thread ENV detected. Do you want to delete and reinstall?"
-$MSG_EN_env_root_confirm = "Are you sure you want to delete? [y/N] "
+$MSG_EN_env_root_confirm = "Are you sure you want to delete? [y/N]: "
 $MSG_EN_removing_env_root = "Removing existing RT-Thread ENV: {0}..."
 $MSG_EN_env_root_removed = "Existing RT-Thread ENV removed: {0}"
 $MSG_EN_installation_cancelled = "Installation cancelled"
@@ -352,7 +358,7 @@ $MSG_EN_virtualenv_installed = "virtualenv installed successfully"
 $MSG_EN_pip_install_failed = "pip installation failed"
 $MSG_EN_package_install_failed = "Package installation failed, please check network connection or permissions"
 $MSG_EN_pyocd_install_prompt = "Do you want to install pyocd (for debugging Cortex-M devices)?"
-$MSG_EN_pyocd_install_confirm = "Install pyocd? [y/N] "
+$MSG_EN_pyocd_install_confirm = "Install pyocd? [Y/n]: "
 $MSG_EN_installation_skip_existing = "RT-Thread ENV already exists, skipping installation (use -y to force reinstall)"
 $MSG_EN_python_version_failed = "Failed to get Python version information"
 $MSG_EN_creating_venv = "Creating virtual environment..."
@@ -367,6 +373,8 @@ $MSG_EN_using_official_source = "Using official source"
 $MSG_EN_using_github = "Using GitHub"
 $MSG_EN_using_pypi_mirror = "Using PyPI mirror: {0}"
 $MSG_EN_installed_packages = "Python packages installed successfully"
+$MSG_EN_pyocd_installed = "Will install pyocd package"
+$MSG_EN_pyocd_not_installed = "Skipping pyocd installation"
 $MSG_EN_copied_env_script = "Copied env.ps1: {0}"
 $MSG_EN_setup_complete = "RT-Thread ENV installation completed!"
 $MSG_EN_next_steps = "Next steps:"
@@ -432,6 +440,8 @@ $MSG_ZH_install_git_windows = "Windows: 从 $GIT_DOWNLOAD_URL 下载并安装 Gi
 $MSG_ZH_enabling_long_paths = "正在启用 Windows 长路径支持..."
 $MSG_ZH_long_paths_enabled = "Windows 长路径支持已启用"
 $MSG_ZH_long_paths_enable_failed = "启用长路径支持失败（可能需要管理员权限）"
+$MSG_ZH_need_admin_privilege = "启用长路径需要管理员权限"
+$MSG_ZH_elevating_to_enable_long_paths = "正在尝试启用长路径（可能会弹出 UAC 提示）"
 $MSG_ZH_cloning = "正在克隆: {0} 到 {1}"
 $MSG_ZH_cloned = "已克隆: {0}"
 $MSG_ZH_dir_exists = "目录已存在: {0}"
@@ -442,7 +452,7 @@ $MSG_ZH_missing_gcc = "缺少 GCC 编译器，请手动安装"
 $MSG_ZH_installing_packages = "正在安装 Python 包..."
 $MSG_ZH_env_root_exists = "RT-Thread ENV 目录已存在: {0}"
 $MSG_ZH_env_root_prompt = "检测到已存在的RT-Thread ENV。是否要删除并重新安装？"
-$MSG_ZH_env_root_confirm = "确定要删除吗？[y/N] "
+$MSG_ZH_env_root_confirm = "确定要删除吗？[y/N]: "
 $MSG_ZH_removing_env_root = "正在删除现有RT-Thread ENV: {0}..."
 $MSG_ZH_env_root_removed = "已删除 RT-Thread ENV: {0}"
 $MSG_ZH_installation_cancelled = "安装已取消"
@@ -451,7 +461,7 @@ $MSG_ZH_upgrading_pip = "正在升级 pip..."
 $MSG_ZH_package_install_failed = "包安装失败，请检查网络连接或权限"
 $MSG_ZH_installing_pyocd = "正在安装 pyocd..."
 $MSG_ZH_pyocd_install_prompt = "是否要安装 pyocd (用于调试 Cortex-M 设备)？"
-$MSG_ZH_pyocd_install_confirm = "安装 pyocd？[y/N] "
+$MSG_ZH_pyocd_install_confirm = "安装 pyocd？[Y/n]: "
 $MSG_ZH_installation_skip_existing = "RT-Thread ENV 已存在，跳过安装（使用 -y 参数强制重新安装）"
 $MSG_ZH_python_version_failed = "无法获取 Python 版本信息"
 $MSG_ZH_creating_venv = "正在创建虚拟环境..."
@@ -466,6 +476,8 @@ $MSG_ZH_using_official_source = "使用官方源"
 $MSG_ZH_using_github = "使用 GitHub 源"
 $MSG_ZH_using_pypi_mirror = "使用 PyPI 镜像: {0}"
 $MSG_ZH_installed_packages = "Python 包安装完成"
+$MSG_ZH_pyocd_installed = "将安装 pyocd 包"
+$MSG_ZH_pyocd_not_installed = "跳过 pyocd 安装"
 $MSG_ZH_copied_env_script = "已复制 env.ps1: {0}"
 $MSG_ZH_setup_complete = "RT-Thread ENV 安装完成！"
 $MSG_ZH_next_steps = "后续步骤:"
@@ -561,7 +573,8 @@ function Test-Command {
     try {
         Get-Command $CommandName -ErrorAction Stop | Out-Null
         return $true
-    } catch {
+    }
+    catch {
         return $false
     }
 }
@@ -584,7 +597,8 @@ function Clone-Repository {
             exit 1
         }
         Write-LogSuccess "cloned" $Destination
-    } else {
+    }
+    else {
         Write-LogSuccess "dir_exists" $Destination
     }
 }
@@ -598,137 +612,6 @@ function Generate-KconfigFile {
     Set-Content -Path $kconfigPath -Value $content
 
     Write-LogSuccess "generating_kconfig" $kconfigPath
-}
-
-# ============================================================================
-# Python Installation (Windows-specific)
-# ============================================================================
-
-$PYTHON_VERSION = "3.13.11"
-$PYTHON_ARCHIVE = "python-$PYTHON_VERSION-embed-amd64.zip"
-# Python download URLs
-$PYTHON_URL_DEFAULT = "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
-$PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
-
-# Git download URLs
-$GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
-$GIT_GITHUB_API_URL = "https://api.github.com/repos/git-for-windows/git/releases/latest"
-$GIT_FALLBACK_VERSION = "v2.52.0.windows.1"
-$GIT_FALLBACK_URL = "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-v2.52.0.windows.1-64-bit.exe"
-
-function Install-Python {
-    param([bool]$UseCNMirror)
-
-    Write-LogInfo "downloading_portable_python"
-    $archivePath = Join-Path $env:TEMP $PYTHON_ARCHIVE
-
-    # Determine download URL based on mirror setting
-    $pythonUrl = if ($UseCNMirror) { $PYTHON_URL_CN } else { $PYTHON_URL_DEFAULT }
-
-    # Download Python embed archive
-    try {
-        Invoke-WebRequest -Uri $pythonUrl -OutFile $archivePath -UseBasicParsing -ErrorAction Stop
-    } catch {
-        Write-LogError "download_failed" $_.Exception.Message
-        exit 1
-    }
-    
-    # Verify file was downloaded successfully
-    if (-not (Test-Path $archivePath) -or (Get-Item $archivePath).Length -eq 0) {
-        Write-LogError "download_failed" "File not found or empty"
-        exit 1
-    }
-
-    Write-LogInfo "installing_portable_python"
-
-    # Extract Python to ENV_ROOT directory
-    $pythonTargetDir = "$env:ENV_ROOT\python"
-    if (Test-Path $pythonTargetDir) {
-        Remove-Item -Path $pythonTargetDir -Recurse -Force
-    }
-    New-Item -ItemType Directory -Path $pythonTargetDir -Force | Out-Null
-
-    # Extract zip file
-    Expand-Archive -Path $archivePath -DestinationPath $pythonTargetDir -Force
-
-    # Cleanup archive
-    Remove-Item $archivePath -ErrorAction SilentlyContinue
-
-    # Enable Windows long path support (260 character limit)
-    # This requires administrator privileges
-    try {
-        $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
-        $registryKey = "LongPathsEnabled"
-        $currentValue = (Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).$registryKey
-
-        if ($currentValue -ne 1) {
-            Write-LogInfo "enabling_long_paths"
-            Set-ItemProperty -Path $registryPath -Name $registryKey -Value 1 -Type DWord -Force
-            Write-LogSuccess "long_paths_enabled"
-        }
-    } catch {
-        Write-LogWarning "long_paths_enable_failed"
-    }
-
-    # Modify python3xx._pth to enable site-packages and ensurepip
-    $pthFile = Get-ChildItem -Path $pythonTargetDir -Filter "*._pth"
-    if ($pthFile) {
-        $pthContent = Get-Content -Path $pthFile.FullName -Raw
-        # Uncomment import site to enable site-packages
-        $pthContent = $pthContent -replace "#import site", "import site"
-        Set-Content -Path $pthFile.FullName -Value $pthContent -NoNewline
-    }
-
-    # Install pip using get-pip.py (embedded Python 3.13+ doesn't have ensurepip)
-    $pythonExe = Join-Path $pythonTargetDir "python.exe"
-    if (Test-Path $pythonExe) {
-        Write-LogInfo "installing_pip"
-        
-        # Download get-pip.py
-        try {
-            Write-LogInfo "downloading_get_pip"
-            $getPipContent = Invoke-WebRequest -Uri $GETPIP_URL -UseBasicParsing -ErrorAction Stop
-        } catch {
-            Write-LogError "download_failed" $_.Exception.Message
-            exit 1
-        }
-
-        # Pip mirror setting (used after pip is installed)
-        $pipMirror = if ($UseCNMirror) { "--index-url $PYPI_MIRROR_CN" } else { "" }
-        
-        # Write get-pip.py to temp file and run (suppress stderr)
-        $tempScript = [System.IO.Path]::GetTempFileName() + ".py"
-        $tempErr = [System.IO.Path]::GetTempFileName()
-        try {
-            $getPipContent.Content | Set-Content -Path $tempScript -Encoding utf8
-            $pipArgs = "`"$tempScript`" --ignore-installed"
-            Start-Process -FilePath $pythonExe -ArgumentList $pipArgs -NoNewWindow -Wait -RedirectStandardError $tempErr 2>&1 | Out-Null
-        } finally {
-            if (Test-Path $tempScript) { Remove-Item $tempScript -ErrorAction SilentlyContinue }
-            if (Test-Path $tempErr) { Remove-Item $tempErr -ErrorAction SilentlyContinue }
-        }
-
-        # Check if pip was installed
-        $pipExe = Join-Path $pythonTargetDir "Scripts\pip.exe"
-        if (Test-Path $pipExe) {
-            Write-LogSuccess "pip_installed"
-
-            # Also install virtualenv for virtual environment creation
-            Write-LogInfo "installing_virtualenv"
-            $tempErr2 = [System.IO.Path]::GetTempFileName()
-            try {
-                $venvArgs = "-m pip install virtualenv $pipMirror"
-                Start-Process -FilePath $pythonExe -ArgumentList $venvArgs -NoNewWindow -Wait -RedirectStandardError $tempErr2 2>&1 | Out-Null
-            } finally {
-                if (Test-Path $tempErr2) { Remove-Item $tempErr2 -ErrorAction SilentlyContinue }
-            }
-            Write-LogSuccess "virtualenv_installed"
-        } else {
-            Write-LogError "pip_install_failed"
-        }
-    }
-
-    Write-LogSuccess "python_installed"
 }
 
 # ============================================================================
@@ -773,14 +656,15 @@ function Get-LatestGitVersion {
                 if ($installerFile) {
                     Write-LogSuccess "git_version_found" "$versionNumber (from npmmirror)"
                     return @{
-                        Version = $versionNumber
+                        Version   = $versionNumber
                         Installer = $installerFile.name
-                        Url = $installerFile.url
-                        Source = "npmmirror"
+                        Url       = $installerFile.url
+                        Source    = "npmmirror"
                     }
                 }
             }
-        } catch {
+        }
+        catch {
             Write-LogWarning "npmmirror_fetch_failed"
         }
     }
@@ -808,23 +692,24 @@ function Get-LatestGitVersion {
         if ($installerAsset) {
             Write-LogSuccess "git_version_found" "$versionNumber (from GitHub)"
             return @{
-                Version = $versionNumber
+                Version   = $versionNumber
                 Installer = $installerAsset.name
-                Url = $installerAsset.browser_download_url
-                Source = "github"
+                Url       = $installerAsset.browser_download_url
+                Source    = "github"
             }
         }
-    } catch {
+    }
+    catch {
         Write-LogWarning "github_api_failed"
     }
 
     # Ultimate fallback: use fixed version
     Write-LogWarning "using_fixed_git_version" "$GIT_FALLBACK_VERSION"
     return @{
-        Version = $GIT_FALLBACK_VERSION
+        Version   = $GIT_FALLBACK_VERSION
         Installer = "Git-$GIT_FALLBACK_VERSION-64-bit.exe"
-        Url = $GIT_FALLBACK_URL
-        Source = "fallback"
+        Url       = $GIT_FALLBACK_URL
+        Source    = "fallback"
     }
 }
 
@@ -850,7 +735,8 @@ function Install-Git {
     if ($Interactive) {
         # Interactive installation - show installer UI with default options
         Start-Process -FilePath $installerPath -Wait
-    } else {
+    }
+    else {
         # Silent installation with progress display
         # /SILENT: Silent installation with progress bar
         # /SUPPRESSMSGBOXES: Suppress message boxes
@@ -873,6 +759,224 @@ function Install-Git {
     Remove-Item $installerPath -ErrorAction SilentlyContinue
 
     Write-LogSuccess "git_installed"
+}
+
+# ============================================================================
+# Python Installation (Windows-specific)
+# ============================================================================
+
+$PYTHON_VERSION = "3.13.11"
+$PYTHON_ARCHIVE = "python-$PYTHON_VERSION-embed-amd64.zip"
+# Python download URLs
+$PYTHON_URL_DEFAULT = "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
+$PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
+
+# Git download URLs
+$GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
+$GIT_GITHUB_API_URL = "https://api.github.com/repos/git-for-windows/git/releases/latest"
+$GIT_FALLBACK_VERSION = "v2.52.0.windows.1"
+$GIT_FALLBACK_URL = "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-v2.52.0.windows.1-64-bit.exe"
+
+function Install-Python {
+    param([bool]$UseCNMirror)
+
+    Download-PortablePython -UseCNMirror $UseCNMirror
+    Extract-PortablePython
+    Enable-LongPathSupport
+    Configure-PythonPth
+    Install-Pip -UseCNMirror $UseCNMirror
+
+    Write-LogSuccess "python_installed"
+}
+
+function Download-PortablePython {
+    param([bool]$UseCNMirror)
+
+    Write-LogInfo "downloading_portable_python"
+    $archivePath = Join-Path $env:TEMP $PYTHON_ARCHIVE
+
+    # Determine download URL based on mirror setting
+    $pythonUrl = if ($UseCNMirror) { $PYTHON_URL_CN } else { $PYTHON_URL_DEFAULT }
+
+    # Download Python embed archive
+    try {
+        Invoke-WebRequest -Uri $pythonUrl -OutFile $archivePath -UseBasicParsing -ErrorAction Stop
+    }
+    catch {
+        Write-LogError "download_failed" $_.Exception.Message
+        exit 1
+    }
+    
+    # Verify file was downloaded successfully
+    if (-not (Test-Path $archivePath) -or (Get-Item $archivePath).Length -eq 0) {
+        Write-LogError "download_failed" "File not found or empty"
+        exit 1
+    }
+}
+
+function Extract-PortablePython {
+    Write-LogInfo "installing_portable_python"
+
+    $archivePath = Join-Path $env:TEMP $PYTHON_ARCHIVE
+    $pythonTargetDir = "$env:ENV_ROOT\python"
+    
+    if (Test-Path $pythonTargetDir) {
+        Remove-Item -Path $pythonTargetDir -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $pythonTargetDir -Force | Out-Null
+
+    # Extract zip file
+    Expand-Archive -Path $archivePath -DestinationPath $pythonTargetDir -Force
+
+    # Cleanup archive
+    Remove-Item $archivePath -ErrorAction SilentlyContinue
+}
+
+function Enable-LongPathSupport {
+    # Enable Windows long path support (260 character limit)
+    # This requires administrator privileges
+    try {
+        $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
+        $registryKey = "LongPathsEnabled"
+        $currentValue = (Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).$registryKey
+
+        if ($currentValue -eq 1) {
+            # Long paths already enabled
+            Write-LogSuccess "long_paths_enabled"
+            return
+        }
+
+        # Check if running as administrator
+        $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        
+        if (-not $isAdmin) {
+            Write-LogWarning "need_admin_privilege"
+            # Create a temporary script to enable long paths
+            $tempScript = [System.IO.Path]::GetTempFileName() + ".ps1"
+            @"
+# Enable long paths in registry
+try {
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force
+    Write-Host "Long paths enabled successfully"
+}
+catch {
+    Write-Host "Failed to enable long paths: `$`_"
+    exit 1
+}
+"@ | Out-File -FilePath $tempScript -Encoding UTF8
+            
+            # Start new process with administrator privileges to run the temp script
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = "powershell.exe"
+            $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$tempScript`""
+            $psi.Verb = "RunAs"
+            $psi.UseShellExecute = $true
+            try {
+                $process = [System.Diagnostics.Process]::Start($psi)
+                Write-LogInfo "elevating_to_enable_long_paths"
+                
+                # Wait for the process to complete
+                $process.WaitForExit()
+                $exitCode = $process.ExitCode
+                
+                # Check if long paths were enabled based on exit code
+                if ($exitCode -eq 0) {
+                    Write-LogSuccess "long_paths_enabled"
+                }
+                else {
+                    Write-LogWarning "long_paths_enable_failed"
+                }
+            }
+            catch {
+                Write-LogWarning "long_paths_enable_failed"
+            }
+            finally {
+                # Clean up temporary script
+                if (Test-Path $tempScript) {
+                    Remove-Item $tempScript -ErrorAction SilentlyContinue
+                }
+            }
+        }
+        else {
+            Write-LogInfo "enabling_long_paths"
+            Set-ItemProperty -Path $registryPath -Name $registryKey -Value 1 -Type DWord -Force
+            Write-LogSuccess "long_paths_enabled"
+        }
+    }
+    catch {
+        Write-LogWarning "long_paths_enable_failed"
+    }
+}
+
+function Configure-PythonPth {
+    # Modify python3xx._pth to enable site-packages and ensurepip
+    $pythonTargetDir = "$env:ENV_ROOT\python"
+    $pthFile = Get-ChildItem -Path $pythonTargetDir -Filter "*._pth"
+    if ($pthFile) {
+        $pthContent = Get-Content -Path $pthFile.FullName -Raw
+        # Uncomment import site to enable site-packages
+        $pthContent = $pthContent -replace "#import site", "import site"
+        Set-Content -Path $pthFile.FullName -Value $pthContent -NoNewline
+    }
+}
+
+function Install-Pip {
+    param([bool]$UseCNMirror)
+
+    # Install pip using get-pip.py (embedded Python 3.13+ doesn't have ensurepip)
+    $pythonTargetDir = "$env:ENV_ROOT\python"
+    $pythonExe = Join-Path $pythonTargetDir "python.exe"
+    
+    if (Test-Path $pythonExe) {
+        Write-LogInfo "installing_pip"
+        
+        # Download get-pip.py
+        try {
+            Write-LogInfo "downloading_get_pip"
+            $getPipContent = Invoke-WebRequest -Uri $GETPIP_URL -UseBasicParsing -ErrorAction Stop
+        }
+        catch {
+            Write-LogError "download_failed" $_.Exception.Message
+            exit 1
+        }
+
+        # Pip mirror setting (used after pip is installed)
+        $pipMirror = if ($UseCNMirror) { "--index-url $PYPI_MIRROR_CN" } else { "" }
+        
+        # Write get-pip.py to temp file and run (suppress stderr)
+        $tempScript = [System.IO.Path]::GetTempFileName() + ".py"
+        $tempErr = [System.IO.Path]::GetTempFileName()
+        try {
+            $getPipContent.Content | Set-Content -Path $tempScript -Encoding utf8
+            $pipArgs = "`"$tempScript`" --ignore-installed"
+            Start-Process -FilePath $pythonExe -ArgumentList $pipArgs -NoNewWindow -Wait -RedirectStandardError $tempErr 2>&1 | Out-Null
+        }
+        finally {
+            if (Test-Path $tempScript) { Remove-Item $tempScript -ErrorAction SilentlyContinue }
+            if (Test-Path $tempErr) { Remove-Item $tempErr -ErrorAction SilentlyContinue }
+        }
+
+        # Check if pip was installed
+        $pipExe = Join-Path $pythonTargetDir "Scripts\pip.exe"
+        if (Test-Path $pipExe) {
+            Write-LogSuccess "pip_installed"
+
+            # Also install virtualenv for virtual environment creation
+            Write-LogInfo "installing_virtualenv"
+            $tempErr2 = [System.IO.Path]::GetTempFileName()
+            try {
+                $venvArgs = "-m pip install virtualenv $pipMirror"
+                Start-Process -FilePath $pythonExe -ArgumentList $venvArgs -NoNewWindow -Wait -RedirectStandardError $tempErr2 2>&1 | Out-Null
+            }
+            finally {
+                if (Test-Path $tempErr2) { Remove-Item $tempErr2 -ErrorAction SilentlyContinue }
+            }
+            Write-LogSuccess "virtualenv_installed"
+        }
+        else {
+            Write-LogError "pip_install_failed"
+        }
+    }
 }
 
 # ============================================================================
@@ -901,7 +1005,8 @@ function Find-Python {
                         $minor = [int]$versionParts[1]
                         if ($major -gt 3 -or ($major -eq 3 -and $minor -ge 6)) {
                             return $versionString
-                        } else {
+                        }
+                        else {
                             return "low"
                         }
                     }
@@ -909,7 +1014,8 @@ function Find-Python {
                 Write-LogSuccess "python_found" "$($version.Line)"
                 return $pythonCmd
             }
-        } catch {
+        }
+        catch {
             # Fall through to system search
         }
     }
@@ -928,7 +1034,8 @@ function Find-Python {
                         $minor = [int]$versionParts[1]
                         if ($major -gt 3 -or ($major -eq 3 -and $minor -ge 6)) {
                             return $versionString
-                        } else {
+                        }
+                        else {
                             return "low"
                         }
                     }
@@ -936,7 +1043,8 @@ function Find-Python {
                 Write-LogSuccess "python_found" "$($version.Line)"
                 return $pythonCmd
             }
-        } catch {
+        }
+        catch {
             continue
         }
     }
@@ -959,12 +1067,14 @@ function Create-Venv {
         if ($Global:USE_EMBED_PYTHON) {
             # Use virtualenv for embedded Python (no venv module)
             & $pythonCmd -m virtualenv $venvPath 2>&1 | Out-Null
-        } else {
+        }
+        else {
             # Use venv for system Python
             & $pythonCmd -m venv $venvPath
         }
         Write-LogSuccess "venv_created"
-    } else {
+    }
+    else {
         Write-Host "$(Get-Message 'venv_exists')" -ForegroundColor Yellow
         if (-not $Global:AUTO_MODE) {
             $response = Read-Host "$(Get-Message 'venv_exists_confirm') (y/n)"
@@ -975,14 +1085,16 @@ function Create-Venv {
             # 用户选择 y，删除并重新创建
             Write-LogInfo "removing_existing_venv"
             Remove-Item -Path $venvPath -Recurse -Force
-        } else {
+        }
+        else {
             Write-LogInfo "skip_venv_creation"
             return
         }
         Write-LogInfo "creating_venv"
         if ($Global:USE_EMBED_PYTHON) {
             & $pythonCmd -m virtualenv $venvPath 2>&1 | Out-Null
-        } else {
+        }
+        else {
             & $pythonCmd -m venv $venvPath
         }
         Write-LogSuccess "venv_created"
@@ -1018,15 +1130,19 @@ function Install-PythonPackages {
 
     # Add pyocd if requested
     if ($InstallPyocd) {
+        Write-LogInfo "pyocd_installed"
         $pipArgs += @("pyocd")
+    }
+    else {
+        Write-LogInfo "pyocd_not_installed"
     }
 
     # Install all packages in one command
-    & pip install @pipArgs
+    & $venvPython -m pip install @pipArgs
     if ($LASTEXITCODE -eq 0) {
         Write-LogSuccess "installed_packages"
-        # pyocd 安装成功信息已包含在 installed_packages 中，无需单独提示
-    } else {
+    }
+    else {
         Write-LogError "package_install_failed"
         exit 1
     }
@@ -1112,10 +1228,13 @@ function Check-ExistingEnv {
                 Remove-Item -Path $envScript -ErrorAction SilentlyContinue
             }
             Write-LogSuccess "env_root_removed" $env:ENV_ROOT
-        } else {
+        }
+        else {
             Write-Host ""
             Write-Host "$(Get-Message 'env_root_prompt')"
-            $response = Read-Host "$(Get-Message 'env_root_confirm')"
+            $confirmMsg = "$(Get-Message 'env_root_confirm')"
+            Write-Host "$confirmMsg " -NoNewline -ForegroundColor Red
+            $response = Read-Host
             if ($response -match "^[Yy]$") {
                 Write-LogInfo "removing_env_root" $env:ENV_ROOT
                 foreach ($dir in $existingDirs) {
@@ -1125,7 +1244,8 @@ function Check-ExistingEnv {
                     Remove-Item -Path $envScript -ErrorAction SilentlyContinue
                 }
                 Write-LogSuccess "env_root_removed" $env:ENV_ROOT
-            } else {
+            }
+            else {
                 Write-LogInfo "installation_cancelled"
                 exit 0
             }
@@ -1144,17 +1264,20 @@ function Ensure-Dependencies {
             # Version < 3.6, use portable Python
             $usePortablePython = $true
             Write-LogInfo "python_version_too_low"
-        } else {
+        }
+        else {
             # Version >= 3.6, use system Python unless --embed specified
             if ($Global:USE_EMBED_PYTHON) {
                 $usePortablePython = $true
                 Write-LogInfo "using_portable_python"
-            } else {
+            }
+            else {
                 $usePortablePython = $false
                 Write-LogInfo "using_system_python"
             }
         }
-    } else {
+    }
+    else {
         # Python not found, install portable version
         $usePortablePython = $true
         Write-LogInfo "python_not_found"
@@ -1197,7 +1320,8 @@ function Setup-Repositories {
         $urlPackages = $Global:CUSTOM_PACKAGES_REPO
         if ($Global:CUSTOM_PACKAGES_BRANCH) {
             Write-LogInfo "using_custom_repo_branch" $Global:CUSTOM_PACKAGES_REPO $Global:CUSTOM_PACKAGES_BRANCH
-        } else {
+        }
+        else {
             Write-LogInfo "using_custom_repo" $Global:CUSTOM_PACKAGES_REPO
         }
     }
@@ -1207,7 +1331,8 @@ function Setup-Repositories {
         $urlEnv = $Global:CUSTOM_ENV_REPO
         if ($Global:CUSTOM_ENV_BRANCH) {
             Write-LogInfo "using_custom_repo_branch" $Global:CUSTOM_ENV_REPO $Global:CUSTOM_ENV_BRANCH
-        } else {
+        }
+        else {
             Write-LogInfo "using_custom_repo" $Global:CUSTOM_ENV_REPO
         }
     }
@@ -1217,7 +1342,8 @@ function Setup-Repositories {
         $urlSdk = $Global:CUSTOM_SDK_REPO
         if ($Global:CUSTOM_SDK_BRANCH) {
             Write-LogInfo "using_custom_repo_branch" $Global:CUSTOM_SDK_REPO $Global:CUSTOM_SDK_BRANCH
-        } else {
+        }
+        else {
             Write-LogInfo "using_custom_repo" $Global:CUSTOM_SDK_REPO
         }
     }
@@ -1225,7 +1351,8 @@ function Setup-Repositories {
     # Use standard repositories for any not specified
     $repoConfig = if ($Global:USE_CN) {
         @($REPO_PACKAGES_GITEE, $REPO_ENV_GITEE, $REPO_SDK_GITEE)
-    } else {
+    }
+    else {
         @($REPO_PACKAGES_GITHUB, $REPO_ENV_GITHUB, $REPO_SDK_GITHUB)
     }
 
@@ -1259,11 +1386,17 @@ function Prompt-Pyocd {
     if (-not $Global:INSTALL_PYOCD) {
         if ($Global:AUTO_MODE) {
             $Global:INSTALL_PYOCD = $false
-        } else {
+        }
+        else {
             Write-Host ""
             Write-Host "$(Get-Message 'pyocd_install_prompt')"
-            $response = Read-Host "$(Get-Message 'pyocd_install_confirm')"
-            if ($response -match "^[Yy]$") {
+            $confirmMsg = "$(Get-Message 'pyocd_install_confirm')"
+            Write-Host "$confirmMsg " -NoNewline -ForegroundColor Yellow
+            $response = Read-Host
+            if ($response -match "^[Nn]$") {
+                $Global:INSTALL_PYOCD = $false
+            }
+            else {
                 $Global:INSTALL_PYOCD = $true
             }
         }
