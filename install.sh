@@ -692,11 +692,24 @@ print_next_steps() {
 
 # Check if ENV_ROOT already exists and prompt for reinstallation
 check_existing_env() {
-    if [ -d "$ENV_ROOT" ] && [ -f "$ENV_ROOT/env.sh" ]; then
+    # Check if any ENV subdirectory exists
+    local existing_dirs=()
+    [ -d "$ENV_ROOT/tools" ] && existing_dirs+=("$ENV_ROOT/tools")
+    [ -d "$ENV_ROOT/packages" ] && existing_dirs+=("$ENV_ROOT/packages")
+    [ -d "$ENV_ROOT/$VENV_DIR" ] && existing_dirs+=("$ENV_ROOT/$VENV_DIR")
+
+    local env_script="$ENV_ROOT/env.sh"
+    local env_script_exists=false
+    [ -f "$env_script" ] && env_script_exists=true
+
+    if [ ${#existing_dirs[@]} -gt 0 ] || [ "$env_script_exists" = true ]; then
         log_warning "env_root_exists" "$ENV_ROOT"
         if [ "$auto_mode" = "true" ]; then
             log_info "removing_env_root"
-            rm -rf "$ENV_ROOT"
+            for dir in "${existing_dirs[@]}"; do
+                rm -rf "$dir" 2>/dev/null || true
+            done
+            [ "$env_script_exists" = true ] && rm -f "$env_script"
             log_success "env_root_removed"
         else
             echo ""
@@ -706,7 +719,10 @@ check_existing_env() {
             echo ""
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 log_info "removing_env_root"
-                rm -rf "$ENV_ROOT"
+                for dir in "${existing_dirs[@]}"; do
+                    rm -rf "$dir" 2>/dev/null || true
+                done
+                [ "$env_script_exists" = true ] && rm -f "$env_script"
                 log_success "env_root_removed"
             else
                 log_info "installation_cancelled"

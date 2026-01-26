@@ -170,10 +170,6 @@ function Detect-China {
         $ip_info = Invoke-RestMethod -Uri $IPINFO_URL -Method Get -UseBasicParsing -TimeoutSec 5
         if ($ip_info.country -eq "CN") {
             $use_cn = $true
-            # Only set language if user didn't explicitly choose
-            if (-not $langEn -and -not $langZh) {
-                $Global:LANG_CURRENT = Get-SystemLanguage
-            }
         }
     } catch {
         # Fallback to timezone
@@ -185,27 +181,11 @@ function Detect-China {
             $timezone = [System.TimeZoneInfo]::Local.Id
             if ($timezone -like "*Shanghai*" -or $timezone -like "*China*" -or $timezone -like "*Beijing*") {
                 $use_cn = $true
-                # Only set language if user didn't explicitly choose
-                if (-not $langEn -and -not $langZh) {
-                    $Global:LANG_CURRENT = Get-SystemLanguage
-                }
             }
         } catch {
             # Fallback to locale
         }
     }
-
-    # Fallback: check system locale
-    if (-not $use_cn) {
-        $locale = [System.Globalization.CultureInfo]::CurrentUICulture.Name
-        if ($locale -like "*zh*" -or $locale -like "*CN*") {
-            # Only set language if user didn't explicitly choose
-            if (-not $langEn -and -not $langZh) {
-                $Global:LANG_CURRENT = Get-SystemLanguage
-            }
-        }
-    }
-
     return $use_cn
 }
 
@@ -264,6 +244,9 @@ $MSG_EN_env_root_removed = "Existing RT-Thread ENV removed"
 $MSG_EN_installation_cancelled = "Installation cancelled"
 $MSG_EN_venv_not_found = "Virtual environment not found, please recreate"
 $MSG_EN_upgrading_pip = "Upgrading pip..."
+$MSG_EN_installing_virtualenv = "Installing virtualenv..."
+$MSG_EN_virtualenv_installed = "virtualenv installed successfully"
+$MSG_EN_pip_install_failed = "pip installation failed"
 $MSG_EN_package_install_failed = "Package installation failed, please check network connection or permissions"
 $MSG_EN_installing_pyocd = "Installing pyocd..."
 $MSG_EN_pyocd_installed = "pyocd installed successfully"
@@ -275,6 +258,7 @@ $MSG_EN_python_version_failed = "Failed to get Python version information"
 $MSG_EN_creating_venv = "Creating virtual environment..."
 $MSG_EN_venv_created = "Virtual environment created"
 $MSG_EN_venv_exists = "Virtual environment already exists"
+$MSG_EN_venv_exists_confirm = "Virtual environment already exists, do you want to delete and recreate?"
 $MSG_EN_activating_venv = "Activating virtual environment..."
 $MSG_EN_using_cn_mirror = "Using China mirror"
 $MSG_EN_using_official_source = "Using official source"
@@ -893,12 +877,31 @@ function Show-NextSteps {
 # ============================================================================
 
 function Check-ExistingEnv {
-    # Check if ENV_ROOT already exists and handle reinstallation
-    if ((Test-Path $env:ENV_ROOT) -and (Test-Path "$env:ENV_ROOT\env.ps1")) {
+    # Check if any ENV subdirectory exists
+    $toolsPath = "$env:ENV_ROOT\tools"
+    $packagesPath = "$env:ENV_ROOT\packages"
+    $pythonPath = "$env:ENV_ROOT\python"
+    $venvPath = "$env:ENV_ROOT\$Global:VENV_DIR"
+    $envScript = "$env:ENV_ROOT\env.ps1"
+
+    $existingDirs = @()
+    if (Test-Path $toolsPath) { $existingDirs += $toolsPath }
+    if (Test-Path $packagesPath) { $existingDirs += $packagesPath }
+    if (Test-Path $pythonPath) { $existingDirs += $pythonPath }
+    if (Test-Path $venvPath) { $existingDirs += $venvPath }
+
+    $envScriptExists = Test-Path $envScript
+
+    if ($existingDirs.Count -gt 0 -or $envScriptExists) {
         Write-LogWarning "env_root_exists" $env:ENV_ROOT
         if ($Global:AUTO_MODE) {
             Write-LogInfo "removing_env_root"
-            Remove-Item -Path $env:ENV_ROOT -Recurse -Force
+            foreach ($dir in $existingDirs) {
+                Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            if ($envScriptExists) {
+                Remove-Item -Path $envScript -ErrorAction SilentlyContinue
+            }
             Write-LogSuccess "env_root_removed"
         } else {
             Write-Host ""
@@ -906,7 +909,12 @@ function Check-ExistingEnv {
             $response = Read-Host "$(Get-Message 'env_root_confirm')"
             if ($response -match "^[Yy]$") {
                 Write-LogInfo "removing_env_root"
-                Remove-Item -Path $env:ENV_ROOT -Recurse -Force
+                foreach ($dir in $existingDirs) {
+                    Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
+                }
+                if ($envScriptExists) {
+                    Remove-Item -Path $envScript -ErrorAction SilentlyContinue
+                }
                 Write-LogSuccess "env_root_removed"
             } else {
                 Write-LogInfo "installation_cancelled"
