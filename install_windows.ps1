@@ -17,9 +17,6 @@
 #   -h/--help        Show this help message
 #
 
-# Requires administrator privileges
-# Note: Administrator privileges no longer required
-
 # Parameter variables
 $autoMode = $false
 $helpMode = $false
@@ -206,7 +203,7 @@ $MSG_EN_python_version = "Python version: {0}"
 $MSG_EN_python_version_too_low = "Python version {0} is too old (requires >= 3.6). Installing portable Python..."
 $MSG_EN_python_not_found = "Python not found. Installing portable Python..."
 $MSG_EN_using_system_python = "Using system Python..."
-$MSG_EN_using_portable_python = "Installing portable Python..."
+$MSG_EN_using_portable_python = "Will use portable Python..."
 $MSG_EN_installing_portable_python = "Installing portable Python {0}..."
 $MSG_EN_downloading_portable_python = "Downloading portable Python..."
 $MSG_EN_python_installed = "Python installed successfully."
@@ -214,6 +211,7 @@ $MSG_EN_checking_git = "Checking Git..."
 $MSG_EN_git_found = "Git found: {0}"
 $MSG_EN_git_not_found = "Git is not installed. Will install Git v2.52.0.windows.1."
 $MSG_EN_installing_pip = "Installing pip..."
+$MSG_EN_downloading_get_pip = "Downloading get-pip.py..."
 $MSG_EN_pip_installed = "pip installed successfully"
 $MSG_EN_installing_git = "Installing Git..."
 $MSG_EN_git_installed = "Git installed. Please restart terminal and run this script again."
@@ -221,6 +219,7 @@ $MSG_EN_fetching_git_from_npmmirror = "Fetching Git version from npmmirror..."
 $MSG_EN_fetching_git_from_github = "Fetching Git version from GitHub API..."
 $MSG_EN_git_version_found = "Git version found: {0}"
 $MSG_EN_npmmirror_fetch_failed = "Failed to fetch Git version from npmmirror, trying GitHub API..."
+$MSG_EN_download_failed = "Download failed: {0}"
 $MSG_EN_github_api_failed = "GitHub API request failed, using fallback version..."
 $MSG_EN_using_fixed_git_version = "Using fixed Git version: {0}"
 $MSG_EN_git_clone_failed = "Git clone failed: {0}"
@@ -239,8 +238,8 @@ $MSG_EN_installing_packages = "Installing Python packages..."
 $MSG_EN_env_root_exists = "RT-Thread ENV directory already exists: {0}"
 $MSG_EN_env_root_prompt = "Existing RT-Thread ENV detected. Do you want to delete and reinstall?"
 $MSG_EN_env_root_confirm = "Are you sure you want to delete? [y/N] "
-$MSG_EN_removing_env_root = "Removing existing RT-Thread ENV..."
-$MSG_EN_env_root_removed = "Existing RT-Thread ENV removed"
+$MSG_EN_removing_env_root = "Removing existing RT-Thread ENV: {0}..."
+$MSG_EN_env_root_removed = "Existing RT-Thread ENV removed: {0}"
 $MSG_EN_installation_cancelled = "Installation cancelled"
 $MSG_EN_venv_not_found = "Virtual environment not found, please recreate"
 $MSG_EN_upgrading_pip = "Upgrading pip..."
@@ -248,9 +247,6 @@ $MSG_EN_installing_virtualenv = "Installing virtualenv..."
 $MSG_EN_virtualenv_installed = "virtualenv installed successfully"
 $MSG_EN_pip_install_failed = "pip installation failed"
 $MSG_EN_package_install_failed = "Package installation failed, please check network connection or permissions"
-$MSG_EN_installing_pyocd = "Installing pyocd..."
-$MSG_EN_pyocd_installed = "pyocd installed successfully"
-$MSG_EN_pyocd_install_failed = "pyocd installation failed, please check network connection or permissions"
 $MSG_EN_pyocd_install_prompt = "Do you want to install pyocd (for debugging Cortex-M devices)?"
 $MSG_EN_pyocd_install_confirm = "Install pyocd? [y/N] "
 $MSG_EN_installation_skip_existing = "RT-Thread ENV already exists, skipping installation (use -y to force reinstall)"
@@ -294,7 +290,7 @@ $MSG_ZH_python_version = "Python 版本: {0}"
 $MSG_ZH_python_version_too_low = "Python 版本 {0} 过低（需要 >= 3.6）。将安装便携式 Python..."
 $MSG_ZH_python_not_found = "未安装 Python。将安装便携式 Python。"
 $MSG_ZH_using_system_python = "使用系统 Python..."
-$MSG_ZH_using_portable_python = "正在安装便携式 Python..."
+$MSG_ZH_using_portable_python = "将使用便携式 Python..."
 $MSG_ZH_installing_portable_python = "正在安装便携式 Python {0}..."
 $MSG_ZH_downloading_portable_python = "正在下载便携式 Python..."
 $MSG_ZH_python_installed = "Python 已安装成功。"
@@ -302,6 +298,7 @@ $MSG_ZH_checking_git = "正在检查 Git..."
 $MSG_ZH_git_found = "找到 Git: {0}"
 $MSG_ZH_git_not_found = "未安装 Git。将安装 Git v2.52.0.windows.1。"
 $MSG_ZH_installing_pip = "正在安装 pip..."
+$MSG_ZH_downloading_get_pip = "正在下载 get-pip.py..."
 $MSG_ZH_installing_virtualenv = "正在安装 virtualenv..."
 $MSG_ZH_virtualenv_installed = "virtualenv 安装成功"
 $MSG_ZH_pip_installed = "pip 安装成功"
@@ -312,11 +309,11 @@ $MSG_ZH_fetching_git_from_npmmirror = "正在从 npmmirror 获取 Git 版本..."
 $MSG_ZH_fetching_git_from_github = "正在从 GitHub API 获取 Git 版本..."
 $MSG_ZH_git_version_found = "找到 Git 版本: {0}"
 $MSG_ZH_npmmirror_fetch_failed = "从 npmmirror 获取 Git 版本失败，尝试 GitHub API..."
+$MSG_ZH_download_failed = "下载失败: {0}"
 $MSG_ZH_github_api_failed = "GitHub API 请求失败，使用备选版本..."
 $MSG_ZH_using_fixed_git_version = "使用固定 Git 版本: {0}"
 $MSG_ZH_git_clone_failed = "Git 克隆失败: {0}"
 $MSG_ZH_restart_required = "请重新启动终端并再次运行此脚本以继续。"
-$MSG_ZH_banner_title = "RT-Thread ENV 安装程序"
 $MSG_ZH_git_not_found = "未安装 Git。请先安装 Git。"
 $MSG_ZH_please_install_git = "请先安装 Git"
 $MSG_ZH_install_git_windows = "Windows: 从 $GIT_DOWNLOAD_URL 下载并安装 Git"
@@ -331,15 +328,13 @@ $MSG_ZH_installing_packages = "正在安装 Python 包..."
 $MSG_ZH_env_root_exists = "RT-Thread ENV 目录已存在: {0}"
 $MSG_ZH_env_root_prompt = "检测到已存在的RT-Thread ENV。是否要删除并重新安装？"
 $MSG_ZH_env_root_confirm = "确定要删除吗？[y/N] "
-$MSG_ZH_removing_env_root = "正在删除现有RT-Thread ENV ..."
-$MSG_ZH_env_root_removed = "现有 RT-Thread ENV 已删除"
+$MSG_ZH_removing_env_root = "正在删除现有RT-Thread ENV: {0}..."
+$MSG_ZH_env_root_removed = "已删除 RT-Thread ENV: {0}"
 $MSG_ZH_installation_cancelled = "安装已取消"
 $MSG_ZH_venv_not_found = "找不到虚拟环境，请重新创建"
 $MSG_ZH_upgrading_pip = "正在升级 pip..."
 $MSG_ZH_package_install_failed = "包安装失败，请检查网络连接或权限"
 $MSG_ZH_installing_pyocd = "正在安装 pyocd..."
-$MSG_ZH_pyocd_installed = "pyocd 安装成功"
-$MSG_ZH_pyocd_install_failed = "pyocd 安装失败，请检查网络连接或权限"
 $MSG_ZH_pyocd_install_prompt = "是否要安装 pyocd (用于调试 Cortex-M 设备)？"
 $MSG_ZH_pyocd_install_confirm = "安装 pyocd？[y/N] "
 $MSG_ZH_installation_skip_existing = "RT-Thread ENV 已存在，跳过安装（使用 -y 参数强制重新安装）"
@@ -535,30 +530,43 @@ function Install-Python {
         Write-LogInfo "installing_pip"
         
         # Download get-pip.py
-        $getPipContent = Invoke-WebRequest -Uri $GETPIP_URL -UseBasicParsing
-        
+        try {
+            Write-LogInfo "downloading_get_pip"
+            $getPipContent = Invoke-WebRequest -Uri $GETPIP_URL -UseBasicParsing -ErrorAction Stop
+        } catch {
+            Write-LogError "download_failed" $_.Exception.Message
+            exit 1
+        }
+
         # Pip mirror setting (used after pip is installed)
         $pipMirror = if ($UseCNMirror) { "--index-url $PYPI_MIRROR_CN" } else { "" }
         
         # Write get-pip.py to temp file and run (suppress stderr)
         $tempScript = [System.IO.Path]::GetTempFileName() + ".py"
-        $getPipContent.Content | Set-Content -Path $tempScript -Encoding utf8
         $tempErr = [System.IO.Path]::GetTempFileName()
-        $pipArgs = "`"$tempScript`" --ignore-installed"
-        Start-Process -FilePath $pythonExe -ArgumentList $pipArgs -NoNewWindow -Wait -RedirectStandardError $tempErr 2>&1 | Out-Null
-        Remove-Item $tempScript, $tempErr -ErrorAction SilentlyContinue
-        
+        try {
+            $getPipContent.Content | Set-Content -Path $tempScript -Encoding utf8
+            $pipArgs = "`"$tempScript`" --ignore-installed"
+            Start-Process -FilePath $pythonExe -ArgumentList $pipArgs -NoNewWindow -Wait -RedirectStandardError $tempErr 2>&1 | Out-Null
+        } finally {
+            if (Test-Path $tempScript) { Remove-Item $tempScript -ErrorAction SilentlyContinue }
+            if (Test-Path $tempErr) { Remove-Item $tempErr -ErrorAction SilentlyContinue }
+        }
+
         # Check if pip was installed
         $pipExe = Join-Path $pythonTargetDir "Scripts\pip.exe"
         if (Test-Path $pipExe) {
             Write-LogSuccess "pip_installed"
-            
+
             # Also install virtualenv for virtual environment creation
             Write-LogInfo "installing_virtualenv"
             $tempErr2 = [System.IO.Path]::GetTempFileName()
-            $venvArgs = "-m pip install virtualenv $pipMirror"
-            Start-Process -FilePath $pythonExe -ArgumentList $venvArgs -NoNewWindow -Wait -RedirectStandardError $tempErr2 2>&1 | Out-Null
-            Remove-Item $tempErr2 -ErrorAction SilentlyContinue
+            try {
+                $venvArgs = "-m pip install virtualenv $pipMirror"
+                Start-Process -FilePath $pythonExe -ArgumentList $venvArgs -NoNewWindow -Wait -RedirectStandardError $tempErr2 2>&1 | Out-Null
+            } finally {
+                if (Test-Path $tempErr2) { Remove-Item $tempErr2 -ErrorAction SilentlyContinue }
+            }
             Write-LogSuccess "virtualenv_installed"
         } else {
             Write-LogError "pip_install_failed"
@@ -776,8 +784,20 @@ function Create-Venv {
                 Write-Host "跳过虚拟环境创建" -ForegroundColor Cyan
                 return
             }
+            # 用户选择 y，删除并重新创建
+            Write-Host "正在删除现有虚拟环境..." -ForegroundColor Cyan
+            Remove-Item -Path $venvPath -Recurse -Force
+        } else {
+            Write-Host "跳过虚拟环境创建" -ForegroundColor Cyan
+            return
         }
-        Write-Host "跳过虚拟环境创建" -ForegroundColor Cyan
+        Write-LogInfo "creating_venv"
+        if ($Global:USE_EMBED_PYTHON) {
+            & $pythonCmd -m virtualenv $venvPath 2>&1 | Out-Null
+        } else {
+            & $pythonCmd -m venv $venvPath
+        }
+        Write-LogSuccess "venv_created"
     }
 }
 
@@ -786,18 +806,16 @@ function Install-PythonPackages {
 
     Write-LogInfo "activating_venv"
     $activateScript = "$env:ENV_ROOT\$Global:VENV_DIR\Scripts\Activate.ps1"
+    $venvPython = "$env:ENV_ROOT\$Global:VENV_DIR\Scripts\python.exe"
 
-    if (Test-Path $activateScript) {
-        & $activateScript
-    } else {
+    if (-not (Test-Path $venvPython)) {
         Write-LogError "venv_not_found"
         exit 1
     }
 
-    # Upgrade pip first
-    $pythonCmd = Find-Python
+    # Upgrade pip using virtual environment's Python
     Write-LogInfo "upgrading_pip"
-    & $pythonCmd -m pip install --upgrade pip
+    & $venvPython -m pip install --upgrade pip
 
     # Build pip install command arguments
     $pipArgs = @()
@@ -812,7 +830,6 @@ function Install-PythonPackages {
 
     # Add pyocd if requested
     if ($InstallPyocd) {
-        Write-LogInfo "installing_pyocd"
         $pipArgs += @("pyocd")
     }
 
@@ -820,14 +837,9 @@ function Install-PythonPackages {
     & pip install @pipArgs
     if ($LASTEXITCODE -eq 0) {
         Write-LogSuccess "installed_packages"
-        if ($InstallPyocd) {
-            Write-LogSuccess "pyocd_installed"
-        }
+        # pyocd 安装成功信息已包含在 installed_packages 中，无需单独提示
     } else {
         Write-LogError "package_install_failed"
-        if ($InstallPyocd) {
-            Write-LogError "pyocd_install_failed"
-        }
         exit 1
     }
 }
@@ -894,28 +906,37 @@ function Check-ExistingEnv {
 
     if ($existingDirs.Count -gt 0 -or $envScriptExists) {
         Write-LogWarning "env_root_exists" $env:ENV_ROOT
+        # Show what will be deleted
+        Write-Host "  将删除以下目录/文件:" -ForegroundColor Yellow
+        foreach ($dir in $existingDirs) {
+            Write-Host "    - $dir" -ForegroundColor DarkGray
+        }
+        if ($envScriptExists) {
+            Write-Host "    - $envScript" -ForegroundColor DarkGray
+        }
+        Write-Host ""
         if ($Global:AUTO_MODE) {
-            Write-LogInfo "removing_env_root"
+            Write-LogInfo "removing_env_root" $env:ENV_ROOT
             foreach ($dir in $existingDirs) {
                 Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
             }
             if ($envScriptExists) {
                 Remove-Item -Path $envScript -ErrorAction SilentlyContinue
             }
-            Write-LogSuccess "env_root_removed"
+            Write-LogSuccess "env_root_removed" $env:ENV_ROOT
         } else {
             Write-Host ""
             Write-Host "$(Get-Message 'env_root_prompt')"
             $response = Read-Host "$(Get-Message 'env_root_confirm')"
             if ($response -match "^[Yy]$") {
-                Write-LogInfo "removing_env_root"
+                Write-LogInfo "removing_env_root" $env:ENV_ROOT
                 foreach ($dir in $existingDirs) {
                     Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
                 }
                 if ($envScriptExists) {
                     Remove-Item -Path $envScript -ErrorAction SilentlyContinue
                 }
-                Write-LogSuccess "env_root_removed"
+                Write-LogSuccess "env_root_removed" $env:ENV_ROOT
             } else {
                 Write-LogInfo "installation_cancelled"
                 exit 0
@@ -998,6 +1019,11 @@ function Setup-Repositories {
 }
 
 function Prompt-Pyocd {
+    # If --pyocd was specified, skip prompt and install directly
+    if ($Global:INSTALL_PYOCD) {
+        return
+    }
+
     # Prompt user for pyocd installation (optional debugging tool)
     if (-not $Global:INSTALL_PYOCD) {
         if ($Global:AUTO_MODE) {

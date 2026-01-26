@@ -276,15 +276,12 @@ get_message() {
                 env_root_exists) echo "RT-Thread ENV 目录已存在: %s" ;;
                 env_root_prompt) echo "检测到已存在的RT-Thread ENV。是否要删除并重新安装？" ;;
                 env_root_confirm) echo "确定要删除吗？[y/N] " ;;
-                removing_env_root) echo "正在删除现有RT-Thread ENV ..." ;;
-                env_root_removed) echo "现有 RT-Thread ENV 已删除" ;;
+                removing_env_root) echo "正在删除现有RT-Thread ENV: %s..." ;;
+                env_root_removed) echo "已删除 RT-Thread ENV: %s" ;;
                 installation_cancelled) echo "安装已取消" ;;
                 venv_not_found) echo "找不到虚拟环境，请重新创建" ;;
                 upgrading_pip) echo "正在升级 pip..." ;;
                 package_install_failed) echo "包安装失败，请检查网络连接或权限" ;;
-                installing_pyocd) echo "正在安装 pyocd..." ;;
-                pyocd_installed) echo "pyocd 安装成功" ;;
-                pyocd_install_failed) echo "pyocd 安装失败，请检查网络连接或权限" ;;
                 pyocd_install_prompt) echo "是否要安装 pyocd (用于调试 Cortex-M 设备)？" ;;
                 pyocd_install_confirm) echo "安装 pyocd？[y/N] " ;;
                 installation_skip_existing) echo "RT-Thread ENV 已存在，跳过安装（使用 -y 参数强制重新安装）" ;;
@@ -351,16 +348,14 @@ get_message() {
                 env_root_exists) echo "RT-Thread ENV directory already exists: %s" ;;
                 env_root_prompt) echo "Existing RT-Thread ENV detected. Do you want to delete and reinstall?" ;;
                 env_root_confirm) echo "Are you sure you want to delete? [y/N] " ;;
-                removing_env_root) echo "Removing existing RT-Thread ENV..." ;;
-                env_root_removed) echo "Existing RT-Thread ENV removed" ;;
+                removing_env_root) echo "Removing existing RT-Thread ENV: %s..." ;;
+                env_root_removed) echo "Existing RT-Thread ENV removed: %s" ;;
                 installation_cancelled) echo "Installation cancelled" ;;
                 installation_skip_existing) echo "RT-Thread ENV already exists, skipping installation (use -y to force reinstall)" ;;
                 venv_not_found) echo "Virtual environment not found, please recreate" ;;
                 upgrading_pip) echo "Upgrading pip..." ;;
                 package_install_failed) echo "Package installation failed, please check network connection or permissions" ;;
                 installing_pyocd) echo "Installing pyocd..." ;;
-                pyocd_installed) echo "pyocd installed successfully" ;;
-                pyocd_install_failed) echo "pyocd installation failed, please check network connection or permissions" ;;
                 pyocd_install_prompt) echo "Do you want to install pyocd (for debugging Cortex-M devices)?" ;;
                 pyocd_install_confirm) echo "Install pyocd? [y/N] " ;;
                 installation_skip_existing) echo "RT-Thread ENV already exists, skipping installation (use -y to force reinstall)" ;;
@@ -613,7 +608,6 @@ install_python_packages() {
 
     # Add pyocd if requested
     if [ "$install_pyocd" = "true" ]; then
-        log_info "installing_pyocd"
         pip_args="$pip_args pyocd"
     fi
 
@@ -621,14 +615,9 @@ install_python_packages() {
     log_info "installing_packages"
     if pip install $pip_args; then
         log_success "installed_packages"
-        if [ "$install_pyocd" = "true" ]; then
-            log_success "pyocd_installed"
-        fi
+        # pyocd 安装成功信息已包含在 installed_packages 中，无需单独提示
     else
         log_error "package_install_failed"
-        if [ "$install_pyocd" = "true" ]; then
-            log_error "pyocd_install_failed"
-        fi
         exit 1
     fi
 }
@@ -704,13 +693,20 @@ check_existing_env() {
 
     if [ ${#existing_dirs[@]} -gt 0 ] || [ "$env_script_exists" = true ]; then
         log_warning "env_root_exists" "$ENV_ROOT"
+        # Show what will be deleted
+        echo "  将删除以下目录/文件:" >&2
+        for dir in "${existing_dirs[@]}"; do
+            echo "    - $dir" >&2
+        done
+        [ "$env_script_exists" = true ] && echo "    - $env_script" >&2
+        echo ""
         if [ "$auto_mode" = "true" ]; then
-            log_info "removing_env_root"
+            log_info "removing_env_root" "$ENV_ROOT"
             for dir in "${existing_dirs[@]}"; do
                 rm -rf "$dir" 2>/dev/null || true
             done
             [ "$env_script_exists" = true ] && rm -f "$env_script"
-            log_success "env_root_removed"
+            log_success "env_root_removed" "$ENV_ROOT"
         else
             echo ""
             echo "$(get_message 'env_root_prompt')"
@@ -718,12 +714,12 @@ check_existing_env() {
             read -n 1 -r
             echo ""
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                log_info "removing_env_root"
+                log_info "removing_env_root" "$ENV_ROOT"
                 for dir in "${existing_dirs[@]}"; do
                     rm -rf "$dir" 2>/dev/null || true
                 done
                 [ "$env_script_exists" = true ] && rm -f "$env_script"
-                log_success "env_root_removed"
+                log_success "env_root_removed" "$ENV_ROOT"
             else
                 log_info "installation_cancelled"
                 exit 0
@@ -757,6 +753,11 @@ setup_repos() {
 
 # Prompt user for pyocd installation
 prompt_pyocd() {
+    # If --pyocd was specified, skip prompt and install directly
+    if [ "$install_pyocd" = "true" ]; then
+        return
+    fi
+
     if [ "$install_pyocd" = "false" ]; then
         if [ "$auto_mode" = "true" ]; then
             install_pyocd="false"
