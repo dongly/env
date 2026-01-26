@@ -380,6 +380,7 @@ $MSG_EN_using_official_source = "Using official source"
 $MSG_EN_using_github = "Using GitHub"
 $MSG_EN_using_pypi_mirror = "Using PyPI mirror: {0}"
 $MSG_EN_installed_packages = "Python packages installed successfully"
+$MSG_EN_fixed_guiconfig = "Fixed guiconfig.py (added missing import)"
 $MSG_EN_pyocd_installed = "Will install pyocd package"
 $MSG_EN_pyocd_not_installed = "Skipping pyocd installation"
 $MSG_EN_copied_env_script = "Copied env.ps1: {0}"
@@ -480,6 +481,7 @@ $MSG_ZH_using_official_source = "使用官方源"
 $MSG_ZH_using_github = "使用 GitHub 源"
 $MSG_ZH_using_pypi_mirror = "使用 PyPI 镜像: {0}"
 $MSG_ZH_installed_packages = "Python 包安装完成"
+$MSG_ZH_fixed_guiconfig = "已修复 guiconfig.py（添加缺失的导入）"
 $MSG_ZH_pyocd_installed = "将安装 pyocd 包"
 $MSG_ZH_pyocd_not_installed = "跳过 pyocd 安装"
 $MSG_ZH_copied_env_script = "已复制 env.ps1: {0}"
@@ -1173,26 +1175,24 @@ function Install-PythonPackages {
         exit 1
     }
 
-    # Upgrade pip using virtual environment's Python
-    Write-LogInfo "upgrading_pip"
-    & $venvPython -m pip install --upgrade pip
-    if ($LASTEXITCODE -ne 0) {
-        Write-LogError "pip_install_failed"
-        exit 1
-    }
-
-    # Build pip install command arguments
+    # Build common pip arguments
     $pipArgs = @()
-
     if ($UseCNMirror) {
         Write-LogInfo "using_cn_mirror"
         Write-LogInfo "using_pypi_mirror" $PYPI_MIRROR_CN
         $pipArgs += @("--index-url", $PYPI_MIRROR_CN)
     }
 
-    $pipArgs += @("-e", $ScriptsDir)
+    # Upgrade pip using virtual environment's Python
+    Write-LogInfo "upgrading_pip"
+    & $venvPython -m pip install @pipArgs --upgrade pip
+    if ($LASTEXITCODE -ne 0) {
+        Write-LogError "pip_install_failed"
+        exit 1
+    }
 
-    # Add pyocd if requested
+    # Install packages and pyocd (if requested)
+    $pipArgs += @("-e", $ScriptsDir)
     if ($InstallPyocd) {
         Write-LogInfo "pyocd_installed"
         $pipArgs += @("pyocd")
@@ -1205,6 +1205,18 @@ function Install-PythonPackages {
     & $venvPython -m pip install @pipArgs
     if ($LASTEXITCODE -eq 0) {
         Write-LogSuccess "installed_packages"
+
+        # Fix guiconfig.py missing 'import re'
+        $guiconfigPath = Join-Path $venvPath "Lib\site-packages\guiconfig.py"
+        if (Test-Path $guiconfigPath) {
+            $content = Get-Content -Path $guiconfigPath -Raw
+            if (-not ($content -match "^import re")) {
+                # Add 'import re' after 'import sys'
+                $content = $content -replace "(?m)(^import sys)", "`$1`nimport re"
+                Set-Content -Path $guiconfigPath -Value $content -NoNewline
+                Write-LogInfo "fixed_guiconfig"
+            }
+        }
     }
     else {
         Write-LogError "package_install_failed"
