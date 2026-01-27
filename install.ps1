@@ -1502,13 +1502,13 @@ function Remove-EnvDirectory {
     foreach ($item in $items) {
         # Skip local_pkgs directory if preserving
         if ($PreserveLocalPkgs -and ($item.Name -eq "local_pkgs" -or $item.FullName -eq $localPkgsPath)) {
-            continue
+            continue | Out-Null
         }
         # Skip .config.backup file if preserving
         if ($PreserveConfigBackup -and $item.Name -eq ".config.backup") {
-            continue
+            continue | Out-Null
         }
-        Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
     }
 }
 
@@ -1575,7 +1575,7 @@ function Handle-InteractiveRemoval {
         Write-LogInfo "removing_env_root_all" $env:ENV_ROOT
         
         # Remove entire ENV_ROOT directory
-        Remove-Item -Path $env:ENV_ROOT -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path $env:ENV_ROOT -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
         
         Write-LogSuccess "env_root_removed" $env:ENV_ROOT
     }
