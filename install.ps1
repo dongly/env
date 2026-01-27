@@ -40,13 +40,12 @@ $BRANCH_SDK_DEFAULT = ""
 # PyPI mirror and detection URLs
 $PYPI_MIRROR_CN = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
+# Git download URLs
 $GIT_GITHUB_API_URL = "https://api.github.com/repos/git-for-windows/git/releases/latest"
 $GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
 
+# IPInfo API URL for detecting IP location
 $IPINFO_URL = "https://ipinfo.io/json"
-
-# Git download URL for manual installation
-$GIT_DOWNLOAD_URL = "https://git-scm.com/download/win"
 
 # Parameter variables
 $autoMode = $false
