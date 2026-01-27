@@ -1202,7 +1202,7 @@ function Ensure-Python {
 
     # Install portable Python if needed
     if ($usePortablePython) {
-        $script:Config.SelectedPython = Install-Python -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath -SkipVerification
+        $script:Config.SelectedPython = Install-Python -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath -SkipVerification $true
     }
 }
 
