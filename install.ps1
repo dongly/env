@@ -1002,7 +1002,7 @@ function Install-Pip {
 
 function Find-SystemPython {
     # Find Python in common installation paths first, then system PATH
-    # Returns: array of python paths, $null if not found
+    # Returns: array of python paths, empty array if not found
 
     Write-Host "DEBUG: Find-SystemPython called" -ForegroundColor Magenta
 
@@ -1033,7 +1033,29 @@ function Find-SystemPython {
 
     # Collect all valid Python paths
     foreach ($pythonPath in $searchPaths) {
-        if (Test-Path $pythonPath) {
+        # Handle wildcard paths
+        if ($pythonPath -like '*\*') {
+            try {
+                $resolvedPaths = Resolve-Path -Path $pythonPath -ErrorAction SilentlyContinue
+                if ($resolvedPaths) {
+                    foreach ($resolvedPath in $resolvedPaths) {
+                        try {
+                            $version = & $resolvedPath.Path --version 2>&1 | Select-String "Python"
+                            if ($?) {
+                                $foundPaths += $resolvedPath.Path
+                            }
+                        }
+                        catch {
+                            continue
+                        }
+                    }
+                }
+            }
+            catch {
+                continue
+            }
+        }
+        elseif (Test-Path $pythonPath) {
             try {
                 $version = & $pythonPath --version 2>&1 | Select-String "Python"
                 if ($?) {
@@ -1067,21 +1089,30 @@ function Find-SystemPython {
 
     Write-Host "DEBUG: foundPaths.Count = $($foundPaths.Count), uniquePaths.Count = $($uniquePaths.Count)" -ForegroundColor Magenta
 
-    if ($uniquePaths.Count -eq 0) {
-        Write-Host "DEBUG: Returning null (no Python found)" -ForegroundColor Magenta
+    return $uniquePaths
+}
+
+function Select-PythonInstallation {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$PythonPaths
+    )
+
+    if ($PythonPaths.Count -eq 0) {
+        Write-Host "DEBUG: No Python installations found" -ForegroundColor Magenta
         return $null
     }
-    elseif ($uniquePaths.Count -eq 1) {
-        Write-Host "DEBUG: Returning single Python: $($uniquePaths[0])" -ForegroundColor Magenta
-        return $uniquePaths[0]
+    elseif ($PythonPaths.Count -eq 1) {
+        Write-Host "DEBUG: Using single Python: $($PythonPaths[0])" -ForegroundColor Magenta
+        return $PythonPaths[0]
     }
     else {
         # Multiple Python found
         Write-Host ""
         Write-Host "Multiple Python installations found:"
-        for ($i = 0; $i -lt $uniquePaths.Count; $i++) {
-            $ver = & $uniquePaths[$i] --version 2>&1 | Select-String "Python"
-            Write-Host "  $($i + 1)). $($uniquePaths[$i]) - $($ver.Line)"
+        for ($i = 0; $i -lt $PythonPaths.Count; $i++) {
+            $ver = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
+            Write-Host "  $($i + 1)). $($PythonPaths[$i]) - $($ver.Line)"
         }
         Write-Host ""
 
@@ -1091,20 +1122,20 @@ function Find-SystemPython {
             $latestPython = $null
             $latestVersion = [version]"0.0.0"
 
-            for ($i = 0; $i -lt $uniquePaths.Count; $i++) {
-                $verString = & $uniquePaths[$i] --version 2>&1 | Select-String "Python"
+            for ($i = 0; $i -lt $PythonPaths.Count; $i++) {
+                $verString = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
                 $verString = $verString.Line -replace 'Python ', ''
                 try {
                     $currentVersion = [version]$verString
                     if ($currentVersion -gt $latestVersion) {
                         $latestVersion = $currentVersion
-                        $latestPython = $uniquePaths[$i]
+                        $latestPython = $PythonPaths[$i]
                     }
                 }
                 catch {
                     # If version parsing fails, use this Python if we haven't found one yet
                     if (-not $latestPython) {
-                        $latestPython = $uniquePaths[$i]
+                        $latestPython = $PythonPaths[$i]
                     }
                     continue
                 }
@@ -1112,7 +1143,7 @@ function Find-SystemPython {
 
             # Fallback: if no Python was selected (all version parsing failed), use the first one
             if (-not $latestPython) {
-                $latestPython = $uniquePaths[0]
+                $latestPython = $PythonPaths[0]
             }
 
             Write-Host "Auto-selected: $latestPython (latest version)" -ForegroundColor Yellow
@@ -1120,13 +1151,13 @@ function Find-SystemPython {
         }
         else {
             # Interactive mode, let user choose
-            $choice = Read-Host "Select Python installation (1-$($uniquePaths.Count))"
+            $choice = Read-Host "Select Python installation (1-$($PythonPaths.Count))"
             $idx = [int]$choice - 1
-            if ($idx -ge 0 -and $idx -lt $uniquePaths.Count) {
-                return $uniquePaths[$idx]
+            if ($idx -ge 0 -and $idx -lt $PythonPaths.Count) {
+                return $PythonPaths[$idx]
             }
             else {
-                return $uniquePaths[0]
+                return $PythonPaths[0]
             }
         }
     }
@@ -1175,7 +1206,8 @@ function Create-Venv {
     }
     else {
         # If no portable Python, try to find system Python
-        $pythonCmd = Find-SystemPython
+        $pythonPaths = Find-SystemPython
+        $pythonCmd = Select-PythonInstallation -PythonPaths $pythonPaths
     }
 
     if (-not $pythonCmd) {
@@ -1391,7 +1423,8 @@ function Check-ExistingEnv {
 
 function Ensure-Dependencies {
     # Check Python version and decide whether to use system Python or install portable version
-    $pythonPath = Find-SystemPython
+    $pythonPaths = Find-SystemPython
+    $pythonPath = Select-PythonInstallation -PythonPaths $pythonPaths
     $usePortablePython = $false
 
     # If -P/--python flag is set, force use portable Python and skip system Python check
