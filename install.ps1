@@ -1598,7 +1598,7 @@ function Check-ExistingEnv {
 function Ensure-Dependencies {
     # Check Python version and decide whether to use system Python or install portable version
     $pythonPaths = Find-SystemPython
-    $pythonPath = Select-PythonInstallation -PythonPaths $pythonPaths
+    $pythonPath = [string](Select-PythonInstallation -PythonPaths $pythonPaths)
 
     if ($pythonPath) {
         $Global:SELECTED_PYTHON = $pythonPath
