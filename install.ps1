@@ -1070,7 +1070,7 @@ function Find-SystemPython {
         return $uniquePaths[0]
     }
     else {
-        # Multiple Python found, let user choose
+        # Multiple Python found
         Write-Host ""
         Write-Host "Multiple Python installations found:"
         for ($i = 0; $i -lt $uniquePaths.Count; $i++) {
@@ -1079,13 +1079,41 @@ function Find-SystemPython {
         }
         Write-Host ""
 
-        $choice = Read-Host "Select Python installation (1-$($uniquePaths.Count))"
-        $idx = [int]$choice - 1
-        if ($idx -ge 0 -and $idx -lt $uniquePaths.Count) {
-            return $uniquePaths[$idx]
+        # In auto mode, automatically select the latest version
+        if ($Global:AUTO_MODE) {
+            # Find the latest version by comparing version strings
+            $latestPython = $uniquePaths[0]
+            $latestVersion = [version]"0.0.0"
+
+            for ($i = 0; $i -lt $uniquePaths.Count; $i++) {
+                $verString = & $uniquePaths[$i] --version 2>&1 | Select-String "Python"
+                $verString = $verString.Line -replace 'Python ', ''
+                try {
+                    $currentVersion = [version]$verString
+                    if ($currentVersion -gt $latestVersion) {
+                        $latestVersion = $currentVersion
+                        $latestPython = $uniquePaths[$i]
+                    }
+                }
+                catch {
+                    # If version parsing fails, skip this Python
+                    continue
+                }
+            }
+
+            Write-Host "Auto-selected: $latestPython (latest version)" -ForegroundColor Yellow
+            return $latestPython
         }
         else {
-            return $uniquePaths[0]
+            # Interactive mode, let user choose
+            $choice = Read-Host "Select Python installation (1-$($uniquePaths.Count))"
+            $idx = [int]$choice - 1
+            if ($idx -ge 0 -and $idx -lt $uniquePaths.Count) {
+                return $uniquePaths[$idx]
+            }
+            else {
+                return $uniquePaths[0]
+            }
         }
     }
 }
