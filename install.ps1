@@ -45,6 +45,7 @@ $GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
 
 $IPINFO_URL = "https://ipinfo.io/json"
 
+# Git download URL for manual installation
 $GIT_DOWNLOAD_URL = "https://git-scm.com/download/win"
 
 # Parameter variables
