@@ -322,6 +322,7 @@ $MSG_EN_using_fixed_git_version = "Using fixed Git version: {0}"
 $MSG_EN_git_clone_failed = "Git clone failed: {0}"
 $MSG_EN_restart_required = "Please restart terminal and run this script again to continue."
 $MSG_EN_git_not_found = "Git is not installed. Please install Git first."
+$MSG_EN_git_found = "Git found: {0}"
 $MSG_EN_enabling_long_paths = "Enabling Windows long path support..."
 $MSG_EN_long_paths_enabled = "Windows long path support enabled"
 $MSG_EN_long_paths_enable_failed = "Failed to enable long path support (may require admin privileges)"
@@ -333,6 +334,7 @@ $MSG_EN_dir_exists = "Directory already exists: {0}"
 $MSG_EN_generating_kconfig = "Generating Kconfig: {0}"
 $MSG_EN_installing_packages = "Installing Python packages..."
 $MSG_EN_env_root_prompt = "Existing RT-Thread ENV detected. Do you want to delete and reinstall?"
+$MSG_EN_env_root_exists = "Existing RT-Thread ENV detected at: {0}"
 $MSG_EN_env_root_confirm = "Are you sure you want to delete? [Y/a/n]: "
 $MSG_EN_env_root_confirm_help = "  Y/y: Preserve config and toolchain, delete others (default)"
 $MSG_EN_env_root_confirm_all = "  A/a: Delete entire directory (including config and toolchain)"
@@ -380,6 +382,9 @@ $MSG_EN_sdk = "     - sdk           : Install toolchains"
 $MSG_EN_using_custom_repo = "Using custom repository: {0}"
 $MSG_EN_using_custom_repo_branch = "Using custom repository: {0} (branch: {1})"
 $MSG_EN_install_portable_python = "Install portable Python - Python {0}"
+$MSG_EN_select_python = "Found {0} Python installation(s). Default is option {1} (latest). Select [1-{0}], or {2} to install portable Python: "
+$MSG_EN_auto_selected = "Auto-selected Python: {0}"
+$MSG_EN_python_not_found = "Python not found. Please install Python first."
 
 # Chinese messages
 $MSG_ZH_banner_title = "RT-Thread ENV 安装程序"
@@ -412,6 +417,7 @@ $MSG_ZH_using_fixed_git_version = "使用固定 Git 版本: {0}"
 $MSG_ZH_git_clone_failed = "Git 克隆失败: {0}"
 $MSG_ZH_restart_required = "请重新启动终端并再次运行此脚本以继续。"
 $MSG_ZH_git_not_found = "未安装 Git。请先安装 Git。"
+$MSG_ZH_git_found = "找到 Git: {0}"
 $MSG_ZH_enabling_long_paths = "正在启用 Windows 长路径支持..."
 $MSG_ZH_long_paths_enabled = "Windows 长路径支持已启用"
 $MSG_ZH_long_paths_enable_failed = "启用长路径支持失败（可能需要管理员权限）"
@@ -423,6 +429,7 @@ $MSG_ZH_dir_exists = "目录已存在: {0}"
 $MSG_ZH_generating_kconfig = "生成 Kconfig: {0}"
 $MSG_ZH_installing_packages = "正在安装 Python 包..."
 $MSG_ZH_env_root_prompt = "检测到已存在的RT-Thread ENV。是否要删除并重新安装？"
+$MSG_ZH_env_root_exists = "检测到已存在的 RT-Thread ENV: {0}"
 $MSG_ZH_env_root_confirm = "确定要删除吗？[Y/a/n]: "
 $MSG_ZH_env_root_confirm_help = "  Y/y: 保留配置和工具链，删除其他（默认）"
 $MSG_ZH_env_root_confirm_all = "  A/a: 删除整个目录（包括配置和工具链）"
@@ -469,6 +476,9 @@ $MSG_ZH_sdk = "     - sdk           : 安装工具链"
 $MSG_ZH_using_custom_repo = "使用自定义仓库: {0}"
 $MSG_ZH_using_custom_repo_branch = "使用自定义仓库: {0} (分支: {1})"
 $MSG_ZH_install_portable_python = "安装便携式 Python - Python {0}"
+$MSG_ZH_select_python = "找到 {0} 个 Python 安装。默认选项为 {1}（最新）。选择 [1-{0}]，或输入 {2} 安装便携式 Python: "
+$MSG_ZH_auto_selected = "自动选择 Python: {0}"
+$MSG_ZH_python_not_found = "未找到 Python。请先安装 Python。"
 
 # Message functions
 # Get-Message: Get localized message
@@ -747,8 +757,9 @@ function Install-Git {
     # Enable-LongPathSupport: Enable Windows long path support
     # Configure-PythonPth: Configure Python _pth file
     # Install-Pip: Install pip
-    
-    $PYTHON_VERSION = "3.13.11"    $PYTHON_ARCHIVE = "python-3.13.11-amd64.zip"
+
+    $PYTHON_VERSION = "3.13.11"
+    $PYTHON_ARCHIVE = "python-3.13.11-amd64.zip"
     $PYTHON_URL_DEFAULT = "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
     $PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
     
