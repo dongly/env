@@ -1082,7 +1082,7 @@ function Find-SystemPython {
         # In auto mode, automatically select the latest version
         if ($Global:AUTO_MODE) {
             # Find the latest version by comparing version strings
-            $latestPython = $uniquePaths[0]
+            $latestPython = $null
             $latestVersion = [version]"0.0.0"
 
             for ($i = 0; $i -lt $uniquePaths.Count; $i++) {
@@ -1096,9 +1096,17 @@ function Find-SystemPython {
                     }
                 }
                 catch {
-                    # If version parsing fails, skip this Python
+                    # If version parsing fails, use this Python if we haven't found one yet
+                    if (-not $latestPython) {
+                        $latestPython = $uniquePaths[$i]
+                    }
                     continue
                 }
+            }
+
+            # Fallback: if no Python was selected (all version parsing failed), use the first one
+            if (-not $latestPython) {
+                $latestPython = $uniquePaths[0]
             }
 
             Write-Host "Auto-selected: $latestPython (latest version)" -ForegroundColor Yellow
