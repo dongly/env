@@ -143,6 +143,9 @@ generate_kconfig_file() {
     local kconfig_path="$env_dir/packages/Kconfig"
     echo 'source "$PKGS_DIR/packages/Kconfig"' > "$kconfig_path"
 
+    # Create local_pkgs directory for local package storage
+    mkdir -p "$env_dir/local_pkgs"
+
     log_success "generating_kconfig" "$kconfig_path"
 }
 

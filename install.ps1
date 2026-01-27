@@ -315,6 +315,7 @@ $MSG_EN_checking_python_version = "Checking Python version..."
 $MSG_EN_python_version = "Python version: {0}"
 $MSG_EN_python_version_too_low = "Python version {0} is too old (requires >= 3.6). Installing portable Python..."
 $MSG_EN_python_not_found = "Python not found. Installing portable Python..."
+$MSG_EN_missing_python = "Python not found. Please install Python first."
 $MSG_EN_using_system_python = "Using system Python..."
 $MSG_EN_using_portable_python = "Will use portable Python..."
 $MSG_EN_installing_portable_python = "Installing portable Python {0}..."
@@ -414,6 +415,7 @@ $MSG_ZH_checking_python_version = "正在检查 Python 版本..."
 $MSG_ZH_python_version = "Python 版本: {0}"
 $MSG_ZH_python_version_too_low = "Python 版本 {0} 过低（需要 >= 3.6）。将安装便携式 Python..."
 $MSG_ZH_python_not_found = "未安装 Python。将安装便携式 Python。"
+$MSG_ZH_missing_python = "未安装 Python。请先安装 Python。"
 $MSG_ZH_using_system_python = "使用系统 Python..."
 $MSG_ZH_using_portable_python = "将使用便携式 Python..."
 $MSG_ZH_installing_portable_python = "正在安装便携式 Python {0}..."
@@ -616,6 +618,12 @@ function Generate-KconfigFile {
 
     $content = 'source "$PKGS_DIR/packages/Kconfig"' + "`n"
     Set-Content -Path $kconfigPath -Value $content
+
+    # Create local_pkgs directory for local package storage
+    $localPkgsPath = Join-Path $EnvRoot "local_pkgs"
+    if (-not (Test-Path $localPkgsPath)) {
+        New-Item -ItemType Directory -Path $localPkgsPath -Force | Out-Null
+    }
 
     Write-LogSuccess "generating_kconfig" $kconfigPath
 }
@@ -1116,7 +1124,17 @@ function Test-PythonVersion {
 }
 
 function Create-Venv {
-    $pythonCmd = Find-SystemPython
+    $pythonCmd = $null
+
+    # First, check if portable Python exists (installed by -P flag)
+    $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
+    if (Test-Path $portablePython) {
+        $pythonCmd = $portablePython
+    }
+    else {
+        # If no portable Python, try to find system Python
+        $pythonCmd = Find-SystemPython
+    }
 
     if (-not $pythonCmd) {
         Write-LogError "missing_python"
