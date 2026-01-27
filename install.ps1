@@ -183,10 +183,10 @@ $REPO_PACKAGES_GITEE = "https://gitee.com/RT-Thread-Mirror/packages.git"
 $REPO_ENV_GITEE = "https://gitee.com/RT-Thread-Mirror/env.git"
 $REPO_SDK_GITEE = "https://gitee.com/RT-Thread-Mirror/sdk.git"
 
-# Default branches for each repository
-$BRANCH_PACKAGES_DEFAULT = "master"
-$BRANCH_ENV_DEFAULT = "master"
-$BRANCH_SDK_DEFAULT = "master"
+# Default branches for each repository (empty means use git default)
+$BRANCH_PACKAGES_DEFAULT = ""
+$BRANCH_ENV_DEFAULT = ""
+$BRANCH_SDK_DEFAULT = ""
 
 # PyPI mirror configurations
 $PYPI_MIRROR_CN = "https://pypi.tuna.tsinghua.edu.cn/simple"
