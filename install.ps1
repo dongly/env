@@ -1014,7 +1014,8 @@ function Handle-PythonSelection {
         [Parameter(Mandatory = $true)]
         [string[]]$PythonPaths,
         [Parameter(Mandatory = $true)]
-        [int]$LatestIndex
+        [int]$LatestIndex,
+        [bool]$SkipVerification = $false
     )
 
     $msgKey = "select_python"
@@ -1046,7 +1047,7 @@ function Handle-PythonSelection {
             Write-LogInfo "installing_portable_python" $PYTHON_VERSION
 
             # Install portable Python (don't remove existing since Main function already did it, skip verification)
-            Install-Python -UseCNMirror $script:Config.UseCN -RemoveExisting $false -SkipVerification
+            Install-Python -UseCNMirror $script:Config.UseCN -RemoveExisting $false -SkipVerification $SkipVerification
 
             # Return the portable Python path
             $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
@@ -1062,7 +1063,8 @@ function Handle-PythonSelection {
 function Select-PythonInstallation {
     param(
         [Parameter(Mandatory = $true)]
-        [string[]]$PythonPaths
+        [string[]]$PythonPaths,
+        [bool]$SkipVerification = $false
     )
 
     # If -P flag is set, skip Python selection (will use portable Python later)
@@ -1097,7 +1099,7 @@ function Select-PythonInstallation {
     else {
         # Interactive mode, let user choose
         Show-PythonOptions -PythonPaths $PythonPaths
-        $selectedPython = Handle-PythonSelection -PythonPaths $PythonPaths -LatestIndex $latestIndex
+        $selectedPython = Handle-PythonSelection -PythonPaths $PythonPaths -LatestIndex $latestIndex -SkipVerification $SkipVerification
         return $selectedPython
     }
 }
@@ -1166,7 +1168,7 @@ function Ensure-Python {
     else {
         # Try to use system Python
         $pythonPaths = Find-SystemPython
-        $pythonPath = [string](Select-PythonInstallation -PythonPaths $pythonPaths)
+        $pythonPath = [string](Select-PythonInstallation -PythonPaths $pythonPaths -SkipVerification $false)
 
         if ($pythonPath) {
             # Check if this is a portable Python path (already installed by Handle-PythonSelection)
