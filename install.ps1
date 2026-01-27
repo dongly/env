@@ -1143,7 +1143,7 @@ function Select-PythonInstallation {
             $ver = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
             Write-Host "  $($i + 1)). $($PythonPaths[$i]) - $($ver.Line)"
         }
-        Write-Host "  $($PythonPaths.Count + 1)). Install portable Python (便携式 Python)" -ForegroundColor Cyan
+        Write-Host "  $($PythonPaths.Count + 1)). Install portable Python" -ForegroundColor Cyan
         Write-Host ""
 
         # In auto mode, automatically select the latest version
