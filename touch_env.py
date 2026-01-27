@@ -707,7 +707,7 @@ def check_existing_env(config):
     if not os.path.exists(config.env_root):
         return
 
-    log_raw(get_message('env_root_exists', config.env_root))
+    log_raw(get_message('env_root_exists').format(config.env_root))
     print()
 
     if config.auto_mode:
