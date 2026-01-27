@@ -1067,6 +1067,13 @@ function Select-PythonInstallation {
         return $null
     }
 
+    # Check if portable Python is already installed (user just installed it)
+    $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
+    if (Test-Path $portablePythonPath) {
+        # Portable Python already exists, skip system Python selection
+        return $null
+    }
+
     if ($PythonPaths.Count -eq 0) {
         return $null
     }
@@ -1159,7 +1166,16 @@ function Ensure-Python {
         $pythonPath = [string](Select-PythonInstallation -PythonPaths $pythonPaths)
 
         if ($pythonPath) {
-            # Check version
+            # Check if this is a portable Python path (already installed by Handle-PythonSelection)
+            $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
+            if ($pythonPath -eq $portablePythonPath) {
+                # Portable Python was just installed, skip version check (Install-Python already verified it)
+                $script:Config.SelectedPython = $pythonPath
+                Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
+                return
+            }
+
+            # Check version for system Python
             $pythonVersion = Get-PythonVersionString -PythonPath $pythonPath
             if ($pythonVersion -and (Test-PythonVersion -VersionString $pythonVersion)) {
                 # Valid version, use system Python
