@@ -1372,8 +1372,11 @@ function Main {
     # Step 3: Remove portable Python if exists (only if not forcing portable Python installation and user selected system Python)
     if (-not $script:Config.UseEmbedPython) {
         $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
-        # Only remove if user didn't just install portable Python
-        if ($script:Config.SelectedPython -ne $portablePythonPath) {
+        # Only remove if:
+        # 1. User selected a system Python (not portable)
+        # 2. AND user actually selected something (SelectedPython is not null)
+        # 3. AND the selected Python is not the portable Python
+        if ($script:Config.SelectedPython -and $script:Config.SelectedPython -ne $portablePythonPath) {
             Remove-PortablePython
         }
     }
