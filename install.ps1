@@ -4,17 +4,17 @@
 # Supports: English / 中文
 #
 # Usage:
-#   .\install.ps1 [-y] [-c] [-o] [-p] [-r <path>] [-E|-Z] [-P] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--skip-long-path] [-h]
+#   .\install.ps1 [-y] [-c] [-o] [-d] [-p] [-r <path>] [-E|-Z] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--skip-long-path] [-h]
 #
 # Options:
 #   -y, --yes, --auto    Auto-install without prompts
 #   -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)
 #   -o, --official       Force use official source
-#   -p, --pyocd          Install pyocd for debugging
+#   -d, --pyocd          Install pyocd for debugging
 #   -r, --env-root <path> Set custom install directory
-#   -E, --en, --english  Force English messages
-#   -Z, --zh, --chinese  Force Chinese messages
-#   -P, --python         Force install portable Python (ignore system Python)
+#   -e, --en, --english  Force English messages
+#   -z, --zh, --chinese  Force Chinese messages
+#   -p, --python         Force install portable Python (ignore system Python)
 #   --packages <repo>[#<branch>]  Specify custom packages repository and branch
 #   --env <repo>[#<branch>]  Specify custom env repository and branch
 #   --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
@@ -85,9 +85,9 @@ foreach ($arg in $args) {
         "--gitee" { $cnMode = $true }
         "-o" { $officialMode = $true }
         "--official" { $officialMode = $true }
-        "-p" { $pyocdMode = $true }
+        "-d" { $pyocdMode = $true }
         "--pyocd" { $pyocdMode = $true }
-        "-P" { $pythonMode = $true }
+        "-p" { $pythonMode = $true }
         "--python" { $pythonMode = $true }
         "-e" { $enMode = $true }
         "--en" { $enMode = $true }
@@ -238,7 +238,7 @@ function Print-Help {
         Write-Host "  -y, --yes, --auto    自动安装，无需提示"
         Write-Host "  -c, --cn, --gitee    使用中国镜像（Gitee，清华 PyPI）"
         Write-Host "  -o, --official       强制使用官方源"
-        Write-Host "  -p, --pyocd          安装 pyocd（用于调试）"
+        Write-Host "  -d, --pyocd          安装 pyocd（用于调试）"
         Write-Host "  -r, --env-root [path] 设置自定义安装目录"
         Write-Host "  -E, --en, --english  强制显示英文信息"
         Write-Host "  -Z, --zh, --chinese  强制显示中文信息"
@@ -262,11 +262,11 @@ function Print-Help {
         Write-Host "  -y, --yes, --auto    Auto-install without prompts"
         Write-Host "  -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)"
         Write-Host "  -o, --official       Force use official source"
-        Write-Host "  -p, --pyocd          Install pyocd for debugging"
+        Write-Host "  -d, --pyocd          Install pyocd for debugging"
+        Write-Host "  -p, --python         Force install portable Python (ignore system Python)"
         Write-Host "  -r, --env-root [path] Set custom install directory"
         Write-Host "  -E, --en, --english  Force English messages"
         Write-Host "  -Z, --zh, --chinese  Force Chinese messages"
-        Write-Host "  -P, --python         Force install portable Python (ignore system Python)"
         Write-Host "  --packages [repo]    Specify custom packages repository and branch"
         Write-Host "                        Format: url[#branch]"
         Write-Host "  --env [repo]         Specify custom env repository and branch"
