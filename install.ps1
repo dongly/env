@@ -1291,11 +1291,18 @@ function Invoke-TouchEnv {
         }
 
         # Run touch_env.py
-        $process = Start-Process -FilePath $script:Config.SelectedPython -ArgumentList $pythonArgs -Wait -NoNewWindow -PassThru
+        $process = Start-Process -FilePath $script:Config.SelectedPython -ArgumentList $pythonArgs -Wait -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\touch_env_output.txt" -RedirectStandardError "$env:TEMP\touch_env_error.txt"
         $touchEnvExitCode = $process.ExitCode
 
         if ($touchEnvExitCode -ne 0) {
             Write-LogError "touch_env_failed" $touchEnvExitCode
+            # Show error output if available
+            if (Test-Path "$env:TEMP\touch_env_error.txt") {
+                $errorOutput = Get-Content "$env:TEMP\touch_env_error.txt" -Raw
+                if ($errorOutput) {
+                    Write-Host $errorOutput -ForegroundColor Red
+                }
+            }
             exit $touchEnvExitCode
         }
     }
@@ -1379,9 +1386,10 @@ function Main {
     # Step 3: Remove old portable Python if exists (only when not forcing portable Python installation with -p)
     if (-not $script:Config.UseEmbedPython) {
         $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
-        # Remove old portable Python if it exists (will be reinstalled if needed)
-        # This ensures we have a fresh portable Python installation
-        Remove-PortablePython
+        # Only remove if user selected a system Python (not the portable one we just installed)
+        if ($script:Config.SelectedPython -and $script:Config.SelectedPython -ne $portablePythonPath) {
+            Remove-PortablePython
+        }
     }
 
     # Set touch_env.py download URL
