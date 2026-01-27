@@ -162,6 +162,11 @@ $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\$E
 # Virtual environment directory name
 $Global:VENV_DIR = "venv\rt-env"
 
+# Flag to indicate if config and toolchain should be restored after installation
+$Global:RESTORE_CONFIG_AFTER_INSTALL = $false
+$Global:TEMP_CONFIG_PATH = ""
+$Global:TEMP_LOCAL_PKGS_PATH = ""
+
 # Selected Python path (used during installation and activation)
 $Global:SELECTED_PYTHON = ""
 
@@ -368,6 +373,8 @@ $MSG_EN_removing_env_root = "Removing existing RT-Thread ENV: {0}..."
 $MSG_EN_removing_env_root_preserving = "Removing (preserving config and toolchain): {0}..."
 $MSG_EN_removing_env_root_all = "Removing entire directory: {0}..."
 $MSG_EN_env_root_removed = "Existing RT-Thread ENV removed: {0}"
+$MSG_EN_restoring_config = "Restoring config and toolchain..."
+$MSG_EN_config_restored = "Config and toolchain restored"
 $MSG_EN_installation_cancelled = "Installation cancelled"
 $MSG_EN_venv_not_found = "Virtual environment not found, please recreate"
 $MSG_EN_upgrading_pip = "Upgrading pip..."
@@ -478,6 +485,8 @@ $MSG_ZH_removing_env_root = "正在删除现有RT-Thread ENV: {0}..."
 $MSG_ZH_removing_env_root_preserving = "正在删除（保留配置和工具链）: {0}..."
 $MSG_ZH_removing_env_root_all = "正在删除整个目录: {0}..."
 $MSG_ZH_env_root_removed = "已删除 RT-Thread ENV: {0}"
+$MSG_ZH_restoring_config = "正在恢复配置和工具链..."
+$MSG_ZH_config_restored = "配置和工具链已恢复"
 $MSG_ZH_installation_cancelled = "安装已取消"
 $MSG_ZH_venv_not_found = "找不到虚拟环境，请重新创建"
 $MSG_ZH_upgrading_pip = "正在升级 pip..."
@@ -1447,14 +1456,23 @@ function Check-ExistingEnv {
             $tempConfigPath = "$env:ENV_ROOT\.config.backup"
             $tempLocalPkgsPath = "$env:ENV_ROOT\local_pkgs.backup"
             
+            # Set global flags for restoration after installation
+            $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
+            $Global:TEMP_CONFIG_PATH = ""
+            $Global:TEMP_LOCAL_PKGS_PATH = ""
+            
             # Move config to ENV_ROOT root temporarily
             if (Test-Path $configPath) {
                 Copy-Item -Path $configPath -Destination $tempConfigPath -Force -ErrorAction SilentlyContinue
+                $Global:RESTORE_CONFIG_AFTER_INSTALL = $true
+                $Global:TEMP_CONFIG_PATH = $tempConfigPath
             }
             
             # Move local_pkgs to ENV_ROOT root temporarily
             if (Test-Path $localPkgsPath) {
                 Copy-Item -Path $localPkgsPath -Destination $tempLocalPkgsPath -Recurse -Force -ErrorAction SilentlyContinue
+                $Global:RESTORE_CONFIG_AFTER_INSTALL = $true
+                $Global:TEMP_LOCAL_PKGS_PATH = $tempLocalPkgsPath
             }
             
             # Remove directories
@@ -1465,21 +1483,7 @@ function Check-ExistingEnv {
                 Remove-Item -Path $envScript -ErrorAction SilentlyContinue
             }
             
-            # Restore preserved paths from ENV_ROOT root
-            if (Test-Path $tempConfigPath) {
-                $parentDir = Split-Path $configPath -Parent
-                if (-not (Test-Path $parentDir)) {
-                    New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
-                }
-                Copy-Item -Path $tempConfigPath -Destination $configPath -Force
-                Remove-Item -Path $tempConfigPath -Force -ErrorAction SilentlyContinue
-            }
-            
-            if (Test-Path $tempLocalPkgsPath) {
-                Copy-Item -Path $tempLocalPkgsPath -Destination $localPkgsPath -Recurse -Force
-                Remove-Item -Path $tempLocalPkgsPath -Recurse -Force -ErrorAction SilentlyContinue
-            }
-            
+            # Note: Config and toolchain will be restored after installation completes
             Write-LogSuccess "env_root_removed" $env:ENV_ROOT
         }
         else {
@@ -1512,12 +1516,21 @@ function Check-ExistingEnv {
                 $tempConfigPath = "$env:ENV_ROOT\.config.backup"
                 $tempLocalPkgsPath = "$env:ENV_ROOT\local_pkgs.backup"
                 
+                # Set global flags for restoration after installation
+                $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
+                $Global:TEMP_CONFIG_PATH = ""
+                $Global:TEMP_LOCAL_PKGS_PATH = ""
+                
                 if (Test-Path $configPath) {
                     Copy-Item -Path $configPath -Destination $tempConfigPath -Force
+                    $Global:RESTORE_CONFIG_AFTER_INSTALL = $true
+                    $Global:TEMP_CONFIG_PATH = $tempConfigPath
                 }
                 
                 if (Test-Path $localPkgsPath) {
                     Copy-Item -Path $localPkgsPath -Destination $tempLocalPkgsPath -Recurse -Force
+                    $Global:RESTORE_CONFIG_AFTER_INSTALL = $true
+                    $Global:TEMP_LOCAL_PKGS_PATH = $tempLocalPkgsPath
                 }
                 
                 # Remove directories
@@ -1528,21 +1541,7 @@ function Check-ExistingEnv {
                     Remove-Item -Path $envScript -ErrorAction SilentlyContinue
                 }
                 
-                # Restore preserved paths from ENV_ROOT root
-                if (Test-Path $tempConfigPath) {
-                    $parentDir = Split-Path $configPath -Parent
-                    if (-not (Test-Path $parentDir)) {
-                        New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
-                    }
-                    Copy-Item -Path $tempConfigPath -Destination $configPath -Force
-                    Remove-Item -Path $tempConfigPath -Force -ErrorAction SilentlyContinue
-                }
-                
-                if (Test-Path $tempLocalPkgsPath) {
-                    Copy-Item -Path $tempLocalPkgsPath -Destination $localPkgsPath -Recurse -Force
-                    Remove-Item -Path $tempLocalPkgsPath -Recurse -Force -ErrorAction SilentlyContinue
-                }
-                
+                # Note: Config and toolchain will be restored after installation completes
                 Write-LogSuccess "env_root_removed" $env:ENV_ROOT
             }
             elseif ($response -match "^[Aa]$") {
@@ -1802,7 +1801,34 @@ function Main {
     Install-PythonPackages -UseCNMirror $Global:USE_CN -ScriptsDir "$env:ENV_ROOT\tools\scripts" -InstallPyocd $Global:INSTALL_PYOCD
     Write-Host ""
 
-    # Step 8: Show next steps
+    # Step 8: Restore config and toolchain if needed
+    if ($Global:RESTORE_CONFIG_AFTER_INSTALL) {
+        Write-Host ""
+        Write-LogInfo "restoring_config"
+        
+        $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
+        $localPkgsPath = "$env:ENV_ROOT\local_pkgs"
+        
+        # Restore config
+        if ($Global:TEMP_CONFIG_PATH -and (Test-Path $Global:TEMP_CONFIG_PATH)) {
+            $parentDir = Split-Path $configPath -Parent
+            if (-not (Test-Path $parentDir)) {
+                New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+            }
+            Copy-Item -Path $Global:TEMP_CONFIG_PATH -Destination $configPath -Force
+            Remove-Item -Path $Global:TEMP_CONFIG_PATH -Force -ErrorAction SilentlyContinue
+        }
+        
+        # Restore local_pkgs
+        if ($Global:TEMP_LOCAL_PKGS_PATH -and (Test-Path $Global:TEMP_LOCAL_PKGS_PATH)) {
+            Copy-Item -Path $Global:TEMP_LOCAL_PKGS_PATH -Destination $localPkgsPath -Recurse -Force
+            Remove-Item -Path $Global:TEMP_LOCAL_PKGS_PATH -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+        Write-LogSuccess "config_restored"
+    }
+
+    # Step 9: Show next steps
     Show-NextSteps
 }
 
