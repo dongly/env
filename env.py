@@ -49,9 +49,10 @@ def show_version():
     print('\033[1;36m===================================================================\033[0m')
     print('Environment Information:')
     print('  - ENV_ROOT: %s' % get_env_root())
+    print('  - PKGS_ROOT: %s' % get_package_root())
+
     if rtt_ver != (0, 0, 0):
         print('  - RTT_ROOT: %s' % get_rtt_root())
-        print('  - PKGS_ROOT: %s' % get_package_root())
         print('  - BSP_ROOT: %s' % get_bsp_root())
         print('  - RT-Thread Version: %d.%d.%d' % rtt_ver)
     print('\033[1;36m===================================================================\033[0m')
