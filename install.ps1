@@ -1334,7 +1334,12 @@ function Ensure-Dependencies {
     $pythonPath = Find-SystemPython
     $usePortablePython = $false
 
-    if ($pythonPath) {
+    # If -P/--python flag is set, force use portable Python and skip system Python check
+    if ($Global:USE_EMBED_PYTHON) {
+        $usePortablePython = $true
+        Write-LogInfo "using_portable_python"
+    }
+    elseif ($pythonPath) {
         # Python found, check version
         $pythonVersion = Get-PythonVersionString -PythonPath $pythonPath
         if ($pythonVersion) {
@@ -1345,15 +1350,9 @@ function Ensure-Dependencies {
                 Write-LogInfo "python_version_too_low"
             }
             else {
-                # Version >= 3.6, use system Python unless --embed specified
-                if ($Global:USE_EMBED_PYTHON) {
-                    $usePortablePython = $true
-                    Write-LogInfo "using_portable_python"
-                }
-                else {
-                    $usePortablePython = $false
-                    Write-LogInfo "using_system_python"
-                }
+                # Version >= 3.6, use system Python
+                $usePortablePython = $false
+                Write-LogInfo "using_system_python"
             }
         }
         else {
