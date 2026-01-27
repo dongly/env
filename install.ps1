@@ -1445,6 +1445,116 @@ function Show-NextSteps {
 # Installation Steps Functions
 # ============================================================================
 
+function Backup-ConfigFile {
+    # Backup .config file to ENV_ROOT root
+    $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
+    $tempConfigPath = "$env:ENV_ROOT\.config.backup"
+    
+    if (Test-Path $configPath) {
+        Copy-Item -Path $configPath -Destination $tempConfigPath -Force -ErrorAction SilentlyContinue
+        $Global:RESTORE_CONFIG_AFTER_INSTALL = $true
+        $Global:TEMP_CONFIG_PATH = $tempConfigPath
+        return $true
+    }
+    return $false
+}
+
+function Remove-EnvDirectory {
+    param(
+        [switch]$PreserveLocalPkgs,
+        [switch]$PreserveConfigBackup
+    )
+    
+    $localPkgsPath = "$env:ENV_ROOT\local_pkgs"
+    
+    # Get all items in ENV_ROOT
+    $items = Get-ChildItem -Path $env:ENV_ROOT -Force -ErrorAction SilentlyContinue
+    foreach ($item in $items) {
+        # Skip local_pkgs directory if preserving
+        if ($PreserveLocalPkgs -and ($item.Name -eq "local_pkgs" -or $item.FullName -eq $localPkgsPath)) {
+            continue
+        }
+        # Skip .config.backup file if preserving
+        if ($PreserveConfigBackup -and $item.Name -eq ".config.backup") {
+            continue
+        }
+        Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Show-DeletionOptions {
+    Write-Host ""
+    Write-Host "$(Get-Message 'env_root_prompt')"
+    $confirmMsg = "$(Get-Message 'env_root_confirm')"
+    $confirmHelp = "$(Get-Message 'env_root_confirm_help')"
+    $confirmAll = "$(Get-Message 'env_root_confirm_all')"
+    $confirmNo = "$(Get-Message 'env_root_confirm_no')"
+    
+    Write-Host "$confirmMsg" -NoNewline -ForegroundColor Red
+    Write-Host ""
+    Write-Host $confirmHelp -ForegroundColor Cyan
+    Write-Host $confirmAll -ForegroundColor Cyan
+    Write-Host $confirmNo -ForegroundColor Cyan
+    Write-Host "> " -NoNewline -ForegroundColor Yellow
+    $response = Read-Host
+    
+    if ([string]::IsNullOrEmpty($response)) {
+        return "y"  # Default is y (preserve)
+    }
+    return $response
+}
+
+function Handle-AutoModeRemoval {
+    Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
+    
+    # Set global flags for restoration after installation
+    $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
+    $Global:TEMP_CONFIG_PATH = ""
+    
+    # Backup config file
+    Backup-ConfigFile
+    
+    # Remove ENV_ROOT directory (excluding local_pkgs and .config.backup)
+    Remove-EnvDirectory -PreserveLocalPkgs -PreserveConfigBackup
+    
+    Write-LogSuccess "env_root_removed" $env:ENV_ROOT
+}
+
+function Handle-InteractiveRemoval {
+    # Show options and get user response
+    $response = Show-DeletionOptions
+    
+    if ($response -match "^[Yy]$") {
+        # Preserve config and toolchain
+        Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
+        
+        # Set global flags for restoration after installation
+        $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
+        $Global:TEMP_CONFIG_PATH = ""
+        
+        # Backup config file
+        Backup-ConfigFile
+        
+        # Remove ENV_ROOT directory (excluding local_pkgs and .config.backup)
+        Remove-EnvDirectory -PreserveLocalPkgs -PreserveConfigBackup
+        
+        Write-LogSuccess "env_root_removed" $env:ENV_ROOT
+    }
+    elseif ($response -match "^[Aa]$") {
+        # Delete entire directory
+        Write-LogInfo "removing_env_root_all" $env:ENV_ROOT
+        
+        # Remove entire ENV_ROOT directory
+        Remove-Item -Path $env:ENV_ROOT -Recurse -Force -ErrorAction SilentlyContinue
+        
+        Write-LogSuccess "env_root_removed" $env:ENV_ROOT
+    }
+    else {
+        Write-LogInfo "installation_cancelled"
+        exit 0
+    }
+}
+
 function Check-ExistingEnv {
     # Check if ENV_ROOT directory exists
     if (Test-Path $env:ENV_ROOT) {
@@ -1452,116 +1562,10 @@ function Check-ExistingEnv {
         Write-Host ""
         
         if ($Global:AUTO_MODE) {
-            # Auto mode: preserve config and toolchain by default
-            Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
-            
-            # Define paths to preserve
-            $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
-            $localPkgsPath = "$env:ENV_ROOT\local_pkgs"
-            $tempConfigPath = "$env:ENV_ROOT\.config.backup"
-            
-            # Set global flags for restoration after installation
-            $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
-            $Global:TEMP_CONFIG_PATH = ""
-            
-            # Move config to ENV_ROOT root temporarily
-            if (Test-Path $configPath) {
-                Copy-Item -Path $configPath -Destination $tempConfigPath -Force -ErrorAction SilentlyContinue
-                $Global:RESTORE_CONFIG_AFTER_INSTALL = $true
-                $Global:TEMP_CONFIG_PATH = $tempConfigPath
-            }
-            
-            # Note: local_pkgs is not deleted, no need to backup
-            
-            # Remove ENV_ROOT directory (excluding local_pkgs)
-            # Get all items in ENV_ROOT
-            $items = Get-ChildItem -Path $env:ENV_ROOT -Force -ErrorAction SilentlyContinue
-            foreach ($item in $items) {
-                # Skip local_pkgs directory
-                if ($item.Name -eq "local_pkgs" -or $item.FullName -eq $localPkgsPath) {
-                    continue
-                }
-                # Skip .config.backup file (our backup)
-                if ($item.Name -eq ".config.backup") {
-                    continue
-                }
-                Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
-            }
-            
-            # Note: Config will be restored after installation completes
-            Write-LogSuccess "env_root_removed" $env:ENV_ROOT
+            Handle-AutoModeRemoval
         }
         else {
-            Write-Host ""
-            Write-Host "$(Get-Message 'env_root_prompt')"
-            $confirmMsg = "$(Get-Message 'env_root_confirm')"
-            $confirmHelp = "$(Get-Message 'env_root_confirm_help')"
-            $confirmAll = "$(Get-Message 'env_root_confirm_all')"
-            $confirmNo = "$(Get-Message 'env_root_confirm_no')"
-            
-            Write-Host "$confirmMsg" -NoNewline -ForegroundColor Red
-            Write-Host ""
-            Write-Host $confirmHelp -ForegroundColor Cyan
-            Write-Host $confirmAll -ForegroundColor Cyan
-            Write-Host $confirmNo -ForegroundColor Cyan
-            Write-Host "> " -NoNewline -ForegroundColor Yellow
-            $response = Read-Host
-            
-            if ([string]::IsNullOrEmpty($response)) {
-                $response = "y"  # Default is y (preserve)
-            }
-            
-            if ($response -match "^[Yy]$") {
-                # Preserve config and toolchain
-                Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
-                
-                # Define paths to preserve
-                $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
-                $localPkgsPath = "$env:ENV_ROOT\local_pkgs"
-                $tempConfigPath = "$env:ENV_ROOT\.config.backup"
-                
-                # Set global flags for restoration after installation
-                $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
-                $Global:TEMP_CONFIG_PATH = ""
-                
-                if (Test-Path $configPath) {
-                    Copy-Item -Path $configPath -Destination $tempConfigPath -Force
-                    $Global:RESTORE_CONFIG_AFTER_INSTALL = $true
-                    $Global:TEMP_CONFIG_PATH = $tempConfigPath
-                }
-                
-                # Note: local_pkgs is not deleted, no need to backup
-                
-                # Remove ENV_ROOT directory (excluding local_pkgs)
-                $items = Get-ChildItem -Path $env:ENV_ROOT -Force -ErrorAction SilentlyContinue
-                foreach ($item in $items) {
-                    # Skip local_pkgs directory
-                    if ($item.Name -eq "local_pkgs" -or $item.FullName -eq $localPkgsPath) {
-                        continue
-                    }
-                    # Skip .config.backup file (our backup)
-                    if ($item.Name -eq ".config.backup") {
-                        continue
-                    }
-                    Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
-                }
-                
-                # Note: Config will be restored after installation completes
-                Write-LogSuccess "env_root_removed" $env:ENV_ROOT
-            }
-            elseif ($response -match "^[Aa]$") {
-                # Delete entire directory
-                Write-LogInfo "removing_env_root_all" $env:ENV_ROOT
-                
-                # Remove entire ENV_ROOT directory
-                Remove-Item -Path $env:ENV_ROOT -Recurse -Force -ErrorAction SilentlyContinue
-                
-                Write-LogSuccess "env_root_removed" $env:ENV_ROOT
-            }
-            else {
-                Write-LogInfo "installation_cancelled"
-                exit 0
-            }
+            Handle-InteractiveRemoval
         }
     }
 }
