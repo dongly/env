@@ -1157,53 +1157,42 @@ function Show-Banner {
 # Prompt-Pyocd: Prompt for pyocd installation
 
 function Ensure-Python {
-    # Check Python version and decide whether to use system Python or install portable version
-    $usePortablePython = $false
+    # Find system Python installations
+    $pythonPaths = Find-SystemPython
 
-    # If -P/--python flag is set, force use portable Python
-    if ($script:Config.UseEmbedPython) {
-        $usePortablePython = $true
-        Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
+    # Select Python installation (or install portable)
+    $selectedPython = Select-PythonInstallation -PythonPaths $pythonPaths
+
+    if ($selectedPython) {
+        # User selected a Python (system or just installed portable)
+        $script:Config.SelectedPython = $selectedPython
+
+        # Check if it's portable Python (just installed)
+        $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
+        if ($selectedPython -eq $portablePythonPath) {
+            Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
+            return
+        }
+
+        # It's a system Python, verify version
+        $pythonVersion = Get-PythonVersionString -PythonPath $selectedPython
+        if ($pythonVersion -and (Test-PythonVersion -VersionString $pythonVersion)) {
+            Write-LogInfo "using_system_python" $pythonVersion $selectedPython
+            return
+        }
+
+        # System Python version is too low
+        Write-LogInfo "python_version_too_low" $pythonVersion
     }
     else {
-        # Try to use system Python
-        $pythonPaths = Find-SystemPython
-        $pythonPath = [string](Select-PythonInstallation -PythonPaths $pythonPaths -SkipVerification $false)
-
-        if ($pythonPath) {
-            # Check if this is a portable Python path (already installed by Handle-PythonSelection)
-            $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
-            if ($pythonPath -eq $portablePythonPath) {
-                # Portable Python was just installed, skip version check (Install-Python already verified it)
-                $script:Config.SelectedPython = $pythonPath
-                Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
-                return
-            }
-
-            # Check version for system Python
-            $pythonVersion = Get-PythonVersionString -PythonPath $pythonPath
-            if ($pythonVersion -and (Test-PythonVersion -VersionString $pythonVersion)) {
-                # Valid version, use system Python
-                $script:Config.SelectedPython = $pythonPath
-                Write-LogInfo "using_system_python" $pythonVersion $pythonPath
-                return
-            }
-            
-            # Invalid version or failed to get version
-            $usePortablePython = $true
-            Write-LogInfo $(if ($pythonVersion) { "python_version_too_low" } else { "python_version_failed" })
-        }
-        else {
-            # Python not found
-            $usePortablePython = $true
-            Write-LogInfo "python_not_found"
-        }
+        # No Python found or user didn't select anything
+        Write-LogInfo "python_not_found"
     }
 
-    # Install portable Python if needed
-    if ($usePortablePython) {
-        $script:Config.SelectedPython = Install-Python -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath -SkipVerification $true
-    }
+    # Install portable Python
+    Write-LogInfo "installing_portable_python" $script:PYTHON_VERSION
+    $script:Config.SelectedPython = Install-Python -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath -SkipVerification $true -RemoveExisting $false
+    Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
 }
 
 function Ensure-Git {
