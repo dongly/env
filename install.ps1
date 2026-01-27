@@ -1612,25 +1612,35 @@ function Ensure-Dependencies {
         Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
     }
     elseif ($pythonPath) {
-        # Python found, check version
-        $pythonVersion = Get-PythonVersionString -PythonPath $pythonPath
-        if ($pythonVersion) {
-            $isValidVersion = Test-PythonVersion -VersionString $pythonVersion
-            if (-not $isValidVersion) {
-                # Version < 3.6, use portable Python
-                $usePortablePython = $true
-                Write-LogInfo "python_version_too_low"
-            }
-            else {
-                # Version >= 3.6, use system Python
-                $usePortablePython = $false
-                Write-LogInfo "using_system_python" $pythonVersion $pythonPath
-            }
+        # Check if the selected Python is the portable Python we just installed
+        $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
+        if ($pythonPath -eq $portablePythonPath) {
+            # Portable Python was selected and installed, skip version check
+            $usePortablePython = $false
+            $pythonVersion = Get-PythonVersionString -PythonPath $pythonPath
+            Write-LogInfo "using_system_python" $pythonVersion $pythonPath
         }
         else {
-            # Failed to get version, install portable Python
-            $usePortablePython = $true
-            Write-LogInfo "python_version_check_failed"
+            # Python found, check version
+            $pythonVersion = Get-PythonVersionString -PythonPath $pythonPath
+            if ($pythonVersion) {
+                $isValidVersion = Test-PythonVersion -VersionString $pythonVersion
+                if (-not $isValidVersion) {
+                    # Version < 3.6, use portable Python
+                    $usePortablePython = $true
+                    Write-LogInfo "python_version_too_low"
+                }
+                else {
+                    # Version >= 3.6, use system Python
+                    $usePortablePython = $false
+                    Write-LogInfo "using_system_python" $pythonVersion $pythonPath
+                }
+            }
+            else {
+                # Failed to get version, install portable Python
+                $usePortablePython = $true
+                Write-LogInfo "python_version_check_failed"
+            }
         }
     }
     else {
