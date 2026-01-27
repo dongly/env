@@ -4,7 +4,7 @@
 # Supports: English / 中文
 #
 # Usage:
-#   .\install.ps1 [-y] [-c] [-o] [-d] [-p] [-r <path>] [-E|-Z] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--skip-long-path] [-h]
+#   .\install.ps1 [-y] [-c] [-o] [-d] [-p] [-r <path>] [-e|-z] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--skip-long-path] [-h]
 #
 # Options:
 #   -y, --yes, --auto    Auto-install without prompts
@@ -239,10 +239,10 @@ function Print-Help {
         Write-Host "  -c, --cn, --gitee    使用中国镜像（Gitee，清华 PyPI）"
         Write-Host "  -o, --official       强制使用官方源"
         Write-Host "  -d, --pyocd          安装 pyocd（用于调试）"
+        Write-Host "  -p, --python         强制安装便携式 Python（忽略系统 Python）"
         Write-Host "  -r, --env-root [path] 设置自定义安装目录"
-        Write-Host "  -E, --en, --english  强制显示英文信息"
-        Write-Host "  -Z, --zh, --chinese  强制显示中文信息"
-        Write-Host "  -P, --python         强制安装便携式 Python（忽略系统 Python）"
+        Write-Host "  -e, --en, --english  强制显示英文信息"
+        Write-Host "  -z, --zh, --chinese  强制显示中文信息"
         Write-Host "  --packages [repo]    指定 packages 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
         Write-Host "  --env [repo]         指定 env 仓库地址和分支"
@@ -265,8 +265,8 @@ function Print-Help {
         Write-Host "  -d, --pyocd          Install pyocd for debugging"
         Write-Host "  -p, --python         Force install portable Python (ignore system Python)"
         Write-Host "  -r, --env-root [path] Set custom install directory"
-        Write-Host "  -E, --en, --english  Force English messages"
-        Write-Host "  -Z, --zh, --chinese  Force Chinese messages"
+        Write-Host "  -e, --en, --english  Force English messages"
+        Write-Host "  -z, --zh, --chinese  Force Chinese messages"
         Write-Host "  --packages [repo]    Specify custom packages repository and branch"
         Write-Host "                        Format: url[#branch]"
         Write-Host "  --env [repo]         Specify custom env repository and branch"
