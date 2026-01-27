@@ -157,23 +157,10 @@ class TouchEnvConfig:
             raise ValueError(
                 f"Invalid language: {self.language}. Must be 'en' or 'zh'")
 
-        # Validate custom_repos JSON
-        if self.custom_repos:
-            if not isinstance(self.custom_repos, dict):
-                raise ValueError("custom_repos must be a dictionary")
-
-            for repo_name in self.custom_repos:
-                if repo_name not in ['env', 'packages', 'sdk']:
-                    raise ValueError(f"Invalid repository name: {repo_name}")
-
-                repo_info = self.custom_repos[repo_name]
-                if not isinstance(repo_info, dict):
-                    raise ValueError(
-                        f"Repository info for {repo_name} must be a dictionary")
-
-                if 'url' not in repo_info:
-                    raise ValueError(
-                        f"Repository {repo_name} must have 'url' field")
+        # custom_repos is built internally in parse_arguments, no need for extensive validation
+        # Basic type check is sufficient
+        if self.custom_repos and not isinstance(self.custom_repos, dict):
+            raise ValueError("custom_repos must be a dictionary")
 
 # ============================================================================
 # Internationalization Messages

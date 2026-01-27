@@ -1240,51 +1240,50 @@ function Remove-PortablePython {
 # Download and execute touch_env.py to handle Step 5-10
 function Invoke-TouchEnv {
     param(
-        [string]$TouchEnvUrl
+        [string]$ScriptContent
     )
 
-    Write-Host ""
-    Write-LogInfo "downloading_touch_env" $TouchEnvUrl
-
     try {
-        # Download touch_env.py to memory
-        $scriptContent = Invoke-WebRequest -Uri $TouchEnvUrl -UseBasicParsing | Select-Object -ExpandProperty Content
-
-        # Build custom repos JSON
-        $customRepos = @{
-            env = @{
-                url = if ($script:Config.CustomEnvRepo) { $script:Config.CustomEnvRepo } else { if ($script:Config.UseCN) { $REPO_ENV_GITEE } else { $REPO_ENV_GITHUB } }
-                branch = $script:Config.CustomEnvBranch
-            }
-            packages = @{
-                url = if ($script:Config.CustomPackagesRepo) { $script:Config.CustomPackagesRepo } else { if ($script:Config.UseCN) { $REPO_PACKAGES_GITEE } else { $REPO_PACKAGES_GITHUB } }
-                branch = $script:Config.CustomPackagesBranch
-            }
-            sdk = @{
-                url = if ($script:Config.CustomSdkRepo) { $script:Config.CustomSdkRepo } else { if ($script:Config.UseCN) { $REPO_SDK_GITEE } else { $REPO_SDK_GITHUB } }
-                branch = $script:Config.CustomSdkBranch
-            }
-        }
-        $customReposJson = $customRepos | ConvertTo-Json -Compress
-
-        # Build arguments
-        $touchEnvArgs = @(
-            "--env-root", $env:ENV_ROOT
-            "--use-cn", $script:Config.UseCN.ToString().ToLower()
-            "--language", $script:Config.LangCurrent
-            "--auto-mode", $script:Config.AutoMode.ToString().ToLower()
-            "--install-pyocd", $script:Config.InstallPyocd.ToString().ToLower()
-            "--restore-config", "false"
-            "--custom-repos", $customReposJson
-        )
-
-        # Save touch_env.py to temp file
+        # Save touch_env.py to temp file first
         $touchEnvTempFile = Join-Path $env:TEMP "touch_env.py"
         Add-TempFile -FilePath $touchEnvTempFile
         Set-Content -Path $touchEnvTempFile -Value $scriptContent -Encoding UTF8
 
+        # Build arguments list
+        # Note: Boolean parameters (--use-cn, --auto-mode, --install-pyocd) use action='store_true' in Python
+        # Only pass the flag if value is $true, otherwise omit it
+        $pythonArgs = @($touchEnvTempFile)
+        $pythonArgs += "--env-root", $env:ENV_ROOT
+        if ($script:Config.UseCN) { $pythonArgs += "--use-cn" }
+        $pythonArgs += "--language", $script:Config.LangCurrent
+        if ($script:Config.AutoMode) { $pythonArgs += "--auto-mode" }
+        if ($script:Config.InstallPyocd) { $pythonArgs += "--install-pyocd" }
+
+        # Pass custom repositories as individual parameters
+        if ($script:Config.CustomEnvRepo) {
+            $pythonArgs += "--repo-env", $script:Config.CustomEnvRepo
+            if ($script:Config.CustomEnvBranch) {
+                $pythonArgs += "--branch-env", $script:Config.CustomEnvBranch
+            }
+        }
+
+        if ($script:Config.CustomPackagesRepo) {
+            $pythonArgs += "--repo-packages", $script:Config.CustomPackagesRepo
+            if ($script:Config.CustomPackagesBranch) {
+                $pythonArgs += "--branch-packages", $script:Config.CustomPackagesBranch
+            }
+        }
+
+        if ($script:Config.CustomSdkRepo) {
+            $pythonArgs += "--repo-sdk", $script:Config.CustomSdkRepo
+            if ($script:Config.CustomSdkBranch) {
+                $pythonArgs += "--branch-sdk", $script:Config.CustomSdkBranch
+            }
+        }
+
         # Run touch_env.py
-        $touchEnvExitCode = & $script:Config.SelectedPython $touchEnvTempFile @touchEnvArgs
+        $process = Start-Process -FilePath $script:Config.SelectedPython -ArgumentList $pythonArgs -Wait -NoNewWindow -PassThru
+        $touchEnvExitCode = $process.ExitCode
 
         if ($touchEnvExitCode -ne 0) {
             Write-LogError "touch_env_failed" $touchEnvExitCode
@@ -1381,9 +1380,33 @@ function Main {
     if ($parsedArgs.TouchEnvUrlValue) {
         $TOUCH_ENV_URL = $parsedArgs.TouchEnvUrlValue
     }
+    elseif ($script:Config.CustomEnvRepo) {
+        # Use custom env repo for touch_env.py download
+        $TOUCH_ENV_URL = $script:Config.CustomEnvRepo + "/raw/" + ($script:Config.CustomEnvBranch -replace "refs/heads/", "") + "/touch_env.py"
+    }
+
+    # Get touch_env.py content (local or download)
+    $scriptContent = $null
+    $localTouchEnvPath = Join-Path $PSScriptRoot "touch_env.py"
+    if (Test-Path $localTouchEnvPath) {
+        $scriptContent = Get-Content -Path $localTouchEnvPath -Raw -Encoding UTF8
+        Write-Host "[INFO] Using local touch_env.py" -ForegroundColor Cyan
+    }
+    else {
+        Write-Host ""
+        Write-LogInfo "downloading_touch_env" $TOUCH_ENV_URL
+        try {
+            $response = Invoke-WebRequest -Uri $TOUCH_ENV_URL -UseBasicParsing -ErrorAction Stop
+            $scriptContent = $response.Content
+        }
+        catch {
+            Write-LogError "touch_env_download_failed" $_.Exception.Message
+            exit 1
+        }
+    }
 
     # Step 4: Call touch_env.py to handle Step 5-10
-    Invoke-TouchEnv -TouchEnvUrl $TOUCH_ENV_URL
+    Invoke-TouchEnv -ScriptContent $scriptContent
 }
 
 Main
