@@ -4,7 +4,7 @@
 # Supports: English / 中文
 #
 # Usage:
-#   .\install.ps1 [-y] [-c] [-o] [-d] [-p] [-r <path>] [-e|-z] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--skip-long-path] [-h]
+#   .\install.ps1 [-y] [-c] [-o] [-d] [-p] [-r <path>] [-e|-z] [-P <repo>[#<branch>]] [-E <repo>[#<branch>]] [-S <repo>[#<branch>]] [-l] [-t <url>] [-h]
 #
 # Options:
 #   -y, --yes, --auto    Auto-install without prompts
@@ -15,10 +15,11 @@
 #   -e, --en, --english  Force English messages
 #   -z, --zh, --chinese  Force Chinese messages
 #   -p, --python         Force install portable Python (ignore system Python)
-#   --packages <repo>[#<branch>]  Specify custom packages repository and branch
-#   --env <repo>[#<branch>]  Specify custom env repository and branch
-#   --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
-#   --skip-long-path     Skip enabling Windows long path support
+#   -P, --packages <repo>[#<branch>]  Specify custom packages repository and branch
+#   -E, --env <repo>[#<branch>]  Specify custom env repository and branch
+#   -S, --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
+#   -l, --skip-long-path Skip enabling Windows long path support
+#   -t, --touch-env-url <url> Specify touch_env.py download URL
 #   -h, --help           Show this help message
 #
 
@@ -31,6 +32,10 @@ $REPO_SDK_GITHUB = "https://github.com/RT-Thread/sdk.git"
 $REPO_PACKAGES_GITEE = "https://gitee.com/RT-Thread-Mirror/packages.git"
 $REPO_ENV_GITEE = "https://gitee.com/RT-Thread-Mirror/env.git"
 $REPO_SDK_GITEE = "https://gitee.com/RT-Thread-Mirror/sdk.git"
+
+# touch_env.py download URLs
+$TOUCH_ENV_URL_GITHUB = "https://raw.githubusercontent.com/RT-Thread/env/master/touch_env.py"
+$TOUCH_ENV_URL_GITEE = "https://gitee.com/RT-Thread-Mirror/env/raw/master/touch_env.py"
 
 # Default branches (empty means use git default)
 $BRANCH_PACKAGES_DEFAULT = ""
@@ -47,23 +52,7 @@ $GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
 # IPInfo API URL for detecting IP location
 $IPINFO_URL = "https://ipinfo.io/json"
 
-# Parameter variables
-$autoMode = $false
-$helpMode = $false
-$cnMode = $false
-$officialMode = $false
-$pyocdMode = $false
-$pythonMode = $false
-$enMode = $false
-$zhMode = $false
-$skipLongPath = $false
-$envRootValue = ""
-$customPackagesRepo = ""
-$customPackagesBranch = ""
-$customEnvRepo = ""
-$customEnvBranch = ""
-$customSdkRepo = ""
-$customSdkBranch = ""
+$ENV_DEFAULT_DIR = ".rtenv"
 
 # Parse-RepoArg function
 # Parse repository argument, format: url[#branch]
@@ -95,88 +84,87 @@ function Parse-RepoArg {
     }
 }
 
-# Process all arguments
-foreach ($arg in $args) {
-    switch -CaseSensitive ($arg) {
-        "-y" { $autoMode = $true }
-        "--yes" { $autoMode = $true }
-        "--auto" { $autoMode = $true }
-        "-h" { $helpMode = $true }
-        "--help" { $helpMode = $true }
-        "-c" { $cnMode = $true }
-        "--cn" { $cnMode = $true }
-        "--gitee" { $cnMode = $true }
-        "-o" { $officialMode = $true }
-        "--official" { $officialMode = $true }
-        "-d" { $pyocdMode = $true }
-        "--pyocd" { $pyocdMode = $true }
-        "-p" { $pythonMode = $true }
-        "--python" { $pythonMode = $true }
-        "-e" { $enMode = $true }
-        "--en" { $enMode = $true }
-        "--english" { $enMode = $true }
-        "-z" { $zhMode = $true }
-        "--zh" { $zhMode = $true }
-        "--chinese" { $zhMode = $true }
-        "-r" {
-            $idx = $args.IndexOf($arg) + 1
-            if ($idx -lt $args.Count) {
-                $envRootValue = $args[$idx]
+# Parse-Arguments function
+# Parse command line arguments and return parsed values
+function Parse-Arguments {
+    param([string[]]$Arguments)
+
+    $result = [PSCustomObject]@{
+        AutoMode = $false
+        HelpMode = $false
+        CnMode = $false
+        OfficialMode = $false
+        PyocdMode = $false
+        PythonMode = $false
+        EnMode = $false
+        ZhMode = $false
+        SkipLongPath = $false
+        EnvRootValue = ""
+        CustomPackagesRepo = ""
+        CustomPackagesBranch = ""
+        CustomEnvRepo = ""
+        CustomEnvBranch = ""
+        CustomSdkRepo = ""
+        CustomSdkBranch = ""
+        TouchEnvUrlValue = ""
+    }
+
+    for ($i = 0; $i -lt $Arguments.Count; $i++) {
+        $arg = $Arguments[$i]
+        switch -CaseSensitive ($arg) {
+            { $_ -in @("-y", "--yes", "--auto") } { $result.AutoMode = $true }
+            { $_ -in @("-h", "--help") } { $result.HelpMode = $true }
+            { $_ -in @("-c", "--cn", "--gitee") } { $result.CnMode = $true }
+            { $_ -in @("-o", "--official") } { $result.OfficialMode = $true }
+            { $_ -in @("-d", "--pyocd") } { $result.PyocdMode = $true }
+            { $_ -in @("-p", "--python") } { $result.PythonMode = $true }
+            { $_ -in @("-e", "--en", "--english") } { $result.EnMode = $true }
+            { $_ -in @("-z", "--zh", "--chinese") } { $result.ZhMode = $true }
+            { $_ -in @("-r", "--env-root") } { $result.EnvRootValue = $Arguments[++$i] }
+            { $_ -in @("-P", "--packages") } {
+                $repoResult = Parse-RepoArg -RepoArg $Arguments[++$i]
+                $result.CustomPackagesRepo = $repoResult.Repo
+                $result.CustomPackagesBranch = $repoResult.Branch
             }
-        }
-        "--env-root" {
-            $idx = $args.IndexOf($arg) + 1
-            if ($idx -lt $args.Count) {
-                $envRootValue = $args[$idx]
+            { $_ -in @("-E", "--env") } {
+                $repoResult = Parse-RepoArg -RepoArg $Arguments[++$i]
+                $result.CustomEnvRepo = $repoResult.Repo
+                $result.CustomEnvBranch = $repoResult.Branch
             }
-        }
-        "--packages" {
-            $idx = $args.IndexOf($arg) + 1
-            if ($idx -lt $args.Count) {
-                $result = Parse-RepoArg -RepoArg $args[$idx]
-                $customPackagesRepo = $result.Repo
-                $customPackagesBranch = $result.Branch
+            { $_ -in @("-S", "--sdk") } {
+                $repoResult = Parse-RepoArg -RepoArg $Arguments[++$i]
+                $result.CustomSdkRepo = $repoResult.Repo
+                $result.CustomSdkBranch = $repoResult.Branch
             }
-        }
-        "--env" {
-            $idx = $args.IndexOf($arg) + 1
-            if ($idx -lt $args.Count) {
-                $result = Parse-RepoArg -RepoArg $args[$idx]
-                $customEnvRepo = $result.Repo
-                $customEnvBranch = $result.Branch
-            }
-        }
-        "--sdk" {
-            $idx = $args.IndexOf($arg) + 1
-            if ($idx -lt $args.Count) {
-                $result = Parse-RepoArg -RepoArg $args[$idx]
-                $customSdkRepo = $result.Repo
-                $customSdkBranch = $result.Branch
-            }
-        }
-        "--skip-long-path" {
-            $skipLongPath = $true
+            { $_ -in @("-l", "--skip-long-path") } { $result.SkipLongPath = $true }
+            { $_ -in @("-t", "--touch-env-url") } { $result.TouchEnvUrlValue = $Arguments[++$i] }
         }
     }
+
+    return $result
 }
 
-$requiredPSVersion = "5.1"
-$psVersion = $PSVersionTable.PSVersion
-if ($psVersion.Major -lt 5 -or ($psVersion.Major -eq 5 -and $psVersion.Minor -lt 1)) {
-    Write-Host "Error: This script requires PowerShell $requiredPSVersion or later." -ForegroundColor Red
-    Write-Host "Current version: $($psVersion)" -ForegroundColor Red
-    exit 1
-}
+# Parse command line arguments
+$parsedArgs = Parse-Arguments -Arguments $args
 
-$ENV_DEFAULT_DIR = ".rtenv"
 $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\$ENV_DEFAULT_DIR" }
 
-$Global:VENV_DIR = "venv\rt-env"
-
-$Global:RESTORE_CONFIG_AFTER_INSTALL = $false
-$Global:TEMP_CONFIG_PATH = ""
-
-$Global:SELECTED_PYTHON = ""
+$script:Config = [PSCustomObject]@{
+    LangCurrent = ""
+    UseCN = $false
+    UseCNSet = $false
+    InstallPyocd = $false
+    AutoMode = $false
+    NeedHelp = $false
+    UseEmbedPython = $false
+    CustomPackagesRepo = ""
+    CustomPackagesBranch = ""
+    CustomEnvRepo = ""
+    CustomEnvBranch = ""
+    CustomSdkRepo = ""
+    CustomSdkBranch = ""
+    SelectedPython = ""
+}
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -191,24 +179,13 @@ function Get-SystemLanguage {
     return "en"
 }
 
-$Global:LANG_CURRENT = Get-SystemLanguage
-$Global:USE_CN = $false
-$Global:USE_CN_SET = $false
-$Global:INSTALL_PYOCD = $false
-$Global:AUTO_MODE = $false
-$Global:NEED_HELP = $false
-$Global:USE_EMBED_PYTHON = $false
-$Global:CUSTOM_PACKAGES_REPO = ""
-$Global:CUSTOM_PACKAGES_BRANCH = ""
-$Global:CUSTOM_ENV_REPO = ""
-$Global:CUSTOM_ENV_BRANCH = ""
-$Global:CUSTOM_SDK_REPO = ""
-$Global:CUSTOM_SDK_BRANCH = ""
+# Initialize config with default values
+$script:Config.LangCurrent = Get-SystemLanguage
 
 # Print-Help function
 # Display help information and exit
 function Print-Help {
-    if ($Global:LANG_CURRENT -eq "zh") {
+    if ($script:Config.LangCurrent -eq "zh") {
         Write-Host "RT-Thread ENV 安装程序"
         Write-Host ""
         Write-Host "用法: .\install.ps1 [选项]"
@@ -222,13 +199,14 @@ function Print-Help {
         Write-Host "  -r, --env-root [path] 设置自定义安装目录"
         Write-Host "  -e, --en, --english  强制显示英文信息"
         Write-Host "  -z, --zh, --chinese  强制显示中文信息"
-        Write-Host "  --packages [repo]    指定 packages 仓库地址和分支"
+        Write-Host "  -P, --packages [repo] 指定 packages 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
-        Write-Host "  --env [repo]         指定 env 仓库地址和分支"
+        Write-Host "  -E, --env [repo]     指定 env 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
-        Write-Host "  --sdk [repo]         指定 sdk 仓库地址和分支"
+        Write-Host "  -S, --sdk [repo]     指定 sdk 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
-        Write-Host "  --skip-long-path     跳过启用 Windows 长路径支持"
+        Write-Host "  -l, --skip-long-path 跳过启用 Windows 长路径支持"
+        Write-Host "  -t, --touch-env-url [url] 指定 touch_env.py 下载 URL"
         Write-Host "  -h, --help           显示此帮助信息"
         Write-Host ""
     }
@@ -246,13 +224,14 @@ function Print-Help {
         Write-Host "  -r, --env-root [path] Set custom install directory"
         Write-Host "  -e, --en, --english  Force English messages"
         Write-Host "  -z, --zh, --chinese  Force Chinese messages"
-        Write-Host "  --packages [repo]    Specify custom packages repository and branch"
+        Write-Host "  -P, --packages [repo] Specify custom packages repository and branch"
         Write-Host "                        Format: url[#branch]"
-        Write-Host "  --env [repo]         Specify custom env repository and branch"
+        Write-Host "  -E, --env [repo]     Specify custom env repository and branch"
         Write-Host "                        Format: url[#branch]"
-        Write-Host "  --sdk [repo]         Specify custom sdk repository and branch"
+        Write-Host "  -S, --sdk [repo]     Specify custom sdk repository and branch"
         Write-Host "                        Format: url[#branch]"
-        Write-Host "  --skip-long-path     Skip enabling Windows long path support"
+        Write-Host "  -l, --skip-long-path Skip enabling Windows long path support"
+        Write-Host "  -t, --touch-env-url [url] Specify touch_env.py download URL"
         Write-Host "  -h, --help           Show this help message"
         Write-Host ""
     }
@@ -292,195 +271,93 @@ function Detect-China {
 }
 
 # Messages
-
-$MSG_EN_banner_title = "RT-Thread ENV Installation"
-$MSG_EN_info = "INFO"
-$MSG_EN_success = "SUCCESS"
-$MSG_EN_warning = "WARNING"
-$MSG_EN_error = "ERROR"
-$MSG_EN_python_version_too_low = "Python version {0} is too old (requires >= 3.6). Installing portable Python..."
-$MSG_EN_missing_python = "Python not found. Please install Python first."
-$MSG_EN_using_system_python = "Using system Python: {0} - {1}"
-$MSG_EN_using_portable_python = "Will use portable Python {0}..."
-$MSG_EN_installing_portable_python = "Installing portable Python {0}..."
-$MSG_EN_downloading_portable_python = "Downloading portable Python, from: {0}"
-$MSG_EN_python_installed = "Python installed successfully."
-$MSG_EN_installing_pip = "Installing pip..."
-$MSG_EN_pip_installed = "pip installed successfully"
-$MSG_EN_downloading_git = "Downloading Git..."
-$MSG_EN_installing_git = "Installing Git..."
-$MSG_EN_git_installed = "Git installed. Please restart terminal and run this script again."
-$MSG_EN_admin_required = "Error: The -y/--yes flag requires administrator privileges."
-$MSG_EN_run_as_admin = "Please run this script as administrator."
-$MSG_EN_fetching_git_from_npmmirror = "Fetching Git version from npmmirror..."
-$MSG_EN_fetching_git_from_github = "Fetching Git version from GitHub API..."
-$MSG_EN_git_version_found = "Git version found: {0}"
-$MSG_EN_npmmirror_fetch_failed = "Failed to fetch Git version from npmmirror, trying GitHub API..."
-$MSG_EN_download_failed = "Download failed: {0}"
-$MSG_EN_github_api_failed = "GitHub API request failed, using fallback version..."
-$MSG_EN_using_fixed_git_version = "Using fixed Git version: {0}"
-$MSG_EN_git_clone_failed = "Git clone failed: {0}"
-$MSG_EN_restart_required = "Please restart terminal and run this script again to continue."
-$MSG_EN_git_not_found = "Git is not installed. Please install Git first."
-$MSG_EN_git_found = "Git found: {0}"
-$MSG_EN_enabling_long_paths = "Enabling Windows long path support..."
-$MSG_EN_long_paths_enabled = "Windows long path support enabled"
-$MSG_EN_long_paths_enable_failed = "Failed to enable long path support (may require admin privileges)"
-$MSG_EN_need_admin_privilege = "Enabling long paths requires administrator privileges"
-$MSG_EN_elevating_to_enable_long_paths = "Attempting to enable long paths (UAC prompt may appear)"
-$MSG_EN_cloning = "Cloning {0} to {1}"
-$MSG_EN_cloned = "Cloned {0}"
-$MSG_EN_dir_exists = "Directory already exists: {0}"
-$MSG_EN_generating_kconfig = "Generating Kconfig: {0}"
-$MSG_EN_installing_packages = "Installing Python packages..."
-$MSG_EN_env_root_prompt = "Existing RT-Thread ENV detected. Do you want to delete and reinstall?"
-$MSG_EN_env_root_exists = "Existing RT-Thread ENV detected at: {0}"
-$MSG_EN_env_root_confirm = "Are you sure you want to delete? [Y/a/n]: "
-$MSG_EN_env_root_confirm_help = "  Y/y: Preserve config and toolchain, delete others (default)"
-$MSG_EN_env_root_confirm_all = "  A/a: Delete entire directory (including config and toolchain)"
-$MSG_EN_env_root_confirm_no = "  N/n: Cancel installation"
-$MSG_EN_removing_env_root_preserving = "Removing (preserving config and toolchain): {0}..."
-$MSG_EN_removing_env_root_all = "Removing entire directory: {0}..."
-$MSG_EN_env_root_removed = "Existing RT-Thread ENV removed: {0}"
-$MSG_EN_restoring_config = "Restoring config..."
-$MSG_EN_config_restored = "Config restored"
-$MSG_EN_installation_cancelled = "Installation cancelled"
-$MSG_EN_venv_not_found = "Virtual environment not found, please recreate"
-$MSG_EN_upgrading_pip = "Upgrading pip..."
-$MSG_EN_pip_install_failed = "pip installation failed"
-$MSG_EN_package_install_failed = "Package installation failed, please check network connection or permissions"
-$MSG_EN_installing_pyocd = "Installing pyocd..."
-$MSG_EN_pyocd_install_prompt = "Do you want to install pyocd (for debugging Cortex-M devices)?"
-$MSG_EN_pyocd_install_confirm = "Install pyocd? [Y/n]: "
-$MSG_EN_python_version_failed = "Failed to get Python version information"
-$MSG_EN_creating_venv = "Creating virtual environment at: {0}"
-$MSG_EN_venv_created = "Virtual environment created"
-$MSG_EN_venv_exists_confirm = "Virtual environment already exists, do you want to delete and recreate?"
-$MSG_EN_skip_venv_creation = "Skipping virtual environment creation"
-$MSG_EN_removing_existing_venv = "Removing existing virtual environment..."
-$MSG_EN_activating_venv = "Activating virtual environment at: {0}"
-$MSG_EN_using_cn_mirror = "Using China mirror"
-$MSG_EN_using_pypi_mirror = "Using PyPI mirror: {0}"
-$MSG_EN_installed_packages = "Python packages installed successfully"
-$MSG_EN_fixed_guiconfig = "Fixed guiconfig.py (added missing import)"
-$MSG_EN_pyocd_installed = "Will install pyocd package"
-$MSG_EN_pyocd_not_installed = "Skipping pyocd installation"
-$MSG_EN_copied_env_script = "Copied env.ps1: {0}"
-$MSG_EN_setup_complete = "RT-Thread ENV installation completed!"
-$MSG_EN_next_steps = "Next steps:"
-$MSG_EN_activate_env = "1. Activate environment:"
-$MSG_EN_activate_cmd = "   > . {0}\env.ps1"
-$MSG_EN_add_to_profile = "2. Add to profile:"
-$MSG_EN_add_profile_cmd = "   > echo '. {0}\env.ps1' >> \$PROFILE"
-$MSG_EN_install_toolchain = "3. Install toolchains:"
-$MSG_EN_install_toolchain_cmd = "   Run 'sdk' command to install required toolchains"
-$MSG_EN_after_activation = "4. After activation, you can use:"
-$MSG_EN_menuconfig = "     - menuconfig    : Configure RT-Thread"
-$MSG_EN_pkgs = "     - pkgs          : Package manager"
-$MSG_EN_scons = "     - scons         : Build RT-Thread"
-$MSG_EN_sdk = "     - sdk           : Install toolchains"
-$MSG_EN_using_custom_repo = "Using custom repository: {0}"
-$MSG_EN_using_custom_repo_branch = "Using custom repository: {0} (branch: {1})"
-$MSG_EN_install_portable_python = "Install portable Python - Python {0}"
-$MSG_EN_select_python = "Found {0} Python installation(s). Default is option {1} (latest). Select [1-{0}], or {2} to install portable Python: "
-$MSG_EN_auto_selected = "Auto-selected Python: {0}"
-$MSG_EN_python_not_found = "Python not found. Please install Python first."
-$MSG_EN_removing_portable_python = "Removing portable Python: {0}..."
-
-# Chinese messages
-$MSG_ZH_banner_title = "RT-Thread ENV 安装程序"
-$MSG_ZH_info = "信息"
-$MSG_ZH_success = "成功"
-$MSG_ZH_warning = "警告"
-$MSG_ZH_error = "错误"
-$MSG_ZH_python_version_too_low = "Python 版本 {0} 过低（需要 >= 3.6）。将安装便携式 Python..."
-$MSG_ZH_missing_python = "未安装 Python。请先安装 Python。"
-$MSG_ZH_using_system_python = "使用系统 Python: {0} - {1}"
-$MSG_ZH_using_portable_python = "将使用便携式 Python {0}..."
-$MSG_ZH_installing_portable_python = "正在安装便携式 Python {0}..."
-$MSG_ZH_downloading_portable_python = "正在下载便携式 Python，自: {0}"
-$MSG_ZH_python_installed = "Python 已安装成功。"
-$MSG_ZH_installing_pip = "正在安装 pip..."
-$MSG_ZH_pip_installed = "pip 安装成功"
-$MSG_ZH_pip_install_failed = "pip 安装失败"
-$MSG_ZH_downloading_git = "正在下载 Git..."
-$MSG_ZH_installing_git = "正在安装 Git..."
-$MSG_ZH_git_installed = "Git 已安装。请重新启动终端并再次运行此脚本。"
-$MSG_ZH_admin_required = "错误: -y/--yes 参数需要管理员权限。"
-$MSG_ZH_run_as_admin = "请以管理员身份运行此脚本。"
-$MSG_ZH_fetching_git_from_npmmirror = "正在从 npmmirror 获取 Git 版本..."
-$MSG_ZH_fetching_git_from_github = "正在从 GitHub API 获取 Git 版本..."
-$MSG_ZH_git_version_found = "找到 Git 版本: {0}"
-$MSG_ZH_npmmirror_fetch_failed = "从 npmmirror 获取 Git 版本失败，尝试 GitHub API..."
-$MSG_ZH_download_failed = "下载失败: {0}"
-$MSG_ZH_github_api_failed = "GitHub API 请求失败，使用备选版本..."
-$MSG_ZH_using_fixed_git_version = "使用固定 Git 版本: {0}"
-$MSG_ZH_git_clone_failed = "Git 克隆失败: {0}"
-$MSG_ZH_restart_required = "请重新启动终端并再次运行此脚本以继续。"
-$MSG_ZH_git_not_found = "未安装 Git。请先安装 Git。"
-$MSG_ZH_git_found = "找到 Git: {0}"
-$MSG_ZH_enabling_long_paths = "正在启用 Windows 长路径支持..."
-$MSG_ZH_long_paths_enabled = "Windows 长路径支持已启用"
-$MSG_ZH_long_paths_enable_failed = "启用长路径支持失败（可能需要管理员权限）"
-$MSG_ZH_need_admin_privilege = "启用长路径需要管理员权限"
-$MSG_ZH_elevating_to_enable_long_paths = "正在尝试启用长路径（可能会弹出 UAC 提示）"
-$MSG_ZH_cloning = "正在克隆: {0} 到 {1}"
-$MSG_ZH_cloned = "已克隆: {0}"
-$MSG_ZH_dir_exists = "目录已存在: {0}"
-$MSG_ZH_generating_kconfig = "生成 Kconfig: {0}"
-$MSG_ZH_installing_packages = "正在安装 Python 包..."
-$MSG_ZH_env_root_prompt = "检测到已存在的RT-Thread ENV。是否要删除并重新安装？"
-$MSG_ZH_env_root_exists = "检测到已存在的 RT-Thread ENV: {0}"
-$MSG_ZH_env_root_confirm = "确定要删除吗？[Y/a/n]: "
-$MSG_ZH_env_root_confirm_help = "  Y/y: 保留配置和工具链，删除其他（默认）"
-$MSG_ZH_env_root_confirm_all = "  A/a: 删除整个目录（包括配置和工具链）"
-$MSG_ZH_env_root_confirm_no = "  N/n: 取消安装"
-$MSG_ZH_removing_env_root_preserving = "正在删除（保留配置和工具链）: {0}..."
-$MSG_ZH_removing_env_root_all = "正在删除整个目录: {0}..."
-$MSG_ZH_env_root_removed = "已删除 RT-Thread ENV: {0}"
-$MSG_ZH_restoring_config = "正在恢复配置..."
-$MSG_ZH_config_restored = "配置已恢复"
-$MSG_ZH_installation_cancelled = "安装已取消"
-$MSG_ZH_venv_not_found = "找不到虚拟环境，请重新创建"
-$MSG_ZH_upgrading_pip = "正在升级 pip..."
-$MSG_ZH_package_install_failed = "包安装失败，请检查网络连接或权限"
-$MSG_ZH_installing_pyocd = "正在安装 pyocd..."
-$MSG_ZH_pyocd_install_prompt = "是否要安装 pyocd (用于调试 Cortex-M 设备)？"
-$MSG_ZH_pyocd_install_confirm = "安装 pyocd？[Y/n]: "
-$MSG_ZH_python_version_failed = "无法获取 Python 版本信息"
-$MSG_ZH_creating_venv = "正在创建虚拟环境: {0}"
-$MSG_ZH_venv_created = "虚拟环境创建完成"
-$MSG_ZH_venv_exists_confirm = "虚拟环境已存在，是否删除并重新创建？"
-$MSG_ZH_skip_venv_creation = "跳过虚拟环境创建"
-$MSG_ZH_removing_existing_venv = "正在删除现有虚拟环境..."
-$MSG_ZH_activating_venv = "正在激活虚拟环境: {0}"
-$MSG_ZH_using_cn_mirror = "使用中国镜像源"
-$MSG_ZH_using_pypi_mirror = "使用 PyPI 镜像: {0}"
-$MSG_ZH_installed_packages = "Python 包安装完成"
-$MSG_ZH_fixed_guiconfig = "已修复 guiconfig.py（添加缺失的导入）"
-$MSG_ZH_pyocd_installed = "将安装 pyocd 包"
-$MSG_ZH_pyocd_not_installed = "跳过 pyocd 安装"
-$MSG_ZH_copied_env_script = "已复制 env.ps1: {0}"
-$MSG_ZH_setup_complete = "RT-Thread ENV 安装完成！"
-$MSG_ZH_next_steps = "后续步骤:"
-$MSG_ZH_activate_env = "1. 激活环境:"
-$MSG_ZH_activate_cmd = "   > . {0}\env.ps1"
-$MSG_ZH_add_to_profile = "2. 添加到配置文件:"
-$MSG_ZH_add_profile_cmd = "   > echo '. {0}\env.ps1' >> \$PROFILE"
-$MSG_ZH_install_toolchain = "3. 安装工具链:"
-$MSG_ZH_install_toolchain_cmd = "   运行 sdk 命令安装所需的工具链"
-$MSG_ZH_after_activation = "4. 激活后可用命令:"
-$MSG_ZH_menuconfig = "     - menuconfig    : 配置 RT-Thread"
-$MSG_ZH_pkgs = "     - pkgs          : 包管理器"
-$MSG_ZH_scons = "     - scons         : 编译 RT-Thread"
-$MSG_ZH_sdk = "     - sdk           : 安装工具链"
-$MSG_ZH_using_custom_repo = "使用自定义仓库: {0}"
-$MSG_ZH_using_custom_repo_branch = "使用自定义仓库: {0} (分支: {1})"
-$MSG_ZH_install_portable_python = "安装便携式 Python - Python {0}"
-$MSG_ZH_select_python = "找到 {0} 个 Python 安装。默认选项为 {1}（最新）。选择 [1-{0}]，或输入 {2} 安装便携式 Python: "
-$MSG_ZH_auto_selected = "自动选择 Python: {0}"
-$MSG_ZH_python_not_found = "未找到 Python。请先安装 Python。"
-$MSG_ZH_removing_portable_python = "正在删除便携式 Python: {0}..."
+# Centralized message dictionary for easy maintenance and localization
+$script:Messages = @{
+    en = @{
+        banner_title = "RT-Thread ENV Installation"
+        info = "INFO"
+        success = "SUCCESS"
+        warning = "WARNING"
+        error = "ERROR"
+        python_version_too_low = "Python version {0} is too old (requires >= 3.6). Installing portable Python..."
+        missing_python = "Python not found. Please install Python first."
+        using_system_python = "Using system Python: {0} - {1}"
+        using_portable_python = "Will use portable Python {0}..."
+        installing_portable_python = "Installing portable Python {0}..."
+        downloading_portable_python = "Downloading portable Python, from: {0}"
+        python_installed = "Python installed successfully."
+        downloading_git = "Downloading Git..."
+        installing_git = "Installing Git..."
+        git_installed = "Git installed. Please restart terminal and run this script again."
+        admin_required = "Error: The -y/--yes flag requires administrator privileges."
+        run_as_admin = "Please run this script as administrator."
+        fetching_git_from_npmmirror = "Fetching Git version from npmmirror..."
+        fetching_git_from_github = "Fetching Git version from GitHub API..."
+        git_version_found = "Git version found: {0}"
+        npmmirror_fetch_failed = "Failed to fetch Git version from npmmirror, trying GitHub API..."
+        download_failed = "Download failed: {0}"
+        github_api_failed = "GitHub API request failed, using fallback version..."
+        using_fixed_git_version = "Using fixed Git version: {0}"
+        restart_required = "Please restart terminal and run this script again to continue."
+        git_not_found = "Git is not installed. Please install Git first."
+        git_found = "Git found: {0}"
+        enabling_long_paths = "Enabling Windows long path support..."
+        long_paths_enabled = "Windows long path support enabled"
+        long_paths_enable_failed = "Failed to enable long path support (may require admin privileges)"
+        need_admin_privilege = "Enabling long paths requires administrator privileges"
+        elevating_to_enable_long_paths = "Attempting to enable long paths (UAC prompt may appear)"
+        install_portable_python = "Install portable Python - Python {0}"
+        select_python = "Found {0} Python installation(s). Default is option {1} (latest). Select [1-{0}], or {2} to install portable Python: "
+        auto_selected = "Auto-selected Python: {0}"
+        python_not_found = "Python not found. Please install Python first."
+        removing_portable_python = "Removing portable Python: {0}..."
+        downloading_touch_env = "Downloading touch_env.py..."
+        touch_env_failed = "touch_env.py execution failed with exit code: {0}"
+        touch_env_download_failed = "Failed to download touch_env.py: {0}"
+    }
+    zh = @{
+        banner_title = "RT-Thread ENV 安装程序"
+        info = "信息"
+        success = "成功"
+        warning = "警告"
+        error = "错误"
+        python_version_too_low = "Python 版本 {0} 过低（需要 >= 3.6）。将安装便携式 Python..."
+        missing_python = "未安装 Python。请先安装 Python。"
+        using_system_python = "使用系统 Python: {0} - {1}"
+        using_portable_python = "将使用便携式 Python {0}..."
+        installing_portable_python = "正在安装便携式 Python {0}..."
+        downloading_portable_python = "正在下载便携式 Python，自: {0}"
+        python_installed = "Python 已安装成功。"
+        downloading_git = "正在下载 Git..."
+        installing_git = "正在安装 Git..."
+        git_installed = "Git 已安装。请重新启动终端并再次运行此脚本。"
+        admin_required = "错误: -y/--yes 参数需要管理员权限。"
+        run_as_admin = "请以管理员身份运行此脚本。"
+        fetching_git_from_npmmirror = "正在从 npmmirror 获取 Git 版本..."
+        fetching_git_from_github = "正在从 GitHub API 获取 Git 版本..."
+        git_version_found = "找到 Git 版本: {0}"
+        npmmirror_fetch_failed = "从 npmmirror 获取 Git 版本失败，尝试 GitHub API..."
+        download_failed = "下载失败: {0}"
+        github_api_failed = "GitHub API 请求失败，使用备选版本..."
+        using_fixed_git_version = "使用固定 Git 版本: {0}"
+        restart_required = "请重新启动终端并再次运行此脚本以继续。"
+        git_not_found = "未安装 Git。请先安装 Git。"
+        git_found = "找到 Git: {0}"
+        enabling_long_paths = "正在启用 Windows 长路径支持..."
+        long_paths_enabled = "Windows 长路径支持已启用"
+        long_paths_enable_failed = "启用长路径支持失败（可能需要管理员权限）"
+        need_admin_privilege = "启用长路径需要管理员权限"
+        elevating_to_enable_long_paths = "正在尝试启用长路径（可能会弹出 UAC 提示）"
+        install_portable_python = "安装便携式 Python - Python {0}"
+        select_python = "找到 {0} 个 Python 安装。默认选项为 {1}（最新）。选择 [1-{0}]，或输入 {2} 安装便携式 Python: "
+        auto_selected = "自动选择 Python: {0}"
+        python_not_found = "未找到 Python。请先安装 Python。"
+        removing_portable_python = "正在删除便携式 Python: {0}..."
+        downloading_touch_env = "正在下载 touch_env.py..."
+        touch_env_failed = "touch_env.py 执行失败，退出码: {0}"
+        touch_env_download_failed = "下载 touch_env.py 失败: {0}"
+    }
+}
 
 # Message functions
 # Get-Message: Get localized message
@@ -492,14 +369,12 @@ $MSG_ZH_removing_portable_python = "正在删除便携式 Python: {0}..."
 function Get-Message {
     param([string]$Key)
 
-    $varName = "MSG_${Global:LANG_CURRENT}_${Key}"
-    $value = (Get-Variable -Name $varName -ValueOnly -ErrorAction SilentlyContinue)
-
-    if ($null -eq $value) {
-        return "Unknown message: $Key"
+    $lang = $script:Config.LangCurrent
+    if ($script:Messages.ContainsKey($lang) -and $script:Messages[$lang].ContainsKey($Key)) {
+        return $script:Messages[$lang][$Key]
     }
 
-    return $value
+    return "Unknown message: $Key"
 }
 
 function Write-LogInfo {
@@ -554,10 +429,8 @@ function Write-LogError {
     Write-Host "[$(Get-Message 'error')] $formatted" -ForegroundColor Red
 }
 
-# Git and Repository Functions
+# Git Functions
 # Test-Command: Test if command exists
-# Clone-Repository: Clone Git repository
-# Generate-KconfigFile: Generate Kconfig configuration file
 
 function Test-Command {
     param([string]$CommandName)
@@ -571,46 +444,6 @@ function Test-Command {
     }
 }
 
-function Clone-Repository {
-    param([string]$Url, [string]$Destination, [int]$Depth = 1, [string]$Branch = "")
-
-    if (-not (Test-Path -Path $Destination)) {
-        Write-LogInfo "cloning" $Url $Destination
-        
-        $cloneArgs = @("clone", "--depth", $Depth)
-        if ($Branch) {
-            $cloneArgs += @("--branch", $Branch)
-        }
-        $cloneArgs += @($Url, $Destination)
-        
-        $process = Start-Process -FilePath "git" -ArgumentList $cloneArgs -NoNewWindow -Wait -PassThru
-        if ($process.ExitCode -ne 0) {
-            Write-LogError "git_clone_failed" "Exit code: $($process.ExitCode)"
-            exit 1
-        }
-        Write-LogSuccess "cloned" $Destination
-    }
-    else {
-        Write-LogSuccess "dir_exists" $Destination
-    }
-}
-
-function Generate-KconfigFile {
-    param([string]$EnvRoot)
-
-    $kconfigPath = Join-Path $EnvRoot "packages\Kconfig"
-
-    $content = 'source "$PKGS_DIR/packages/Kconfig"' + "`n"
-    Set-Content -Path $kconfigPath -Value $content
-
-    $localPkgsPath = Join-Path $EnvRoot "local_pkgs"
-    if (-not (Test-Path $localPkgsPath)) {
-        New-Item -ItemType Directory -Path $localPkgsPath -Force | Out-Null
-    }
-
-    Write-LogSuccess "generating_kconfig" $kconfigPath
-}
-
 # Git Installation Functions
 # Get-LatestGitVersion: Get latest Git version
 # Install-Git: Install Git (Windows)
@@ -618,41 +451,47 @@ function Generate-KconfigFile {
 function Get-LatestGitVersion {
     param([bool]$UseCNMirror)
 
+    # Helper function to filter valid versions
+    function Test-ValidGitVersion {
+        param([string]$Name)
+        return ($Name -notmatch "-rc\d+" -and
+                $Name -notmatch "-prerelease$" -and
+                $Name -notmatch "-mingit$")
+    }
+
+    # Helper function to build result object
+    function New-GitVersionInfo {
+        param(
+            [string]$Version,
+            [string]$Installer,
+            [string]$Url,
+            [string]$Source
+        )
+        return @{
+            Version   = $Version
+            Installer = $Installer
+            Url       = $Url
+            Source    = $Source
+        }
+    }
+
+    # Try npmmirror first if using CN mirror
     if ($UseCNMirror) {
         try {
             Write-LogInfo "fetching_git_from_npmmirror"
-            $response = Invoke-RestMethod -Uri $GIT_NPMMIRROR_URL -Method Get -UseBasicParsing
+            $versions = Invoke-RestMethod -Uri $GIT_NPMMIRROR_URL -Method Get -UseBasicParsing |
+                        Where-Object { Test-ValidGitVersion -Name $_.name } |
+                        Sort-Object -Property Name -Descending
 
-            $versions = $response
-
-            $filteredVersions = $versions | Where-Object {
-                $_.name -notmatch "-rc[0-9]" -and
-                $_.name -notmatch "-prerelease$" -and
-                $_.name -notmatch "-mingit$"
-            }
-
-            if ($filteredVersions.Count -gt 0) {
-                $sortedVersions = $filteredVersions | Sort-Object -Property Name -Descending
-
-                $latest = $sortedVersions[0]
-                $versionNumber = $latest.name -replace '/$', ''
-
+            if ($versions.Count -gt 0) {
+                $versionNumber = $versions[0].name -replace '/$', ''
                 $versionUrl = "$GIT_NPMMIRROR_URL$versionNumber/"
-                $versionResponse = Invoke-RestMethod -Uri $versionUrl -Method Get -UseBasicParsing
-
-                # Find the 64-bit installer (Git-X.X.X-64-bit.exe)
-                $installerFile = $versionResponse | Where-Object {
-                    $_.name -match "^Git-\d+\.\d+\.\d+-64-bit\.exe$"
-                }
+                $versionFiles = Invoke-RestMethod -Uri $versionUrl -Method Get -UseBasicParsing
+                $installerFile = $versionFiles | Where-Object { $_.name -match "^Git-\d+\.\d+\.\d+-64-bit\.exe$" }
 
                 if ($installerFile) {
                     Write-LogSuccess "git_version_found" "$versionNumber (from npmmirror)"
-                    return @{
-                        Version   = $versionNumber
-                        Installer = $installerFile.name
-                        Url       = $installerFile.url
-                        Source    = "npmmirror"
-                    }
+                    return New-GitVersionInfo -Version $versionNumber -Installer $installerFile.name -Url $installerFile.url -Source "npmmirror"
                 }
             }
         }
@@ -661,34 +500,21 @@ function Get-LatestGitVersion {
         }
     }
 
-    # Fallback to GitHub API (for non-CN users or if npmmirror fails)
+    # Fallback to GitHub API
     try {
         Write-LogInfo "fetching_git_from_github"
         $response = Invoke-RestMethod -Uri $GIT_GITHUB_API_URL -Method Get -UseBasicParsing -ErrorAction Stop
 
-        # Check if response is valid JSON (not HTML page)
         if ($response -is [string]) {
             throw "Received HTML instead of JSON"
         }
 
-        $tagName = $response.tag_name
-        $versionNumber = $tagName -replace '^v', ''
-
-        # Find the 64-bit installer
-        # Note: The installer filename uses version number without the ".windows.1" suffix
-        # e.g., "Git-2.52.0-64-bit.exe" not "Git-v2.52.0.windows.1-64-bit.exe"
-        $installerAsset = $response.assets | Where-Object {
-            $_.name -match "^Git-\d+\.\d+\.\d+-64-bit\.exe$"
-        }
+        $versionNumber = $response.tag_name -replace '^v', ''
+        $installerAsset = $response.assets | Where-Object { $_.name -match "^Git-\d+\.\d+\.\d+-64-bit\.exe$" }
 
         if ($installerAsset) {
             Write-LogSuccess "git_version_found" "$versionNumber (from GitHub)"
-            return @{
-                Version   = $versionNumber
-                Installer = $installerAsset.name
-                Url       = $installerAsset.browser_download_url
-                Source    = "github"
-            }
+            return New-GitVersionInfo -Version $versionNumber -Installer $installerAsset.name -Url $installerAsset.browser_download_url -Source "github"
         }
     }
     catch {
@@ -697,12 +523,7 @@ function Get-LatestGitVersion {
 
     # Ultimate fallback: use fixed version
     Write-LogWarning "using_fixed_git_version" "$GIT_FALLBACK_VERSION"
-    return @{
-        Version   = $GIT_FALLBACK_VERSION
-        Installer = "Git-$GIT_FALLBACK_VERSION-64-bit.exe"
-        Url       = $GIT_FALLBACK_URL
-        Source    = "fallback"
-    }
+    return New-GitVersionInfo -Version $GIT_FALLBACK_VERSION -Installer "Git-$GIT_FALLBACK_VERSION-64-bit.exe" -Url $GIT_FALLBACK_URL -Source "fallback"
 }
 
 function Install-Git {
@@ -758,7 +579,6 @@ function Install-Git {
     # Extract-PortablePython: Extract portable Python
     # Enable-LongPathSupport: Enable Windows long path support
     # Configure-PythonPth: Configure Python _pth file
-    # Install-Pip: Install pip
 
     $PYTHON_VERSION = "3.13.11"
     $PYTHON_ARCHIVE = "python-3.13.11-amd64.zip"
@@ -769,21 +589,30 @@ function Install-Git {
     $GIT_FALLBACK_URL = "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-v2.52.0.windows.1-64-bit.exe"
     
     function Install-Python {
-        param([bool]$UseCNMirror)
+        param(
+            [bool]$UseCNMirror,
+            [bool]$SkipLongPath
+        )
+    
+        # Delete existing portable Python before installing new one
+        $portablePythonPath = "$env:ENV_ROOT\python"
+        if (Test-Path $portablePythonPath) {
+            Write-LogInfo "removing_portable_python" $portablePythonPath
+            Remove-Item -Path $portablePythonPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
     
         Download-PortablePython -UseCNMirror $UseCNMirror
         Extract-PortablePython
-        if (-not $skipLongPath) {
+        if (-not $SkipLongPath) {
             Enable-LongPathSupport
         }
-        Configure-PythonPth    Install-Pip -UseCNMirror $UseCNMirror
-
-    # Save portable Python path to global variable
-    $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
- 
-    Write-LogSuccess "python_installed"
-    return $portablePython
-}
+        Configure-PythonPth
+    
+        # Save portable Python path to global variable
+        $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
+    
+        Write-LogSuccess "python_installed"
+        return $portablePython}
 
 function Download-PortablePython {
     param([bool]$UseCNMirror)
@@ -956,26 +785,6 @@ function Configure-PythonPth {
     }
 }
 
-function Install-Pip {
-    param([bool]$UseCNMirror)
-
-    $pythonTargetDir = "$env:ENV_ROOT\python"
-    $pythonExe = Join-Path $pythonTargetDir "python.exe"
-    
-    if (Test-Path $pythonExe) {
-        Write-LogInfo "installing_pip"
-        
-        # Use ensurepip to install pip
-        $process = Start-Process -FilePath $pythonExe -ArgumentList "-m", "ensurepip", "--upgrade" -NoNewWindow -Wait -PassThru
-        if ($process.ExitCode -ne 0) {
-            Write-LogError "pip_install_failed"
-            exit 1
-        }
-        
-        Write-LogSuccess "pip_installed"
-    }
-}
-
 # Python Environment Setup Functions
 # Find-SystemPython: Find system Python
 # Find-LatestPythonVersion: Find latest Python version
@@ -986,47 +795,52 @@ function Install-Pip {
 # Test-PythonVersion: Test if Python version meets requirements
 
 function Find-SystemPython {
-    $userProfile = $env:USERPROFILE
-    $localAppData = $env:LOCALAPPDATA
-    $programFiles = $env:ProgramFiles
-    $programFilesX86 = ${env:ProgramFiles(x86)}
-    $drives = Get-PSDrive -PSProvider FileSystem | Select-Object -ExpandProperty Root
-    $foundPaths = @()
+    # Build search paths
+    $searchPaths = @(
+        "$env:LOCALAPPDATA\Programs\Python\python.exe"
+        "$env:LOCALAPPDATA\Programs\Python\Python*\python.exe"
+        "$env:ProgramFiles\Python\python.exe"
+        "${env:ProgramFiles(x86)}\Python\python.exe"
+        "$env:ProgramFiles\Python\Python*\python.exe"
+        "${env:ProgramFiles(x86)}\Python\Python*\python.exe"
+        "$env:LOCALAPPDATA\Microsoft\WindowsApps\python.exe"
+        "$env:USERPROFILE\Anaconda3\python.exe"
+        "$env:USERPROFILE\Miniconda3\python.exe"
+        "$env:USERPROFILE\conda\python.exe"
+    )
 
-    $searchPaths = @()
-    $searchPaths += "$localAppData\Programs\Python\python.exe"
-    $searchPaths += "$localAppData\Programs\Python\Python*\python.exe"
-    $searchPaths += "$programFiles\Python\python.exe"
-    $searchPaths += "$programFilesX86\Python\python.exe"
-    $searchPaths += "$programFiles\Python\Python*\python.exe"
-    $searchPaths += "$programFilesX86\Python\Python*\python.exe"
-    $searchPaths += "$localAppData\Microsoft\WindowsApps\python.exe"
-    $searchPaths += "$userProfile\Anaconda3\python.exe"
-    $searchPaths += "$userProfile\Miniconda3\python.exe"
-    $searchPaths += "$userProfile\conda\python.exe"
-
-    foreach ($drive in $drives) {
+    # Add drive-specific paths
+    foreach ($drive in (Get-PSDrive -PSProvider FileSystem | Select-Object -ExpandProperty Root)) {
         $searchPaths += "$drive\Python*\python.exe"
         $searchPaths += "$drive\Anaconda3\python.exe"
         $searchPaths += "$drive\Miniconda3\python.exe"
     }
 
-    # Collect all valid Python paths
+    # Test if a path is a valid Python executable
+    function Test-PythonPath {
+        param([string]$Path)
+
+        try {
+            $null = & $Path --version 2>&1 | Select-String "Python"
+            return $?
+        }
+        catch {
+            return $false
+        }
+    }
+
+    $foundPaths = @()
+
+    # Search all paths
     foreach ($pythonPath in $searchPaths) {
-        # Handle wildcard paths
         if ($pythonPath -like '*\*') {
+            # Handle wildcard paths
             try {
                 $resolvedPaths = Resolve-Path -Path $pythonPath -ErrorAction SilentlyContinue
                 if ($resolvedPaths) {
                     foreach ($resolvedPath in $resolvedPaths) {
-                        try {
-                            $version = & $resolvedPath.Path --version 2>&1 | Select-String "Python"
-                            if ($?) {
-                                $foundPaths += $resolvedPath.Path
-                            }
-                        }
-                        catch {
-                            continue
+                        if (Test-PythonPath -Path $resolvedPath.Path) {
+                            $foundPaths += $resolvedPath.Path
                         }
                     }
                 }
@@ -1035,39 +849,20 @@ function Find-SystemPython {
                 continue
             }
         }
-        elseif (Test-Path $pythonPath) {
-            try {
-                $version = & $pythonPath --version 2>&1 | Select-String "Python"
-                if ($?) {
-                    $foundPaths += $pythonPath
-                }
-            }
-            catch {
-                continue
-            }
+        elseif (Test-Path $pythonPath -and (Test-PythonPath -Path $pythonPath)) {
+            $foundPaths += $pythonPath
         }
     }
 
-    # Also check system PATH
+    # Check system PATH commands
     foreach ($cmd in @("python", "python3", "py")) {
-        try {
-            $version = & $cmd --version 2>&1 | Select-String "Python"
-            if ($?) {
-                $foundPaths += $cmd
-            }
-        }
-        catch {
-            continue
+        if (Test-PythonPath -Path $cmd) {
+            $foundPaths += $cmd
         }
     }
 
-    # Remove duplicates and ensure array
-    $uniquePaths = @()
-    if ($foundPaths.Count -gt 0) {
-        $uniquePaths = @($foundPaths | Get-Unique | Where-Object { $_ })
-    }
-
-    return $uniquePaths
+    # Remove duplicates
+    return @($foundPaths | Select-Object -Unique)
 }
 
 function Find-LatestPythonVersion {
@@ -1160,10 +955,10 @@ function Handle-PythonSelection {
             # Install portable Python
             Write-Host ""
             Write-LogInfo "installing_portable_python" $PYTHON_VERSION
-            
+
             # Install portable Python
-            Install-Python -UseCNMirror $Global:USE_CN
-            
+            Install-Python -UseCNMirror $script:Config.UseCN
+
             # Return the portable Python path
             $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
             return [string]$portablePython
@@ -1182,7 +977,7 @@ function Select-PythonInstallation {
     )
 
     # If -P flag is set, skip Python selection (will use portable Python later)
-    if ($Global:USE_EMBED_PYTHON) {
+    if ($script:Config.UseEmbedPython) {
         return $null
     }
 
@@ -1196,7 +991,7 @@ function Select-PythonInstallation {
     $latestIndex = $latestInfo.Index
 
     # In auto mode, automatically select the latest version
-    if ($Global:AUTO_MODE) {
+    if ($script:Config.AutoMode) {
         $msgKey = "auto_selected"
         $msg = Get-Message $msgKey
         $formatted = $msg -f $latestPython
@@ -1238,150 +1033,8 @@ function Test-PythonVersion {
     }
     return $false
 }
-# Virtual Environment Functions
-# Create-Venv: Create virtual environment
-# Install-PythonPackages: Install Python packages
-
-function Create-Venv {
-    $pythonCmd = $Global:SELECTED_PYTHON 
-    if (-not $pythonCmd) {
-        Write-LogError "missing_python"
-        exit 1
-    }
-
-    $venvPath = Join-Path $env:ENV_ROOT $Global:VENV_DIR
-    $shouldCreate = $false
-
-    # Check if venv exists
-    if (Test-Path $venvPath) {
-        if ($Global:AUTO_MODE) {
-            Write-LogInfo "skip_venv_creation"
-            return
-        }
-        else {
-            $response = Read-Host "$(Get-Message 'venv_exists_confirm') (y/n)"
-            if ($response -ne 'y' -and $response -ne 'Y') {
-                Write-LogInfo "skip_venv_creation"
-                return
-            }
-            Write-LogInfo "removing_existing_venv"
-            Remove-Item -Path $venvPath -Recurse -Force
-            $shouldCreate = $true
-        }
-    }
-    else {
-        $shouldCreate = $true
-    }
-
-    if ($shouldCreate) {
-        Write-LogInfo "creating_venv" $venvPath
-        & $pythonCmd -m venv $venvPath
-
-        # Check if venv was created successfully
-        if (Test-Path (Join-Path $venvPath "Scripts\python.exe")) {
-            Write-LogSuccess "venv_created"
-        }
-        else {
-            Write-LogError "venv_not_found"
-            exit 1
-        }
-    }
-}
-
-function Install-PythonPackages {
-    param([bool]$UseCNMirror, [string]$ScriptsDir, [bool]$InstallPyocd)
-
-    $venvPath = Join-Path $env:ENV_ROOT $Global:VENV_DIR
-    Write-LogInfo "activating_venv" $venvPath
-    $activateScript = Join-Path $venvPath "Scripts\Activate.ps1"
-    $venvPython = Join-Path $venvPath "Scripts\python.exe"
-
-    if (-not (Test-Path $venvPython)) {
-        Write-LogError "venv_not_found"
-        exit 1
-    }
-
-    # Build common pip arguments
-    $pipArgs = @()
-    if ($UseCNMirror) {
-        Write-LogInfo "using_cn_mirror"
-        Write-LogInfo "using_pypi_mirror" $PYPI_MIRROR_CN
-        $pipArgs += @("--index-url", $PYPI_MIRROR_CN)
-    }
-
-    # Upgrade pip using virtual environment's Python
-    Write-LogInfo "upgrading_pip"
-    & $venvPython -m pip install @pipArgs --upgrade pip
-    if ($LASTEXITCODE -ne 0) {
-        Write-LogError "pip_install_failed"
-        exit 1
-    }
-
-    # Install packages and pyocd (if requested)
-    $pipArgs += @("-e", $ScriptsDir)
-    if ($InstallPyocd) {
-        Write-LogInfo "pyocd_installed"
-        $pipArgs += @("pyocd")
-    }
-    else {
-        Write-LogInfo "pyocd_not_installed"
-    }
-
-    # Install all packages in one command
-    & $venvPython -m pip install @pipArgs
-    if ($LASTEXITCODE -eq 0) {
-        Write-LogSuccess "installed_packages"
-
-        # Fix guiconfig.py missing 'import re'
-        $guiconfigPath = Join-Path $venvPath "Lib\site-packages\guiconfig.py"
-        if (Test-Path $guiconfigPath) {
-            $content = Get-Content -Path $guiconfigPath -Raw
-            if (-not ($content -match "^import re")) {
-                # Add 'import re' after 'import sys'
-                $content = $content -replace "(?m)(^import sys)", "`$1`nimport re"
-                Set-Content -Path $guiconfigPath -Value $content -NoNewline
-                Write-LogInfo "fixed_guiconfig"
-            }
-        }
-    }
-    else {
-        Write-LogError "package_install_failed"
-        exit 1
-    }
-}
-
-# Configuration Management Functions
-# Restore-PreservedConfig: Restore preserved configuration
-
-function Restore-PreservedConfig {
-    
-    if (-not $Global:RESTORE_CONFIG_AFTER_INSTALL) {
-        return
-    }
-    
-    Write-Host ""
-    Write-LogInfo "restoring_config"
-    
-    $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
-    
-    # Restore config from backup
-    if ($Global:TEMP_CONFIG_PATH -and (Test-Path $Global:TEMP_CONFIG_PATH)) {
-        $parentDir = Split-Path $configPath -Parent
-        if (-not (Test-Path $parentDir)) {
-            New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
-        }
-        Copy-Item -Path $Global:TEMP_CONFIG_PATH -Destination $configPath -Force
-        Remove-Item -Path $Global:TEMP_CONFIG_PATH -Force -ErrorAction SilentlyContinue
-    }
-    
-    # Note: local_pkgs was not deleted, no need to restore
-    
-    Write-LogSuccess "config_restored"
-}
-
 # UI Functions
 # Show-Banner: Display installation banner
-# Show-NextSteps: Display next steps
 
 function Show-Banner {
     Write-Host ""
@@ -1391,225 +1044,58 @@ function Show-Banner {
     Write-Host ""
 }
 
-function Show-NextSteps {
-    Write-Host ""
-    Write-Host "============================================================" -ForegroundColor Green
-    Write-LogSuccess "setup_complete"
-    Write-Host "============================================================" -ForegroundColor Green
-    Write-Host ""
-    Write-LogInfo "next_steps"
-    Write-Host ""
-    Write-LogInfo "activate_env"
-    $envDir = $env:ENV_ROOT
-    $activateCmd = ". $envDir\env.ps1"
-    Write-Host "   $activateCmd"
-    Write-Host ""
-    Write-LogInfo "add_to_profile"
-    Write-Host "   echo '. $envDir\env.ps1' >> \$PROFILE"
-    Write-Host "   . \$PROFILE"
-    Write-Host ""
-    Write-LogInfo "install_toolchain"
-    Write-Host "   $(Get-Message 'install_toolchain_cmd')"
-    Write-Host ""
-    Write-LogInfo "after_activation"
-    Write-Host "$(Get-Message 'menuconfig')"
-    Write-Host "$(Get-Message 'pkgs')"
-    Write-Host "$(Get-Message 'scons')"
-    Write-Host "$(Get-Message 'sdk')"
-    Write-Host ""
-}
-
-# Directory Management Functions
-# Backup-ConfigFile: Backup configuration file
-# Remove-EnvDirectory: Delete ENV directory
-# Show-DeletionOptions: Show deletion options
-# Remove-EnvWithOptions: Delete ENV based on options
-# Handle-AutoModeRemoval: Handle auto mode deletion
-# Handle-InteractiveRemoval: Handle interactive mode deletion
-# Check-ExistingEnv: Check existing ENV
-
-function Backup-ConfigFile {
-    $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
-    $tempConfigPath = "$env:ENV_ROOT\.config.backup"
-    
-    if (Test-Path $configPath) {
-        $null = Copy-Item -Path $configPath -Destination $tempConfigPath -Force -ErrorAction SilentlyContinue
-        $Global:RESTORE_CONFIG_AFTER_INSTALL = $true
-        $Global:TEMP_CONFIG_PATH = $tempConfigPath
-        return
-    }
-    return
-}
-
-function Remove-EnvDirectory {
-    param(
-        [switch]$PreserveLocalPkgs,
-        [switch]$PreserveConfigBackup
-    )
-    
-    $localPkgsPath = "$env:ENV_ROOT\local_pkgs"
-    
-    # Get all items in ENV_ROOT
-    $items = Get-ChildItem -Path $env:ENV_ROOT -Force -ErrorAction SilentlyContinue
-    foreach ($item in $items) {
-        # Skip local_pkgs directory if preserving
-        if ($PreserveLocalPkgs -and ($item.Name -eq "local_pkgs" -or $item.FullName -eq $localPkgsPath)) {
-            continue
-        }
-        # Skip .config.backup file if preserving
-        if ($PreserveConfigBackup -and $item.Name -eq ".config.backup") {
-            continue
-        }
-        $null = Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}
-
-function Show-DeletionOptions {
-    Write-Host ""
-    Write-Host "$(Get-Message 'env_root_prompt')"
-    $confirmMsg = "$(Get-Message 'env_root_confirm')"
-    $confirmHelp = "$(Get-Message 'env_root_confirm_help')"
-    $confirmAll = "$(Get-Message 'env_root_confirm_all')"
-    $confirmNo = "$(Get-Message 'env_root_confirm_no')"
-    
-    Write-Host "$confirmMsg" -NoNewline -ForegroundColor Red
-    Write-Host ""
-    Write-Host $confirmHelp -ForegroundColor Cyan
-    Write-Host $confirmAll -ForegroundColor Cyan
-    Write-Host $confirmNo -ForegroundColor Cyan
-    Write-Host "> " -NoNewline -ForegroundColor Yellow
-    $response = Read-Host
-    
-    if ([string]::IsNullOrEmpty($response)) {
-        return "y"  # Default is y (preserve)
-    }
-    return $response
-}
-
-function Remove-EnvWithOptions {
-    param(
-        [string]$DeleteMode  # "preserve" or "all"
-    )
-    
-    # Set global flags for restoration after installation
-    $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
-    $Global:TEMP_CONFIG_PATH = ""
-    
-    if ($DeleteMode -eq "preserve") {
-        # Preserve config and local_pkgs
-        Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
-        Backup-ConfigFile
-        Remove-EnvDirectory -PreserveLocalPkgs -PreserveConfigBackup
-    }
-    elseif ($DeleteMode -eq "all") {
-        Write-LogInfo "removing_env_root_all" $env:ENV_ROOT
-        $null = Remove-Item -Path $env:ENV_ROOT -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    
-    Write-LogSuccess "env_root_removed" $env:ENV_ROOT
-}
-
-function Handle-AutoModeRemoval {
-    Remove-EnvWithOptions -DeleteMode "preserve"
-}
-
-function Handle-InteractiveRemoval {
-    $response = Show-DeletionOptions
-    
-    if ($response -match "^[Yy]$") {
-        Remove-EnvWithOptions -DeleteMode "preserve"
-    }
-    elseif ($response -match "^[Aa]$") {
-        Remove-EnvWithOptions -DeleteMode "all"
-    }
-    else {
-        Write-LogInfo "installation_cancelled"
-        exit 0
-    }
-}
-
-function Check-ExistingEnv {
-    if (Test-Path $env:ENV_ROOT) {
-        Write-LogWarning "env_root_exists" $env:ENV_ROOT
-        Write-Host ""
-        
-        if ($Global:AUTO_MODE) {
-            Handle-AutoModeRemoval
-        }
-        else {
-            Handle-InteractiveRemoval
-        }
-    }
-}
 # Installation Process Functions
 # Ensure-Dependencies: Ensure Python and Git are installed
 # Setup-Repositories: Setup repositories
 # Prompt-Pyocd: Prompt for pyocd installation
 
-function Ensure-Dependencies {
+function Ensure-Python {
     # Check Python version and decide whether to use system Python or install portable version
-    $pythonPaths = Find-SystemPython
-    $pythonPath = [string](Select-PythonInstallation -PythonPaths $pythonPaths)
-
-    if ($pythonPath) {
-        $Global:SELECTED_PYTHON = $pythonPath
-    }
-
     $usePortablePython = $false
 
-    # If -P/--python flag is set, force use portable Python and skip system Python check
-    if ($Global:USE_EMBED_PYTHON) {
+    # If -P/--python flag is set, force use portable Python
+    if ($script:Config.UseEmbedPython) {
         $usePortablePython = $true
         Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
     }
-    elseif ($pythonPath) {
-        # Check if the selected Python is the portable Python we just installed
-        $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
-        if ($pythonPath -eq $portablePythonPath) {
-            # Portable Python was selected and installed, skip version check
-            $usePortablePython = $false
+    else {
+        # Try to use system Python
+        $pythonPaths = Find-SystemPython
+        $pythonPath = [string](Select-PythonInstallation -PythonPaths $pythonPaths)
+
+        if ($pythonPath) {
+            # Check version
             $pythonVersion = Get-PythonVersionString -PythonPath $pythonPath
-            Write-LogInfo "using_system_python" $pythonVersion $pythonPath
+            if ($pythonVersion -and (Test-PythonVersion -VersionString $pythonVersion)) {
+                # Valid version, use system Python
+                $script:Config.SelectedPython = $pythonPath
+                Write-LogInfo "using_system_python" $pythonVersion $pythonPath
+                return
+            }
+            
+            # Invalid version or failed to get version
+            $usePortablePython = $true
+            Write-LogInfo $(if ($pythonVersion) { "python_version_too_low" } else { "python_version_failed" })
         }
         else {
-            # Python found, check version
-            $pythonVersion = Get-PythonVersionString -PythonPath $pythonPath
-            if ($pythonVersion) {
-                $isValidVersion = Test-PythonVersion -VersionString $pythonVersion
-                if (-not $isValidVersion) {
-                    # Version < 3.6, use portable Python
-                    $usePortablePython = $true
-                    Write-LogInfo "python_version_too_low"
-                }
-                else {
-                    # Version >= 3.6, use system Python
-                    $usePortablePython = $false
-                    Write-LogInfo "using_system_python" $pythonVersion $pythonPath
-                }
-            }
-            else {
-                # Failed to get version, install portable Python
-                $usePortablePython = $true
-                Write-LogInfo "python_version_failed"
-            }
+            # Python not found
+            $usePortablePython = $true
+            Write-LogInfo "python_not_found"
         }
     }
-    else {
-        # Python not found, install portable version
-        $usePortablePython = $true
-        Write-LogInfo "python_not_found"
-    }
 
-    # Install or use Python
+    # Install portable Python if needed
     if ($usePortablePython) {
-        $Global:SELECTED_PYTHON = Install-Python -UseCNMirror $Global:USE_CN
+        $script:Config.SelectedPython = Install-Python -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath
     }
+}
 
+function Ensure-Git {
     # Check and install Git if missing
     if (-not (Test-Command "git")) {
         Write-LogInfo "git_not_found"
         # When -y is used, install Git silently; otherwise show interactive installer
-        Install-Git -UseCNMirror $Global:USE_CN -Interactive (-not $Global:AUTO_MODE)
+        Install-Git -UseCNMirror $script:Config.UseCN -Interactive (-not $script:Config.AutoMode)
         Write-Host ""
         Write-LogWarning "restart_required"
         Read-Host -Prompt "Press Enter to exit..."
@@ -1621,122 +1107,101 @@ function Ensure-Dependencies {
     Write-LogSuccess "git_found" $gitVersion
 }
 
-function Setup-Repositories {
-    # Set repository configuration based on mirror selection or custom mode
-    $urlPackages = ""
-    $urlEnv = ""
-    $urlSdk = ""
+function Ensure-Dependencies {
+    Ensure-Python
+    Ensure-Git
+}
 
-    # Check for custom repositories
-    $useCustomPackages = $false
-    $useCustomEnv = $false
-    $useCustomSdk = $false
-
-    if ($Global:CUSTOM_PACKAGES_REPO) {
-        $useCustomPackages = $true
-        $urlPackages = $Global:CUSTOM_PACKAGES_REPO
-        if ($Global:CUSTOM_PACKAGES_BRANCH) {
-            Write-LogInfo "using_custom_repo_branch" $Global:CUSTOM_PACKAGES_REPO $Global:CUSTOM_PACKAGES_BRANCH
-        }
-        else {
-            Write-LogInfo "using_custom_repo" $Global:CUSTOM_PACKAGES_REPO
-        }
+# Remove-PortablePython function
+# Remove portable Python if exists (always do this regardless of mode)
+function Remove-PortablePython {
+    $portablePythonPath = "$env:ENV_ROOT\python"
+    if (Test-Path $portablePythonPath) {
+        Write-LogInfo "removing_portable_python" $portablePythonPath
+        Remove-Item -Path $portablePythonPath -Recurse -Force -ErrorAction SilentlyContinue
     }
+}
 
-    if ($Global:CUSTOM_ENV_REPO) {
-        $useCustomEnv = $true
-        $urlEnv = $Global:CUSTOM_ENV_REPO
-        if ($Global:CUSTOM_ENV_BRANCH) {
-            Write-LogInfo "using_custom_repo_branch" $Global:CUSTOM_ENV_REPO $Global:CUSTOM_ENV_BRANCH
-        }
-        else {
-            Write-LogInfo "using_custom_repo" $Global:CUSTOM_ENV_REPO
-        }
-    }
-
-    if ($Global:CUSTOM_SDK_REPO) {
-        $useCustomSdk = $true
-        $urlSdk = $Global:CUSTOM_SDK_REPO
-        if ($Global:CUSTOM_SDK_BRANCH) {
-            Write-LogInfo "using_custom_repo_branch" $Global:CUSTOM_SDK_REPO $Global:CUSTOM_SDK_BRANCH
-        }
-        else {
-            Write-LogInfo "using_custom_repo" $Global:CUSTOM_SDK_REPO
-        }
-    }
-
-    # Use standard repositories for any not specified
-    $repoConfig = if ($Global:USE_CN) {
-        @($REPO_PACKAGES_GITEE, $REPO_ENV_GITEE, $REPO_SDK_GITEE)
-    }
-    else {
-        @($REPO_PACKAGES_GITHUB, $REPO_ENV_GITHUB, $REPO_SDK_GITHUB)
-    }
-
-    if (-not $useCustomPackages) { $urlPackages = $repoConfig[0] }
-    if (-not $useCustomEnv) { $urlEnv = $repoConfig[1] }
-    if (-not $useCustomSdk) { $urlSdk = $repoConfig[2] }
-
-    # Clone repositories
-    $branchPackages = if ($Global:CUSTOM_PACKAGES_BRANCH) { $Global:CUSTOM_PACKAGES_BRANCH } else { $BRANCH_PACKAGES_DEFAULT }
-    $branchSdk = if ($Global:CUSTOM_SDK_BRANCH) { $Global:CUSTOM_SDK_BRANCH } else { $BRANCH_SDK_DEFAULT }
-    $branchEnv = if ($Global:CUSTOM_ENV_BRANCH) { $Global:CUSTOM_ENV_BRANCH } else { $BRANCH_ENV_DEFAULT }
-    Clone-Repository -Url $urlPackages -Destination "$env:ENV_ROOT\packages\packages" -Depth 1 -Branch $branchPackages
-    Clone-Repository -Url $urlSdk -Destination "$env:ENV_ROOT\packages\sdk" -Depth 1 -Branch $branchSdk
-    Clone-Repository -Url $urlEnv -Destination "$env:ENV_ROOT\tools\scripts" -Depth 1 -Branch $branchEnv
-
-    # Generate Kconfig file
-    Generate-KconfigFile -EnvRoot "$env:ENV_ROOT"
-
-    if (Test-Path "$env:ENV_ROOT\tools\scripts\env.ps1") {
-        Copy-Item -Path "$env:ENV_ROOT\tools\scripts\env.ps1" -Destination "$env:ENV_ROOT\env.ps1" -Force
-        Write-LogSuccess "copied_env_script" "$env:ENV_ROOT\env.ps1"
-    }
+# Invoke-TouchEnv function
+# Download and execute touch_env.py to handle Step 5-10
+function Invoke-TouchEnv {
+    param(
+        [string]$TouchEnvUrl
+    )
 
     Write-Host ""
+    Write-LogInfo "downloading_touch_env"
+
+    try {
+        # Download touch_env.py to memory
+        $scriptContent = Invoke-WebRequest -Uri $TouchEnvUrl -UseBasicParsing | Select-Object -ExpandProperty Content
+
+        # Build custom repos JSON
+        $customRepos = @{
+            env = @{
+                url = if ($script:Config.CustomEnvRepo) { $script:Config.CustomEnvRepo } else { if ($script:Config.UseCN) { $REPO_ENV_GITEE } else { $REPO_ENV_GITHUB } }
+                branch = $script:Config.CustomEnvBranch
+            }
+            packages = @{
+                url = if ($script:Config.CustomPackagesRepo) { $script:Config.CustomPackagesRepo } else { if ($script:Config.UseCN) { $REPO_PACKAGES_GITEE } else { $REPO_PACKAGES_GITHUB } }
+                branch = $script:Config.CustomPackagesBranch
+            }
+            sdk = @{
+                url = if ($script:Config.CustomSdkRepo) { $script:Config.CustomSdkRepo } else { if ($script:Config.UseCN) { $REPO_SDK_GITEE } else { $REPO_SDK_GITHUB } }
+                branch = $script:Config.CustomSdkBranch
+            }
+        }
+        $customReposJson = $customRepos | ConvertTo-Json -Compress
+
+        # Build arguments
+        $touchEnvArgs = @(
+            "--env-root", $env:ENV_ROOT
+            "--use-cn", $script:Config.UseCN.ToString().ToLower()
+            "--language", $script:Config.LangCurrent
+            "--auto-mode", $script:Config.AutoMode.ToString().ToLower()
+            "--install-pyocd", $script:Config.InstallPyocd.ToString().ToLower()
+            "--restore-config", "false"
+            "--custom-repos", $customReposJson
+        )
+
+        # Run touch_env.py in memory
+        $touchEnvExitCode = & $script:Config.SelectedPython -c $scriptContent @touchEnvArgs
+
+        if ($touchEnvExitCode -ne 0) {
+            Write-LogError "touch_env_failed" $touchEnvExitCode
+            exit $touchEnvExitCode
+        }
+    }
+    catch {
+        Write-LogError "touch_env_download_failed" $_.Exception.Message
+        exit 1
+    }
 }
 
-function Prompt-Pyocd {
-    if ($Global:INSTALL_PYOCD) {
-        return
-    }
+# Initialize-Installation function
+# Initialize installation environment and validate settings
+function Initialize-Installation {
+    param(
+        [PSCustomObject]$ParsedArgs
+    )
 
-    if ($Global:AUTO_MODE) {
-        $Global:INSTALL_PYOCD = $false
-    }
-    else {
-        Write-Host ""
-        Write-Host "$(Get-Message 'pyocd_install_prompt')"
-        $confirmMsg = "$(Get-Message 'pyocd_install_confirm')"
-        Write-Host "$confirmMsg " -NoNewline -ForegroundColor Yellow
-        $response = Read-Host
-        if ($response -match "^[Nn]$") {
-            $Global:INSTALL_PYOCD = $false
-        }
-        else {
-            $Global:INSTALL_PYOCD = $true
-        }
-    }
-}
-# Main Function
-# Main function: Coordinate all installation steps
+    # Set config from parsed arguments
+    $script:Config.LangCurrent = if ($parsedArgs.ZhMode) { "zh" } elseif ($parsedArgs.EnMode) { "en" } else { Get-SystemLanguage }
+    $script:Config.UseCN = $parsedArgs.CnMode
+    $script:Config.UseCNSet = $parsedArgs.CnMode -or $parsedArgs.OfficialMode
+    $script:Config.InstallPyocd = $parsedArgs.PyocdMode
+    $script:Config.AutoMode = $parsedArgs.AutoMode
+    $script:Config.NeedHelp = $parsedArgs.HelpMode
+    $script:Config.UseEmbedPython = $parsedArgs.PythonMode
+    $script:Config.CustomPackagesRepo = $parsedArgs.CustomPackagesRepo
+    $script:Config.CustomPackagesBranch = $parsedArgs.CustomPackagesBranch
+    $script:Config.CustomEnvRepo = $parsedArgs.CustomEnvRepo
+    $script:Config.CustomEnvBranch = $parsedArgs.CustomEnvBranch
+    $script:Config.CustomSdkRepo = $parsedArgs.CustomSdkRepo
+    $script:Config.CustomSdkBranch = $parsedArgs.CustomSdkBranch
 
-function Main {
-    $Global:LANG_CURRENT = if ($zhMode) { "zh" } elseif ($enMode) { "en" } else { Get-SystemLanguage }
-    $Global:USE_CN = $cnMode
-    $Global:USE_CN_SET = $cnMode -or $officialMode
-    $Global:INSTALL_PYOCD = $pyocdMode
-    $Global:AUTO_MODE = $autoMode
-    $Global:NEED_HELP = $helpMode
-    $Global:USE_EMBED_PYTHON = $pythonMode
-    $Global:CUSTOM_PACKAGES_REPO = $customPackagesRepo
-    $Global:CUSTOM_PACKAGES_BRANCH = $customPackagesBranch
-    $Global:CUSTOM_ENV_REPO = $customEnvRepo
-    $Global:CUSTOM_ENV_BRANCH = $customEnvBranch
-    $Global:CUSTOM_SDK_REPO = $customSdkRepo
-    $Global:CUSTOM_SDK_BRANCH = $customSdkBranch
-
-    if ($envRootValue) { $env:ENV_ROOT = $envRootValue }
+    # Set ENV_ROOT and validate
+    if ($parsedArgs.EnvRootValue) { $env:ENV_ROOT = $parsedArgs.EnvRootValue }
     if ($env:ENV_ROOT -match "\s") {
         Write-Host "Error: ENV_ROOT cannot contain spaces" -ForegroundColor Red
         exit 1
@@ -1746,62 +1211,58 @@ function Main {
         exit 1
     }
 
+    # Check administrator privileges for auto mode
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if ($autoMode -and -not $isAdmin -and -not $skipLongPath) {
+    if ($parsedArgs.AutoMode -and -not $isAdmin -and -not $parsedArgs.SkipLongPath) {
         Write-LogError "admin_required"
         Write-LogWarning "run_as_admin"
         exit 1
     }
 
-    if ($Global:NEED_HELP) {
+    # Handle help request
+    if ($script:Config.NeedHelp) {
         Print-Help
         return
     }
 
-    if (-not $Global:USE_CN_SET) {
-        $Global:USE_CN = Detect-China
+    # Detect China mirror if not explicitly set
+    if (-not $script:Config.UseCNSet) {
+        $script:Config.UseCN = Detect-China
     }
 
     # Override with --official flag
-    if ($officialMode) {
-        $Global:USE_CN = $false
+    if ($parsedArgs.OfficialMode) {
+        $script:Config.UseCN = $false
     }
+}
+
+# Main Function
+# Main function: Coordinate all installation steps
+
+function Main {
+    # Initialize installation environment
+    Initialize-Installation -ParsedArgs $parsedArgs
 
     # Step 1: Print installation banner
     Show-Banner
 
     # Step 2: Remove portable Python if exists (always do this regardless of mode)
-    $portablePythonPath = "$env:ENV_ROOT\python"
-    if (Test-Path $portablePythonPath) {
-        Write-LogInfo "removing_portable_python" $portablePythonPath
-        Remove-Item -Path $portablePythonPath -Recurse -Force -ErrorAction SilentlyContinue
-    }
+    Remove-PortablePython
 
-    # Step 3: Check if ENV_ROOT already exists
-    Check-ExistingEnv
-
-    # Step 4: Ensure Python and Git are installed
+    # Step 3: Ensure Python and Git are installed
     Ensure-Dependencies
 
-    # Step 5: Clone repositories and generate configuration
-    Setup-Repositories
+    # Set touch_env.py download URL
+    $TOUCH_ENV_URL = $TOUCH_ENV_URL_GITHUB
+    if ($script:Config.UseCN) {
+        $TOUCH_ENV_URL = $TOUCH_ENV_URL_GITEE
+    }
+    if ($parsedArgs.TouchEnvUrlValue) {
+        $TOUCH_ENV_URL = $parsedArgs.TouchEnvUrlValue
+    }
 
-    # Step 6: Create virtual environment
-    Create-Venv
-
-    # Step 7: Prompt user for pyocd installation
-    Prompt-Pyocd
-
-    # Step 8: Install Python packages and pyocd (if requested)
-    Write-LogInfo "installing_packages"
-    Install-PythonPackages -UseCNMirror $Global:USE_CN -ScriptsDir "$env:ENV_ROOT\tools\scripts" -InstallPyocd $Global:INSTALL_PYOCD
-    Write-Host ""
-
-    # Step 9: Restore preserved config if needed
-    Restore-PreservedConfig
-
-    # Step 10: Show next steps
-    Show-NextSteps
+    # Step 4: Call touch_env.py to handle Step 5-10
+    Invoke-TouchEnv -TouchEnvUrl $TOUCH_ENV_URL
 }
 
 Main
