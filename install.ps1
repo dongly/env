@@ -66,7 +66,7 @@ $customSdkRepo = ""
 $customSdkBranch = ""
 
 # Parse-RepoArg function
-# 解析仓库参数，格式: url[#branch]
+# Parse repository argument, format: url[#branch]
 function Parse-RepoArg {
     param(
         [Parameter(Mandatory = $true)]
@@ -182,7 +182,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Get-SystemLanguage function
-# 检测系统语言，返回 'zh' 或 'en'
+# Detect system language, returns 'zh' or 'en'
 function Get-SystemLanguage {
     $locale = [System.Globalization.CultureInfo]::CurrentUICulture.Name
     if ($locale -like "*zh*" -or $locale -like "*CN*") {
@@ -206,7 +206,7 @@ $Global:CUSTOM_SDK_REPO = ""
 $Global:CUSTOM_SDK_BRANCH = ""
 
 # Print-Help function
-# 显示帮助信息并退出
+# Display help information and exit
 function Print-Help {
     if ($Global:LANG_CURRENT -eq "zh") {
         Write-Host "RT-Thread ENV 安装程序"
@@ -260,7 +260,7 @@ function Print-Help {
 }
 
 # Detect-China function
-# 检测用户是否在中国（通过 IP 或系统时区）
+# Detect if user is in China (by IP or timezone)
 function Detect-China {
     param(
         [bool]$LangEn = $false,
@@ -471,11 +471,11 @@ $MSG_ZH_using_custom_repo_branch = "使用自定义仓库: {0} (分支: {1})"
 $MSG_ZH_install_portable_python = "安装便携式 Python - Python {0}"
 
 # Message functions
-# Get-Message: 获取本地化消息
-# Write-LogInfo: 输出信息日志（青色）
-# Write-LogSuccess: 输出成功日志（绿色）
-# Write-LogWarning: 输出警告日志（黄色）
-# Write-LogError: 输出错误日志（红色）
+# Get-Message: Get localized message
+# Write-LogInfo: Output info log (cyan)
+# Write-LogSuccess: Output success log (green)
+# Write-LogWarning: Output warning log (yellow)
+# Write-LogError: Output error log (red)
 
 function Get-Message {
     param([string]$Key)
@@ -543,9 +543,9 @@ function Write-LogError {
 }
 
 # Git and Repository Functions
-# Test-Command: 测试命令是否存在
-# Clone-Repository: 克隆 Git 仓库
-# Generate-KconfigFile: 生成 Kconfig 配置文件
+# Test-Command: Test if command exists
+# Clone-Repository: Clone Git repository
+# Generate-KconfigFile: Generate Kconfig configuration file
 
 function Test-Command {
     param([string]$CommandName)
@@ -600,8 +600,8 @@ function Generate-KconfigFile {
 }
 
 # Git Installation Functions
-# Get-LatestGitVersion: 获取最新 Git 版本
-# Install-Git: 安装 Git（Windows）
+# Get-LatestGitVersion: Get latest Git version
+# Install-Git: Install Git (Windows)
 
 function Get-LatestGitVersion {
     param([bool]$UseCNMirror)
@@ -741,15 +741,14 @@ function Install-Git {
     }
     
     # Python Installation Functions
-    # Install-Python: 安装便携式 Python
-    # Download-PortablePython: 下载便携式 Python
-    # Extract-PortablePython: 解压便携式 Python
-    # Enable-LongPathSupport: 启用 Windows 长路径支持
-    # Configure-PythonPth: 配置 Python _pth 文件
-    # Install-Pip: 安装 pip
+    # Install-Python: Install portable Python
+    # Download-PortablePython: Download portable Python
+    # Extract-PortablePython: Extract portable Python
+    # Enable-LongPathSupport: Enable Windows long path support
+    # Configure-PythonPth: Configure Python _pth file
+    # Install-Pip: Install pip
     
-    $PYTHON_VERSION = "3.13.11"
-    $PYTHON_ARCHIVE = "python-3.13.11-amd64.zip"
+    $PYTHON_VERSION = "3.13.11"    $PYTHON_ARCHIVE = "python-3.13.11-amd64.zip"
     $PYTHON_URL_DEFAULT = "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
     $PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
     
@@ -965,13 +964,13 @@ function Install-Pip {
 }
 
 # Python Environment Setup Functions
-# Find-SystemPython: 查找系统 Python
-# Find-LatestPythonVersion: 查找最新 Python 版本
-# Show-PythonOptions: 显示 Python 选项
-# Handle-PythonSelection: 处理 Python 选择
-# Select-PythonInstallation: 选择 Python 安装
-# Get-PythonVersionString: 获取 Python 版本字符串
-# Test-PythonVersion: 测试 Python 版本是否满足要求
+# Find-SystemPython: Find system Python
+# Find-LatestPythonVersion: Find latest Python version
+# Show-PythonOptions: Show Python options
+# Handle-PythonSelection: Handle Python selection
+# Select-PythonInstallation: Select Python installation
+# Get-PythonVersionString: Get Python version string
+# Test-PythonVersion: Test if Python version meets requirements
 
 function Find-SystemPython {
     $userProfile = $env:USERPROFILE
@@ -1226,10 +1225,9 @@ function Test-PythonVersion {
     }
     return $false
 }
-
 # Virtual Environment Functions
-# Create-Venv: 创建虚拟环境
-# Install-PythonPackages: 安装 Python 包
+# Create-Venv: Create virtual environment
+# Install-PythonPackages: Install Python packages
 
 function Create-Venv {
     $pythonCmd = $Global:SELECTED_PYTHON 
@@ -1340,7 +1338,7 @@ function Install-PythonPackages {
 }
 
 # Configuration Management Functions
-# Restore-PreservedConfig: 恢复保存的配置
+# Restore-PreservedConfig: Restore preserved configuration
 
 function Restore-PreservedConfig {
     
@@ -1369,8 +1367,8 @@ function Restore-PreservedConfig {
 }
 
 # UI Functions
-# Show-Banner: 显示安装横幅
-# Show-NextSteps: 显示后续步骤
+# Show-Banner: Display installation banner
+# Show-NextSteps: Display next steps
 
 function Show-Banner {
     Write-Host ""
@@ -1409,13 +1407,13 @@ function Show-NextSteps {
 }
 
 # Directory Management Functions
-# Backup-ConfigFile: 备份配置文件
-# Remove-EnvDirectory: 删除 ENV 目录
-# Show-DeletionOptions: 显示删除选项
-# Remove-EnvWithOptions: 根据选项删除 ENV
-# Handle-AutoModeRemoval: 处理自动模式删除
-# Handle-InteractiveRemoval: 处理交互模式删除
-# Check-ExistingEnv: 检查现有 ENV
+# Backup-ConfigFile: Backup configuration file
+# Remove-EnvDirectory: Delete ENV directory
+# Show-DeletionOptions: Show deletion options
+# Remove-EnvWithOptions: Delete ENV based on options
+# Handle-AutoModeRemoval: Handle auto mode deletion
+# Handle-InteractiveRemoval: Handle interactive mode deletion
+# Check-ExistingEnv: Check existing ENV
 
 function Backup-ConfigFile {
     $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
@@ -1530,11 +1528,10 @@ function Check-ExistingEnv {
         }
     }
 }
-
 # Installation Process Functions
-# Ensure-Dependencies: 确保 Python 和 Git 已安装
-# Setup-Repositories: 设置仓库
-# Prompt-Pyocd: 提示安装 pyocd
+# Ensure-Dependencies: Ensure Python and Git are installed
+# Setup-Repositories: Setup repositories
+# Prompt-Pyocd: Prompt for pyocd installation
 
 function Ensure-Dependencies {
     # Check Python version and decide whether to use system Python or install portable version
@@ -1709,7 +1706,7 @@ function Prompt-Pyocd {
     }
 }
 # Main Function
-# 主函数：协调所有安装步骤
+# Main function: Coordinate all installation steps
 
 function Main {
     $Global:LANG_CURRENT = if ($zhMode) { "zh" } elseif ($enMode) { "en" } else { Get-SystemLanguage }
