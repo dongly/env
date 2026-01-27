@@ -1369,16 +1369,12 @@ function Main {
     # Step 2: Ensure Python and Git are installed
     Ensure-Dependencies
 
-    # Step 3: Remove portable Python if exists (only if not forcing portable Python installation and user selected system Python)
+    # Step 3: Remove old portable Python if exists (only when not forcing portable Python installation with -p)
     if (-not $script:Config.UseEmbedPython) {
         $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
-        # Only remove if:
-        # 1. User selected a system Python (not portable)
-        # 2. AND user actually selected something (SelectedPython is not null)
-        # 3. AND the selected Python is not the portable Python
-        if ($script:Config.SelectedPython -and $script:Config.SelectedPython -ne $portablePythonPath) {
-            Remove-PortablePython
-        }
+        # Remove old portable Python if it exists (will be reinstalled if needed)
+        # This ensures we have a fresh portable Python installation
+        Remove-PortablePython
     }
 
     # Set touch_env.py download URL
