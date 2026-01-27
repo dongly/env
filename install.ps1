@@ -41,6 +41,7 @@ $customSdkRepo = ""
 $customSdkBranch = ""
 
 # Parse-RepoArg function
+# 解析仓库参数，格式: url[#branch]
 function Parse-RepoArg {
     param(
         [Parameter(Mandatory = $true)]
@@ -176,6 +177,8 @@ $IPINFO_URL = "https://ipinfo.io/json"
 
 $GIT_DOWNLOAD_URL = "https://git-scm.com/download/win"
 
+# Get-SystemLanguage function
+# 检测系统语言，返回 'zh' 或 'en'
 function Get-SystemLanguage {
     $locale = [System.Globalization.CultureInfo]::CurrentUICulture.Name
     if ($locale -like "*zh*" -or $locale -like "*CN*") {
@@ -198,6 +201,8 @@ $Global:CUSTOM_ENV_BRANCH = ""
 $Global:CUSTOM_SDK_REPO = ""
 $Global:CUSTOM_SDK_BRANCH = ""
 
+# Print-Help function
+# 显示帮助信息并退出
 function Print-Help {
     if ($Global:LANG_CURRENT -eq "zh") {
         Write-Host "RT-Thread ENV 安装程序"
@@ -250,16 +255,16 @@ function Print-Help {
     exit 0
 }
 
+# Detect-China function
+# 检测用户是否在中国（通过 IP 或系统时区）
 function Detect-China {
     param(
         [bool]$LangEn = $false,
         [bool]$LangZh = $false
     )
 
-    # Check if user is in China (by IP or system locale)
     $use_cn = $false
 
-    # Check IP-based detection (works on all systems)
     try {
         $ip_info = Invoke-RestMethod -Uri $IPINFO_URL -Method Get -UseBasicParsing -TimeoutSec 5
         if ($ip_info.country -eq "CN") {
@@ -267,10 +272,8 @@ function Detect-China {
         }
     }
     catch {
-        # Fallback to timezone
     }
 
-    # Fallback: check system timezone
     if (-not $use_cn) {
         try {
             $timezone = [System.TimeZoneInfo]::Local.Id
@@ -279,7 +282,6 @@ function Detect-China {
             }
         }
         catch {
-            # Fallback to locale
         }
     }
     return $use_cn
@@ -464,7 +466,13 @@ $MSG_ZH_using_custom_repo = "使用自定义仓库: {0}"
 $MSG_ZH_using_custom_repo_branch = "使用自定义仓库: {0} (分支: {1})"
 $MSG_ZH_install_portable_python = "安装便携式 Python - Python {0}"
 
-# Message retrieval function
+# Message functions
+# Get-Message: 获取本地化消息
+# Write-LogInfo: 输出信息日志（青色）
+# Write-LogSuccess: 输出成功日志（绿色）
+# Write-LogWarning: 输出警告日志（黄色）
+# Write-LogError: 输出错误日志（红色）
+
 function Get-Message {
     param([string]$Key)
 
@@ -531,6 +539,9 @@ function Write-LogError {
 }
 
 # Git and Repository Functions
+# Test-Command: 测试命令是否存在
+# Clone-Repository: 克隆 Git 仓库
+# Generate-KconfigFile: 生成 Kconfig 配置文件
 
 function Test-Command {
     param([string]$CommandName)
@@ -583,6 +594,10 @@ function Generate-KconfigFile {
 
     Write-LogSuccess "generating_kconfig" $kconfigPath
 }
+
+# Git Installation Functions
+# Get-LatestGitVersion: 获取最新 Git 版本
+# Install-Git: 安装 Git（Windows）
 
 function Get-LatestGitVersion {
     param([bool]$UseCNMirror)
@@ -717,28 +732,35 @@ function Install-Git {
     }
 
     Remove-Item $installerPath -ErrorAction SilentlyContinue
-
+    
     Write-LogSuccess "git_installed"
-}
-
-$PYTHON_VERSION = "3.13.11"
-$PYTHON_ARCHIVE = "python-3.13.11-amd64.zip"
-$PYTHON_URL_DEFAULT = "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
-$PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
-
-$GIT_FALLBACK_VERSION = "v2.52.0.windows.1"
-$GIT_FALLBACK_URL = "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-v2.52.0.windows.1-64-bit.exe"
-
-function Install-Python {
-    param([bool]$UseCNMirror)
-
-    Download-PortablePython -UseCNMirror $UseCNMirror
-    Extract-PortablePython
-    if (-not $skipLongPath) {
-        Enable-LongPathSupport
     }
-    Configure-PythonPth
-    Install-Pip -UseCNMirror $UseCNMirror
+    
+    # Python Installation Functions
+    # Install-Python: 安装便携式 Python
+    # Download-PortablePython: 下载便携式 Python
+    # Extract-PortablePython: 解压便携式 Python
+    # Enable-LongPathSupport: 启用 Windows 长路径支持
+    # Configure-PythonPth: 配置 Python _pth 文件
+    # Install-Pip: 安装 pip
+    
+    $PYTHON_VERSION = "3.13.11"
+    $PYTHON_ARCHIVE = "python-3.13.11-amd64.zip"
+    $PYTHON_URL_DEFAULT = "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
+    $PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
+    
+    $GIT_FALLBACK_VERSION = "v2.52.0.windows.1"
+    $GIT_FALLBACK_URL = "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-v2.52.0.windows.1-64-bit.exe"
+    
+    function Install-Python {
+        param([bool]$UseCNMirror)
+    
+        Download-PortablePython -UseCNMirror $UseCNMirror
+        Extract-PortablePython
+        if (-not $skipLongPath) {
+            Enable-LongPathSupport
+        }
+        Configure-PythonPth    Install-Pip -UseCNMirror $UseCNMirror
 
     # Save portable Python path to global variable
     $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
@@ -938,7 +960,14 @@ function Install-Pip {
     }
 }
 
-# Python Environment Setup
+# Python Environment Setup Functions
+# Find-SystemPython: 查找系统 Python
+# Find-LatestPythonVersion: 查找最新 Python 版本
+# Show-PythonOptions: 显示 Python 选项
+# Handle-PythonSelection: 处理 Python 选择
+# Select-PythonInstallation: 选择 Python 安装
+# Get-PythonVersionString: 获取 Python 版本字符串
+# Test-PythonVersion: 测试 Python 版本是否满足要求
 
 function Find-SystemPython {
     $userProfile = $env:USERPROFILE
@@ -1165,11 +1194,8 @@ function Select-PythonInstallation {
         return $selectedPython
     }
 }
-
 function Get-PythonVersionString {
     param([Parameter(Mandatory = $true)][string]$PythonPath)
-    # Get Python version string
-    # Returns: version string like "3.12.10", $null if not found
 
     try {
         $version = & $PythonPath --version 2>&1 | Select-String "Python"
@@ -1185,8 +1211,6 @@ function Get-PythonVersionString {
 
 function Test-PythonVersion {
     param([Parameter(Mandatory = $true)][string]$VersionString)
-    # Test if Python version >= 3.6
-    # Returns: $true if >= 3.6, $false if < 3.6 or invalid
 
     $versionParts = $VersionString -split '[ .]'
     if ($versionParts.Count -ge 2) {
@@ -1198,6 +1222,10 @@ function Test-PythonVersion {
     }
     return $false
 }
+
+# Virtual Environment Functions
+# Create-Venv: 创建虚拟环境
+# Install-PythonPackages: 安装 Python 包
 
 function Create-Venv {
     $pythonCmd = $Global:SELECTED_PYTHON 
@@ -1307,8 +1335,10 @@ function Install-PythonPackages {
     }
 }
 
+# Configuration Management Functions
+# Restore-PreservedConfig: 恢复保存的配置
+
 function Restore-PreservedConfig {
-    # Restore preserved configuration files after installation
     
     if (-not $Global:RESTORE_CONFIG_AFTER_INSTALL) {
         return
@@ -1333,6 +1363,10 @@ function Restore-PreservedConfig {
     
     Write-LogSuccess "config_restored"
 }
+
+# UI Functions
+# Show-Banner: 显示安装横幅
+# Show-NextSteps: 显示后续步骤
 
 function Show-Banner {
     Write-Host ""
@@ -1370,8 +1404,16 @@ function Show-NextSteps {
     Write-Host ""
 }
 
+# Directory Management Functions
+# Backup-ConfigFile: 备份配置文件
+# Remove-EnvDirectory: 删除 ENV 目录
+# Show-DeletionOptions: 显示删除选项
+# Remove-EnvWithOptions: 根据选项删除 ENV
+# Handle-AutoModeRemoval: 处理自动模式删除
+# Handle-InteractiveRemoval: 处理交互模式删除
+# Check-ExistingEnv: 检查现有 ENV
+
 function Backup-ConfigFile {
-    # Backup .config file to ENV_ROOT root
     $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
     $tempConfigPath = "$env:ENV_ROOT\.config.backup"
     
@@ -1445,7 +1487,6 @@ function Remove-EnvWithOptions {
         Remove-EnvDirectory -PreserveLocalPkgs -PreserveConfigBackup
     }
     elseif ($DeleteMode -eq "all") {
-        # Delete entire directory
         Write-LogInfo "removing_env_root_all" $env:ENV_ROOT
         $null = Remove-Item -Path $env:ENV_ROOT -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -1454,20 +1495,16 @@ function Remove-EnvWithOptions {
 }
 
 function Handle-AutoModeRemoval {
-    # Auto mode always preserves config and toolchain
     Remove-EnvWithOptions -DeleteMode "preserve"
 }
 
 function Handle-InteractiveRemoval {
-    # Show options and get user response
     $response = Show-DeletionOptions
     
     if ($response -match "^[Yy]$") {
-        # Preserve config and local_pkgs
         Remove-EnvWithOptions -DeleteMode "preserve"
     }
     elseif ($response -match "^[Aa]$") {
-        # Delete entire directory
         Remove-EnvWithOptions -DeleteMode "all"
     }
     else {
@@ -1477,7 +1514,6 @@ function Handle-InteractiveRemoval {
 }
 
 function Check-ExistingEnv {
-    # Check if ENV_ROOT directory exists
     if (Test-Path $env:ENV_ROOT) {
         Write-LogWarning "env_root_exists" $env:ENV_ROOT
         Write-Host ""
@@ -1490,6 +1526,11 @@ function Check-ExistingEnv {
         }
     }
 }
+
+# Installation Process Functions
+# Ensure-Dependencies: 确保 Python 和 Git 已安装
+# Setup-Repositories: 设置仓库
+# Prompt-Pyocd: 提示安装 pyocd
 
 function Ensure-Dependencies {
     # Check Python version and decide whether to use system Python or install portable version
@@ -1642,12 +1683,10 @@ function Setup-Repositories {
 }
 
 function Prompt-Pyocd {
-    # If --pyocd was specified, skip prompt and install directly
     if ($Global:INSTALL_PYOCD) {
         return
     }
 
-    # Prompt user for pyocd installation (optional debugging tool)
     if ($Global:AUTO_MODE) {
         $Global:INSTALL_PYOCD = $false
     }
@@ -1665,11 +1704,10 @@ function Prompt-Pyocd {
         }
     }
 }
-
 # Main Function
+# 主函数：协调所有安装步骤
 
 function Main {
-    # Initialize globals
     $Global:LANG_CURRENT = if ($zhMode) { "zh" } elseif ($enMode) { "en" } else { Get-SystemLanguage }
     $Global:USE_CN = $cnMode
     $Global:USE_CN_SET = $cnMode -or $officialMode
@@ -1684,7 +1722,6 @@ function Main {
     $Global:CUSTOM_SDK_REPO = $customSdkRepo
     $Global:CUSTOM_SDK_BRANCH = $customSdkBranch
 
-    # Set and validate ENV_ROOT
     if ($envRootValue) { $env:ENV_ROOT = $envRootValue }
     if ($env:ENV_ROOT -match "\s") {
         Write-Host "Error: ENV_ROOT cannot contain spaces" -ForegroundColor Red
@@ -1695,7 +1732,6 @@ function Main {
         exit 1
     }
 
-    # Check admin privilege for auto mode
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if ($autoMode -and -not $isAdmin -and -not $skipLongPath) {
         Write-LogError "admin_required"
@@ -1703,13 +1739,11 @@ function Main {
         exit 1
     }
 
-    # Show help and exit if requested
     if ($Global:NEED_HELP) {
         Print-Help
         return
     }
 
-    # Detect China if not explicitly set
     if (-not $Global:USE_CN_SET) {
         $Global:USE_CN = Detect-China
     }
