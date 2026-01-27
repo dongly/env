@@ -374,11 +374,11 @@ $MSG_EN_installing_packages = "Installing Python packages..."
 $MSG_EN_env_root_exists = "RT-Thread ENV directory already exists: {0}"
 $MSG_EN_env_root_prompt = "Existing RT-Thread ENV detected. Do you want to delete and reinstall?"
 $MSG_EN_env_root_confirm = "Are you sure you want to delete? [Y/a/n]: "
-$MSG_EN_env_root_confirm_help = "  Y/y: Preserve config and local_pkgs, delete others (default)"
-$MSG_EN_env_root_confirm_all = "  A/a: Delete entire directory (including config and local_pkgs)"
+$MSG_EN_env_root_confirm_help = "  Y/y: Preserve config and toolchain, delete others (default)"
+$MSG_EN_env_root_confirm_all = "  A/a: Delete entire directory (including config and toolchain)"
 $MSG_EN_env_root_confirm_no = "  N/n: Cancel installation"
 $MSG_EN_removing_env_root = "Removing existing RT-Thread ENV: {0}..."
-$MSG_EN_removing_env_root_preserving = "Removing (preserving config and local_pkgs): {0}..."
+$MSG_EN_removing_env_root_preserving = "Removing (preserving config and toolchain): {0}..."
 $MSG_EN_removing_env_root_all = "Removing entire directory: {0}..."
 $MSG_EN_env_root_removed = "Existing RT-Thread ENV removed: {0}"
 $MSG_EN_restoring_config = "Restoring config..."
@@ -1568,7 +1568,7 @@ function Remove-EnvWithOptions {
 }
 
 function Handle-AutoModeRemoval {
-    # Auto mode always preserves config and local_pkgs
+    # Auto mode always preserves config and toolchain
     Remove-EnvWithOptions -DeleteMode "preserve"
 }
 
