@@ -807,10 +807,9 @@ function Install-Python {
 
     # Save portable Python path to global variable
     $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
-    $Global:SELECTED_PYTHON = $portablePython
-    Write-Host "DEBUG: Portable Python saved to global variable: $portablePython" -ForegroundColor Magenta
-
+ 
     Write-LogSuccess "python_installed"
+    return $portablePython
 }
 
 function Download-PortablePython {
@@ -1209,24 +1208,7 @@ function Test-PythonVersion {
 }
 
 function Create-Venv {
-    $pythonCmd = $null
-
-    # First, check if portable Python exists (installed by -P flag)
-    $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
-    if (Test-Path $portablePython) {
-        $pythonCmd = $portablePython
-    }
-    else {
-        # If no portable Python, try to find system Python
-        $pythonPaths = Find-SystemPython
-        $pythonCmd = Select-PythonInstallation -PythonPaths $pythonPaths
-    }
-
-    if ($pythonCmd) {
-        $Global:SELECTED_PYTHON = $pythonCmd
-        Write-Host "DEBUG: Selected Python saved to global variable: $pythonCmd" -ForegroundColor Magenta
-    }
-
+    $pythonCmd = $Global:SELECTED_PYTHON 
     if (-not $pythonCmd) {
         Write-LogError "missing_python"
         exit 1
@@ -1485,7 +1467,7 @@ function Ensure-Dependencies {
 
     # Install or use Python
     if ($usePortablePython) {
-        Install-Python -UseCNMirror $Global:USE_CN
+        $Global:SELECTED_PYTHON = Install-Python -UseCNMirror $Global:USE_CN
     }
 
     # Check and install Git if missing
