@@ -884,7 +884,6 @@ function Find-SystemPython {
         "${env:ProgramFiles(x86)}\Python\python.exe"
         "$env:ProgramFiles\Python\Python*\python.exe"
         "${env:ProgramFiles(x86)}\Python\Python*\python.exe"
-        "$env:LOCALAPPDATA\Microsoft\WindowsApps\python.exe"
         "$env:USERPROFILE\Anaconda3\python.exe"
         "$env:USERPROFILE\Miniconda3\python.exe"
         "$env:USERPROFILE\conda\python.exe"
@@ -902,8 +901,27 @@ function Find-SystemPython {
         param([string]$Path)
 
         try {
-            $null = & $Path --version 2>&1 | Select-String "Python"
-            return $?
+            # Check if it's a command name (not a full path)
+            if ($Path -notmatch '[\\/]') {
+                # For command names, use Get-Command to resolve
+                $cmdInfo = Get-Command -Name $Path -ErrorAction SilentlyContinue
+                if ($cmdInfo) {
+                    $actualPath = $cmdInfo.Source
+                    # Skip Windows Store Python launcher
+                    if ($actualPath -like '*WindowsApps\python.exe') {
+                        return $false
+                    }
+                    # Test the actual path
+                    $version = & $actualPath --version 2>&1
+                    return $version -match "Python"
+                }
+                return $false
+            }
+            else {
+                # For full paths, test directly
+                $version = & $Path --version 2>&1
+                return $version -match "Python"
+            }
         }
         catch {
             return $false
@@ -935,8 +953,8 @@ function Find-SystemPython {
         }
     }
 
-    # Check system PATH commands
-    foreach ($cmd in @("python", "python3", "py")) {
+    # Check system PATH commands (py launcher)
+    foreach ($cmd in @("py")) {
         if (Test-PythonPath -Path $cmd) {
             $foundPaths += $cmd
         }
