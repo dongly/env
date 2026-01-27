@@ -319,6 +319,8 @@ $script:Messages = @{
         installing_portable_python = "Installing portable Python {0}..."
         downloading_portable_python = "Downloading portable Python, from: {0}"
         python_installed = "Python installed successfully."
+        python_version_failed = "Failed to get Python version. Installing portable Python..."
+        python_verification_failed = "Python verification failed. Installation may be corrupted."
         downloading_git = "Downloading Git..."
         installing_git = "Installing Git..."
         git_installed = "Git installed. Please restart terminal and run this script again."
@@ -340,13 +342,16 @@ $script:Messages = @{
         need_admin_privilege = "Enabling long paths requires administrator privileges"
         elevating_to_enable_long_paths = "Attempting to enable long paths (UAC prompt may appear)"
         install_portable_python = "Install portable Python - Python {0}"
+        multiple_python_found = "Multiple Python installations found:"
         select_python = "Found {0} Python installation(s). Default is option {1} (latest). Select [1-{0}], or {2} to install portable Python: "
         auto_selected = "Auto-selected Python: {0}"
         python_not_found = "Python not found. Please install Python first."
+        env_root_invalid = "Error: ENV_ROOT cannot contain {0}"
         removing_portable_python = "Removing portable Python: {0}..."
         downloading_touch_env = "Downloading touch_env.py from: {0}"
         touch_env_failed = "touch_env.py execution failed with exit code: {0}"
         touch_env_download_failed = "Failed to download touch_env.py: {0}"
+        python_pth_config_failed = "Warning: Failed to configure Python _pth file. site-packages may not be available."
     }
     zh = @{
         banner_title = "RT-Thread ENV 安装程序"
@@ -361,6 +366,8 @@ $script:Messages = @{
         installing_portable_python = "正在安装便携式 Python {0}..."
         downloading_portable_python = "正在下载便携式 Python，自: {0}"
         python_installed = "Python 已安装成功。"
+        python_version_failed = "无法获取 Python 版本。正在安装便携式 Python..."
+        python_verification_failed = "Python 验证失败。安装可能已损坏。"
         downloading_git = "正在下载 Git..."
         installing_git = "正在安装 Git..."
         git_installed = "Git 已安装。请重新启动终端并再次运行此脚本。"
@@ -382,13 +389,16 @@ $script:Messages = @{
         need_admin_privilege = "启用长路径需要管理员权限"
         elevating_to_enable_long_paths = "正在尝试启用长路径（可能会弹出 UAC 提示）"
         install_portable_python = "安装便携式 Python - Python {0}"
+        multiple_python_found = "找到多个 Python 安装："
         select_python = "找到 {0} 个 Python 安装。默认选项为 {1}（最新）。选择 [1-{0}]，或输入 {2} 安装便携式 Python: "
         auto_selected = "自动选择 Python: {0}"
         python_not_found = "未找到 Python。请先安装 Python。"
+        env_root_invalid = "错误: ENV_ROOT 不能包含 {0}"
         removing_portable_python = "正在删除便携式 Python: {0}..."
         downloading_touch_env = "正在下载 touch_env.py，自: {0}"
         touch_env_failed = "touch_env.py 执行失败，退出码: {0}"
         touch_env_download_failed = "下载 touch_env.py 失败: {0}"
+        python_pth_config_failed = "警告: 配置 Python _pth 文件失败。site-packages 可能不可用。"
     }
 }
 
@@ -631,14 +641,17 @@ function Install-Git {
     function Install-Python {
         param(
             [bool]$UseCNMirror,
-            [bool]$SkipLongPath
+            [bool]$SkipLongPath,
+            [bool]$RemoveExisting = $true
         )
     
-        # Delete existing portable Python before installing new one
-        $portablePythonPath = "$env:ENV_ROOT\python"
-        if (Test-Path $portablePythonPath) {
-            Write-LogInfo "removing_portable_python" $portablePythonPath
-            Remove-Item -Path $portablePythonPath -Recurse -Force -ErrorAction SilentlyContinue
+        # Delete existing portable Python before installing new one (only if requested)
+        if ($RemoveExisting) {
+            $portablePythonPath = "$env:ENV_ROOT\python"
+            if (Test-Path $portablePythonPath) {
+                Write-LogInfo "removing_portable_python" $portablePythonPath
+                Remove-Item -Path $portablePythonPath -Recurse -Force -ErrorAction SilentlyContinue
+            }
         }
     
         Download-PortablePython -UseCNMirror $UseCNMirror
@@ -650,6 +663,30 @@ function Install-Git {
     
         # Save portable Python path to global variable
         $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
+
+        # Verify Python installation by checking version with retry
+        $maxRetries = 3
+        $retryDelay = 1
+        $pythonInstalled = $false
+
+        for ($i = 0; $i -lt $maxRetries; $i++) {
+            try {
+                $version = & $portablePython --version 2>&1
+                if ($version -match "Python") {
+                    $pythonInstalled = $true
+                    break
+                }
+            }
+            catch {
+                # Python may need time to initialize
+            }
+            Start-Sleep -Seconds $retryDelay
+        }
+
+        if (-not $pythonInstalled) {
+            Write-LogError "python_verification_failed"
+            exit 1
+        }
 
         Write-LogSuccess "python_installed"
         return $portablePython
@@ -765,10 +802,9 @@ function Enable-LongPathSupport {
 # Enable long paths in registry
 try {
     Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force
-    Write-Host "Long paths enabled successfully"
+    exit 0
 }
 catch {
-    Write-Host "Failed to enable long paths: `$`_"
     exit 1
 }
 "@ | Out-File -FilePath $tempScript -Encoding UTF8
@@ -823,7 +859,7 @@ function Configure-PythonPth {
         }
     }
     catch {
-        Write-LogWarning "pip_install_failed"
+        Write-LogWarning "python_pth_config_failed"
     }
 }
 
@@ -989,7 +1025,15 @@ function Handle-PythonSelection {
         return [string]$PythonPaths[$LatestIndex]
     }
     else {
-        $choiceInt = [int]$choice
+        try {
+            $choiceInt = [int]$choice
+        }
+        catch {
+            # Invalid input (non-numeric), use default
+            Write-LogWarning "python_not_found" ""
+            return [string]$PythonPaths[$LatestIndex]
+        }
+
         if ($choiceInt -ge 1 -and $choiceInt -le $PythonPaths.Count) {
             return [string]$PythonPaths[$choiceInt - 1]
         }
@@ -998,8 +1042,8 @@ function Handle-PythonSelection {
             Write-Host ""
             Write-LogInfo "installing_portable_python" $PYTHON_VERSION
 
-            # Install portable Python
-            Install-Python -UseCNMirror $script:Config.UseCN
+            # Install portable Python (don't remove existing since Main function already did it)
+            Install-Python -UseCNMirror $script:Config.UseCN -RemoveExisting $false
 
             # Return the portable Python path
             $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
@@ -1050,14 +1094,23 @@ function Select-PythonInstallation {
 function Get-PythonVersionString {
     param([Parameter(Mandatory = $true)][string]$PythonPath)
 
-    try {
-        $version = & $PythonPath --version 2>&1 | Select-String "Python"
-        if ($?) {
-            return $version.Line -replace 'Python ', ''
+    $maxRetries = 3
+    $retryDelay = 1
+
+    for ($i = 0; $i -lt $maxRetries; $i++) {
+        try {
+            $versionOutput = & $PythonPath --version 2>&1
+            $version = $versionOutput | Select-String "Python"
+            if ($version) {
+                return $version.Line -replace 'Python ', ''
+            }
         }
-    }
-    catch {
-        return $null
+        catch {
+            # Python may need time to initialize
+        }
+        if ($i -lt $maxRetries - 1) {
+            Start-Sleep -Seconds $retryDelay
+        }
     }
     return $null
 }
@@ -1155,7 +1208,7 @@ function Ensure-Dependencies {
 }
 
 # Remove-PortablePython function
-# Remove portable Python if exists (always do this regardless of mode)
+# Remove portable Python if exists (only called when not forcing portable Python installation)
 function Remove-PortablePython {
     $portablePythonPath = "$env:ENV_ROOT\python"
     if (Test-Path $portablePythonPath) {
@@ -1250,11 +1303,11 @@ function Initialize-Installation {
     # Set ENV_ROOT and validate
     if ($parsedArgs.EnvRootValue) { $env:ENV_ROOT = $parsedArgs.EnvRootValue }
     if ($env:ENV_ROOT -match "\s") {
-        Write-Host "Error: ENV_ROOT cannot contain spaces" -ForegroundColor Red
+        Write-LogError "env_root_invalid" "spaces"
         exit 1
     }
     if ($env:ENV_ROOT -match "[^\x00-\x7F]") {
-        Write-Host "Error: ENV_ROOT cannot contain non-ASCII characters" -ForegroundColor Red
+        Write-LogError "env_root_invalid" "non-ASCII characters"
         exit 1
     }
 
@@ -1293,8 +1346,10 @@ function Main {
     # Step 1: Print installation banner
     Show-Banner
 
-    # Step 2: Remove portable Python if exists (always do this regardless of mode)
-    Remove-PortablePython
+    # Step 2: Remove portable Python if exists (only if not forcing portable Python installation)
+    if (-not $script:Config.UseEmbedPython) {
+        Remove-PortablePython
+    }
 
     # Step 3: Ensure Python and Git are installed
     Ensure-Dependencies
