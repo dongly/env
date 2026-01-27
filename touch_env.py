@@ -21,16 +21,16 @@
 #   --auto-mode                  Auto-install without prompts
 #   --install-pyocd              Install pyocd for debugging
 #   --restore-config             Restore preserved configuration
-#   --custom-repos <json>        Custom repositories in JSON format
+#   --repo-env <url>             Custom env repository URL
+#   --repo-packages <url>        Custom packages repository URL
+#   --repo-sdk <url>             Custom sdk repository URL
+#   --branch-env <branch>        Branch for custom env repository
+#   --branch-packages <branch>   Branch for custom packages repository
+#   --branch-sdk <branch>        Branch for custom sdk repository
 #
-# --custom-repos JSON format:
-#   {
-#     "env": {"url": "https://...", "branch": "branch-name"},
-#     "packages": {"url": "https://...", "branch": "branch-name"},
-#     "sdk": {"url": "https://...", "branch": "branch-name"}
-#   }
-#
-# All fields in --custom-repos are optional.
+# Examples:
+#   python touch_env.py --env-root /path/to/env --repo-env https://github.com/user/env.git
+#   python touch_env.py --env-root /path/to/env --repo-packages https://github.com/user/packages.git --branch-packages my-branch
 #
 
 import os
@@ -944,19 +944,58 @@ def parse_arguments():
         help='Restore preserved configuration'
     )
     parser.add_argument(
-        '--custom-repos',
+        '--repo-env',
         type=str,
-        default='{}',
-        help='Custom repositories in JSON format'
+        default='',
+        help='Custom env repository URL'
+    )
+    parser.add_argument(
+        '--repo-packages',
+        type=str,
+        default='',
+        help='Custom packages repository URL'
+    )
+    parser.add_argument(
+        '--repo-sdk',
+        type=str,
+        default='',
+        help='Custom sdk repository URL'
+    )
+    parser.add_argument(
+        '--branch-env',
+        type=str,
+        default='',
+        help='Branch for custom env repository'
+    )
+    parser.add_argument(
+        '--branch-packages',
+        type=str,
+        default='',
+        help='Branch for custom packages repository'
+    )
+    parser.add_argument(
+        '--branch-sdk',
+        type=str,
+        default='',
+        help='Branch for custom sdk repository'
     )
 
     args = parser.parse_args()
 
-    # Parse custom-repos JSON
-    try:
-        args.custom_repos = json.loads(args.custom_repos)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON in --custom-repos: {e}")
+    # Build custom_repos dictionary from individual arguments
+    args.custom_repos = {}
+    if args.repo_env:
+        args.custom_repos['env'] = {'url': args.repo_env}
+        if args.branch_env:
+            args.custom_repos['env']['branch'] = args.branch_env
+    if args.repo_packages:
+        args.custom_repos['packages'] = {'url': args.repo_packages}
+        if args.branch_packages:
+            args.custom_repos['packages']['branch'] = args.branch_packages
+    if args.repo_sdk:
+        args.custom_repos['sdk'] = {'url': args.repo_sdk}
+        if args.branch_sdk:
+            args.custom_repos['sdk']['branch'] = args.branch_sdk
 
     return args
 
