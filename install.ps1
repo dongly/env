@@ -385,6 +385,7 @@ $MSG_EN_install_portable_python = "Install portable Python - Python {0}"
 $MSG_EN_select_python = "Found {0} Python installation(s). Default is option {1} (latest). Select [1-{0}], or {2} to install portable Python: "
 $MSG_EN_auto_selected = "Auto-selected Python: {0}"
 $MSG_EN_python_not_found = "Python not found. Please install Python first."
+$MSG_EN_removing_portable_python = "Removing portable Python: {0}..."
 
 # Chinese messages
 $MSG_ZH_banner_title = "RT-Thread ENV 安装程序"
@@ -479,6 +480,7 @@ $MSG_ZH_install_portable_python = "安装便携式 Python - Python {0}"
 $MSG_ZH_select_python = "找到 {0} 个 Python 安装。默认选项为 {1}（最新）。选择 [1-{0}]，或输入 {2} 安装便携式 Python: "
 $MSG_ZH_auto_selected = "自动选择 Python: {0}"
 $MSG_ZH_python_not_found = "未找到 Python。请先安装 Python。"
+$MSG_ZH_removing_portable_python = "正在删除便携式 Python: {0}..."
 
 # Message functions
 # Get-Message: Get localized message
@@ -1768,30 +1770,37 @@ function Main {
     # Step 1: Print installation banner
     Show-Banner
 
-    # Step 2: Check if ENV_ROOT already exists
+    # Step 2: Remove portable Python if exists (always do this regardless of mode)
+    $portablePythonPath = "$env:ENV_ROOT\python"
+    if (Test-Path $portablePythonPath) {
+        Write-LogInfo "removing_portable_python" $portablePythonPath
+        Remove-Item -Path $portablePythonPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    # Step 3: Check if ENV_ROOT already exists
     Check-ExistingEnv
 
-    # Step 3: Ensure Python and Git are installed
+    # Step 4: Ensure Python and Git are installed
     Ensure-Dependencies
 
-    # Step 4: Clone repositories and generate configuration
+    # Step 5: Clone repositories and generate configuration
     Setup-Repositories
 
-    # Step 5: Create virtual environment
+    # Step 6: Create virtual environment
     Create-Venv
 
-    # Step 6: Prompt user for pyocd installation
+    # Step 7: Prompt user for pyocd installation
     Prompt-Pyocd
 
-    # Step 7: Install Python packages and pyocd (if requested)
+    # Step 8: Install Python packages and pyocd (if requested)
     Write-LogInfo "installing_packages"
     Install-PythonPackages -UseCNMirror $Global:USE_CN -ScriptsDir "$env:ENV_ROOT\tools\scripts" -InstallPyocd $Global:INSTALL_PYOCD
     Write-Host ""
 
-    # Step 8: Restore preserved config if needed
+    # Step 9: Restore preserved config if needed
     Restore-PreservedConfig
 
-    # Step 9: Show next steps
+    # Step 10: Show next steps
     Show-NextSteps
 }
 
