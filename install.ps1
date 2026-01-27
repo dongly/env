@@ -183,6 +183,11 @@ $REPO_PACKAGES_GITEE = "https://gitee.com/RT-Thread-Mirror/packages.git"
 $REPO_ENV_GITEE = "https://gitee.com/RT-Thread-Mirror/env.git"
 $REPO_SDK_GITEE = "https://gitee.com/RT-Thread-Mirror/sdk.git"
 
+# Default branches for each repository
+$BRANCH_PACKAGES_DEFAULT = "master"
+$BRANCH_ENV_DEFAULT = "master"
+$BRANCH_SDK_DEFAULT = "master"
+
 # PyPI mirror configurations
 $PYPI_MIRROR_CN = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
@@ -1732,9 +1737,12 @@ function Setup-Repositories {
     if (-not $useCustomSdk) { $urlSdk = $repoConfig[2] }
 
     # Clone repositories
-    Clone-Repository -Url $urlPackages -Destination "$env:ENV_ROOT\packages\packages" -Depth 1 -Branch $Global:CUSTOM_PACKAGES_BRANCH
-    Clone-Repository -Url $urlSdk -Destination "$env:ENV_ROOT\packages\sdk" -Depth 1 -Branch $Global:CUSTOM_SDK_BRANCH
-    Clone-Repository -Url $urlEnv -Destination "$env:ENV_ROOT\tools\scripts" -Depth 1 -Branch $Global:CUSTOM_ENV_BRANCH
+    $branchPackages = if ($Global:CUSTOM_PACKAGES_BRANCH) { $Global:CUSTOM_PACKAGES_BRANCH } else { $BRANCH_PACKAGES_DEFAULT }
+    $branchSdk = if ($Global:CUSTOM_SDK_BRANCH) { $Global:CUSTOM_SDK_BRANCH } else { $BRANCH_SDK_DEFAULT }
+    $branchEnv = if ($Global:CUSTOM_ENV_BRANCH) { $Global:CUSTOM_ENV_BRANCH } else { $BRANCH_ENV_DEFAULT }
+    Clone-Repository -Url $urlPackages -Destination "$env:ENV_ROOT\packages\packages" -Depth 1 -Branch $branchPackages
+    Clone-Repository -Url $urlSdk -Destination "$env:ENV_ROOT\packages\sdk" -Depth 1 -Branch $branchSdk
+    Clone-Repository -Url $urlEnv -Destination "$env:ENV_ROOT\tools\scripts" -Depth 1 -Branch $branchEnv
 
     # Generate Kconfig file
     Generate-KconfigFile -EnvRoot "$env:ENV_ROOT"
