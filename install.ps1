@@ -344,7 +344,7 @@ $script:Messages = @{
         auto_selected = "Auto-selected Python: {0}"
         python_not_found = "Python not found. Please install Python first."
         removing_portable_python = "Removing portable Python: {0}..."
-        downloading_touch_env = "Downloading touch_env.py..."
+        downloading_touch_env = "Downloading touch_env.py from: {0}"
         touch_env_failed = "touch_env.py execution failed with exit code: {0}"
         touch_env_download_failed = "Failed to download touch_env.py: {0}"
     }
@@ -386,7 +386,7 @@ $script:Messages = @{
         auto_selected = "自动选择 Python: {0}"
         python_not_found = "未找到 Python。请先安装 Python。"
         removing_portable_python = "正在删除便携式 Python: {0}..."
-        downloading_touch_env = "正在下载 touch_env.py..."
+        downloading_touch_env = "正在下载 touch_env.py，自: {0}"
         touch_env_failed = "touch_env.py 执行失败，退出码: {0}"
         touch_env_download_failed = "下载 touch_env.py 失败: {0}"
     }
@@ -1172,7 +1172,7 @@ function Invoke-TouchEnv {
     )
 
     Write-Host ""
-    Write-LogInfo "downloading_touch_env"
+    Write-LogInfo "downloading_touch_env" $TouchEnvUrl
 
     try {
         # Download touch_env.py to memory
@@ -1206,8 +1206,13 @@ function Invoke-TouchEnv {
             "--custom-repos", $customReposJson
         )
 
-        # Run touch_env.py in memory
-        $touchEnvExitCode = & $script:Config.SelectedPython -c $scriptContent @touchEnvArgs
+        # Save touch_env.py to temp file
+        $touchEnvTempFile = Join-Path $env:TEMP "touch_env.py"
+        Add-TempFile -FilePath $touchEnvTempFile
+        Set-Content -Path $touchEnvTempFile -Value $scriptContent -Encoding UTF8
+
+        # Run touch_env.py
+        $touchEnvExitCode = & $script:Config.SelectedPython $touchEnvTempFile @touchEnvArgs
 
         if ($touchEnvExitCode -ne 0) {
             Write-LogError "touch_env_failed" $touchEnvExitCode
