@@ -232,6 +232,9 @@ def exec_arg(arg):
 
 
 def main():
+    parser = init_argparse()
+    args = parser.parse_args()
+
     if args.version:
         # -v flag, show welcome message
         show_version()
@@ -241,9 +244,6 @@ def main():
     show_version_warning()
     export_environment_variable()
     init_logger(get_env_root())
-
-    parser = init_argparse()
-    args = parser.parse_args()
 
     if not vars(args):
         parser.print_help()
