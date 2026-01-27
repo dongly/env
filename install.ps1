@@ -162,6 +162,9 @@ $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\$E
 # Virtual environment directory name
 $Global:VENV_DIR = "venv\rt-env"
 
+# Selected Python path (used during installation and activation)
+$Global:SELECTED_PYTHON = ""
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -802,6 +805,11 @@ function Install-Python {
     Configure-PythonPth
     Install-Pip -UseCNMirror $UseCNMirror
 
+    # Save portable Python path to global variable
+    $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
+    $Global:SELECTED_PYTHON = $portablePython
+    Write-Host "DEBUG: Portable Python saved to global variable: $portablePython" -ForegroundColor Magenta
+
     Write-LogSuccess "python_installed"
 }
 
@@ -1098,13 +1106,15 @@ function Select-PythonInstallation {
         [string[]]$PythonPaths
     )
 
+    $selectedPython = $null
+
     if ($PythonPaths.Count -eq 0) {
         Write-Host "DEBUG: No Python installations found" -ForegroundColor Magenta
         return $null
     }
     elseif ($PythonPaths.Count -eq 1) {
         Write-Host "DEBUG: Using single Python: $($PythonPaths[0])" -ForegroundColor Magenta
-        return $PythonPaths[0]
+        $selectedPython = $PythonPaths[0]
     }
     else {
         # Multiple Python found
@@ -1147,20 +1157,28 @@ function Select-PythonInstallation {
             }
 
             Write-Host "Auto-selected: $latestPython (latest version)" -ForegroundColor Yellow
-            return $latestPython
+            $selectedPython = $latestPython
         }
         else {
             # Interactive mode, let user choose
             $choice = Read-Host "Select Python installation (1-$($PythonPaths.Count))"
             $idx = [int]$choice - 1
             if ($idx -ge 0 -and $idx -lt $PythonPaths.Count) {
-                return $PythonPaths[$idx]
+                $selectedPython = $PythonPaths[$idx]
             }
             else {
-                return $PythonPaths[0]
+                $selectedPython = $PythonPaths[0]
             }
         }
     }
+
+    # Save selected Python to global variable
+    if ($selectedPython) {
+        $Global:SELECTED_PYTHON = $selectedPython
+        Write-Host "DEBUG: Selected Python saved to global variable: $selectedPython" -ForegroundColor Magenta
+    }
+
+    return $selectedPython
 }
 
 function Get-PythonVersionString {
@@ -1548,6 +1566,13 @@ function Setup-Repositories {
     if (Test-Path "$env:ENV_ROOT\tools\scripts\env.ps1") {
         Copy-Item -Path "$env:ENV_ROOT\tools\scripts\env.ps1" -Destination "$env:ENV_ROOT\env.ps1" -Force
         Write-LogSuccess "copied_env_script" "$env:ENV_ROOT\env.ps1"
+
+        # Save selected Python path to config file
+        $pythonConfigPath = Join-Path $env:ENV_ROOT "python_path.txt"
+        if ($Global:SELECTED_PYTHON) {
+            Set-Content -Path $pythonConfigPath -Value $Global:SELECTED_PYTHON -Force
+            Write-Host "DEBUG: Selected Python saved to config file: $pythonConfigPath" -ForegroundColor Magenta
+        }
     }
 
     Write-Host ""
