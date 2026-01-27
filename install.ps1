@@ -323,8 +323,8 @@ $MSG_EN_python_version = "Python version: {0}"
 $MSG_EN_python_version_too_low = "Python version {0} is too old (requires >= 3.6). Installing portable Python..."
 $MSG_EN_python_not_found = "Python not found. Installing portable Python..."
 $MSG_EN_missing_python = "Python not found. Please install Python first."
-$MSG_EN_using_system_python = "Using system Python..."
-$MSG_EN_using_portable_python = "Will use portable Python..."
+$MSG_EN_using_system_python = "Using system Python: {0} - {1}"
+$MSG_EN_using_portable_python = "Will use portable Python {0}..."
 $MSG_EN_installing_portable_python = "Installing portable Python {0}..."
 $MSG_EN_downloading_portable_python = "Downloading portable Python..."
 $MSG_EN_python_installed = "Python installed successfully."
@@ -434,8 +434,8 @@ $MSG_ZH_python_version = "Python 版本: {0}"
 $MSG_ZH_python_version_too_low = "Python 版本 {0} 过低（需要 >= 3.6）。将安装便携式 Python..."
 $MSG_ZH_python_not_found = "未安装 Python。将安装便携式 Python。"
 $MSG_ZH_missing_python = "未安装 Python。请先安装 Python。"
-$MSG_ZH_using_system_python = "使用系统 Python..."
-$MSG_ZH_using_portable_python = "将使用便携式 Python..."
+$MSG_ZH_using_system_python = "使用系统 Python: {0} - {1}"
+$MSG_ZH_using_portable_python = "将使用便携式 Python {0}..."
 $MSG_ZH_installing_portable_python = "正在安装便携式 Python {0}..."
 $MSG_ZH_downloading_portable_python = "正在下载便携式 Python..."
 $MSG_ZH_python_installed = "Python 已安装成功。"
@@ -1179,7 +1179,9 @@ function Show-PythonOptions {
         $ver = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
         Write-Host "  $($i + 1)). $($PythonPaths[$i]) - $($ver.Line)"
     }
-    Write-Host "  $($PythonPaths.Count + 1)). $(Get-Message 'install_portable_python' $PYTHON_VERSION)" -ForegroundColor Cyan
+    $portablePythonMsg = Get-Message 'install_portable_python'
+    $portablePythonMsg = $portablePythonMsg -replace '\{0\}', $script:PYTHON_VERSION
+    Write-Host "  $($PythonPaths.Count + 1)). $portablePythonMsg" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -1607,7 +1609,7 @@ function Ensure-Dependencies {
     # If -P/--python flag is set, force use portable Python and skip system Python check
     if ($Global:USE_EMBED_PYTHON) {
         $usePortablePython = $true
-        Write-LogInfo "using_portable_python"
+        Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
     }
     elseif ($pythonPath) {
         # Python found, check version
@@ -1622,7 +1624,7 @@ function Ensure-Dependencies {
             else {
                 # Version >= 3.6, use system Python
                 $usePortablePython = $false
-                Write-LogInfo "using_system_python"
+                Write-LogInfo "using_system_python" $pythonVersion $pythonPath
             }
         }
         else {
