@@ -417,7 +417,7 @@ $MSG_EN_using_custom_repo = "Using custom repository: {0}"
 $MSG_EN_using_custom_branch = "Using branch: {0}"
 $MSG_EN_using_custom_repo_branch = "Using custom repository: {0} (branch: {1})"
 $MSG_EN_multiple_python_found = "Multiple Python installations found:"
-$MSG_EN_select_python = "Select Python installation (1-{0}) [default: {1}]: "
+$MSG_EN_select_python = "Select Python installation (1-{0}) [default: {1}], or {2} for portable: "
 $MSG_EN_auto_selected = "Auto-selected: {0} (latest version)"
 
 # Chinese messages
@@ -512,7 +512,7 @@ $MSG_ZH_pyocd_installed = "将安装 pyocd 包"
 $MSG_ZH_pyocd_not_installed = "跳过 pyocd 安装"
 $MSG_ZH_copied_env_script = "已复制 env.ps1: {0}"
 $MSG_ZH_multiple_python_found = "发现多个 Python 安装:"
-$MSG_ZH_select_python = "选择 Python 安装 (1-{0}) [默认: {1}]: "
+$MSG_ZH_select_python = "选择 Python 安装 (1-{0}) [默认: {1}]，或 {2} 安装便携式: "
 $MSG_ZH_auto_selected = "自动选择: {0} (最新版本)"
 
 $MSG_ZH_setup_complete = "RT-Thread ENV 安装完成！"
@@ -1143,6 +1143,7 @@ function Select-PythonInstallation {
             $ver = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
             Write-Host "  $($i + 1)). $($PythonPaths[$i]) - $($ver.Line)"
         }
+        Write-Host "  $($PythonPaths.Count + 1)). Install portable Python (便携式 Python)" -ForegroundColor Cyan
         Write-Host ""
 
         # In auto mode, automatically select the latest version
@@ -1210,7 +1211,7 @@ function Select-PythonInstallation {
 
             $msgKey = "select_python"
             $msg = Get-Message $msgKey
-            $formatted = $msg -f $PythonPaths.Count, ($latestIndex + 1)
+            $formatted = $msg -f $PythonPaths.Count, ($latestIndex + 1), ($PythonPaths.Count + 1)
             Write-Host $formatted -NoNewline -ForegroundColor Yellow
             $choice = Read-Host
 
@@ -1219,11 +1220,24 @@ function Select-PythonInstallation {
                 $selectedPython = $PythonPaths[$latestIndex]
             }
             else {
-                $idx = [int]$choice - 1
-                if ($idx -ge 0 -and $idx -lt $PythonPaths.Count) {
-                    $selectedPython = $PythonPaths[$idx]
+                $choiceInt = [int]$choice
+                if ($choiceInt -ge 1 -and $choiceInt -le $PythonPaths.Count) {
+                    $selectedPython = $PythonPaths[$choiceInt - 1]
+                }
+                elseif ($choiceInt -eq ($PythonPaths.Count + 1)) {
+                    # Install portable Python
+                    Write-Host ""
+                    Write-LogInfo "installing_portable_python" $PYTHON_VERSION
+                    
+                    # Install portable Python
+                    Install-Python -UseCNMirror $Global:USE_CN
+                    
+                    # Return the portable Python path
+                    $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
+                    $selectedPython = $portablePython
                 }
                 else {
+                    # Invalid choice, use default
                     $selectedPython = $PythonPaths[$latestIndex]
                 }
             }
