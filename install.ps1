@@ -1374,6 +1374,33 @@ function Install-PythonPackages {
     }
 }
 
+function Restore-PreservedConfig {
+    # Restore preserved configuration files after installation
+    
+    if (-not $Global:RESTORE_CONFIG_AFTER_INSTALL) {
+        return
+    }
+    
+    Write-Host ""
+    Write-LogInfo "restoring_config"
+    
+    $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
+    
+    # Restore config from backup
+    if ($Global:TEMP_CONFIG_PATH -and (Test-Path $Global:TEMP_CONFIG_PATH)) {
+        $parentDir = Split-Path $configPath -Parent
+        if (-not (Test-Path $parentDir)) {
+            New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+        }
+        Copy-Item -Path $Global:TEMP_CONFIG_PATH -Destination $configPath -Force
+        Remove-Item -Path $Global:TEMP_CONFIG_PATH -Force -ErrorAction SilentlyContinue
+    }
+    
+    # Note: local_pkgs was not deleted, no need to restore
+    
+    Write-LogSuccess "config_restored"
+}
+
 # ============================================================================
 # Banner and Next Steps
 # ============================================================================
@@ -1795,28 +1822,8 @@ function Main {
     Install-PythonPackages -UseCNMirror $Global:USE_CN -ScriptsDir "$env:ENV_ROOT\tools\scripts" -InstallPyocd $Global:INSTALL_PYOCD
     Write-Host ""
 
-    # Step 8: Restore config and toolchain if needed
-    if ($Global:RESTORE_CONFIG_AFTER_INSTALL) {
-        Write-Host ""
-        Write-LogInfo "restoring_config"
-        
-        $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
-        $localPkgsPath = "$env:ENV_ROOT\local_pkgs"
-        
-        # Restore config
-        if ($Global:TEMP_CONFIG_PATH -and (Test-Path $Global:TEMP_CONFIG_PATH)) {
-            $parentDir = Split-Path $configPath -Parent
-            if (-not (Test-Path $parentDir)) {
-                New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
-            }
-            Copy-Item -Path $Global:TEMP_CONFIG_PATH -Destination $configPath -Force
-            Remove-Item -Path $Global:TEMP_CONFIG_PATH -Force -ErrorAction SilentlyContinue
-        }
-        
-        # Note: local_pkgs was not deleted, no need to restore
-        
-        Write-LogSuccess "config_restored"
-    }
+    # Step 8: Restore preserved config if needed
+    Restore-PreservedConfig
 
     # Step 9: Show next steps
     Show-NextSteps
