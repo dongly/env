@@ -1391,13 +1391,39 @@ function Main {
     Write-Host ""
     Write-LogInfo "downloading_touch_env" $TOUCH_ENV_URL
     $scriptContent = $null
+
     try {
+        # Try with SSL verification first
         $response = Invoke-WebRequest -Uri $TOUCH_ENV_URL -UseBasicParsing -ErrorAction Stop
         $scriptContent = $response.Content
     }
     catch {
-        Write-LogError "touch_env_download_failed" $_.Exception.Message
-        exit 1
+        # If SSL error, try without SSL verification
+        if ($_.Exception.Message -match "SSL" -or $_.Exception.Message -match "certificate") {
+            Write-LogWarning "SSL verification failed, retrying without verification..."
+            try {
+                $response = Invoke-WebRequest -Uri $TOUCH_ENV_URL -UseBasicParsing -SkipCertificateCheck -ErrorAction Stop
+                $scriptContent = $response.Content
+            }
+            catch {
+                Write-LogError "touch_env_download_failed" $_.Exception.Message
+                Write-Host ""
+                Write-Host "Please check:" -ForegroundColor Yellow
+                Write-Host "  1. Your internet connection" -ForegroundColor Yellow
+                Write-Host "  2. The URL is correct: $TOUCH_ENV_URL" -ForegroundColor Yellow
+                Write-Host "  3. Try using -t parameter to specify a different URL" -ForegroundColor Yellow
+                exit 1
+            }
+        }
+        else {
+            Write-LogError "touch_env_download_failed" $_.Exception.Message
+            Write-Host ""
+            Write-Host "Please check:" -ForegroundColor Yellow
+            Write-Host "  1. Your internet connection" -ForegroundColor Yellow
+            Write-Host "  2. The URL is correct: $TOUCH_ENV_URL" -ForegroundColor Yellow
+            Write-Host "  3. Try using -t parameter to specify a different URL" -ForegroundColor Yellow
+            exit 1
+        }
     }
 
     # Step 4: Call touch_env.py to handle Step 5-10
