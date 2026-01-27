@@ -4,14 +4,14 @@
 # Supports: English / 中文
 #
 # Usage:
-#   .\install.ps1 [-y] [-c] [-o] [-p] [-e <path>] [-E|-Z] [-P] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--skip-long-path] [-h]
+#   .\install.ps1 [-y] [-c] [-o] [-p] [-r <path>] [-E|-Z] [-P] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--skip-long-path] [-h]
 #
 # Options:
 #   -y, --yes, --auto    Auto-install without prompts
 #   -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)
 #   -o, --official       Force use official source
 #   -p, --pyocd          Install pyocd for debugging
-#   -e, --env-root <path> Set custom install directory
+#   -r, --env-root <path> Set custom install directory
 #   -E, --en, --english  Force English messages
 #   -Z, --zh, --chinese  Force Chinese messages
 #   -P, --python         Force install portable Python (ignore system Python)
@@ -95,6 +95,20 @@ foreach ($arg in $args) {
         "-z" { $zhMode = $true }
         "--zh" { $zhMode = $true }
         "--chinese" { $zhMode = $true }
+        "-r" {
+            # Get next argument as env_root value
+            $idx = $args.IndexOf($arg) + 1
+            if ($idx -lt $args.Count) {
+                $envRootValue = $args[$idx]
+            }
+        }
+        "--env-root" {
+            # Get next argument as env_root value
+            $idx = $args.IndexOf($arg) + 1
+            if ($idx -lt $args.Count) {
+                $envRootValue = $args[$idx]
+            }
+        }
         "--packages" {
             $idx = $args.IndexOf($arg) + 1
             if ($idx -lt $args.Count) {
@@ -117,20 +131,6 @@ foreach ($arg in $args) {
                 $result = Parse-RepoArg -RepoArg $args[$idx]
                 $customSdkRepo = $result.Repo
                 $customSdkBranch = $result.Branch
-            }
-        }
-        "-e" {
-            # Get next argument as env_root value
-            $idx = $args.IndexOf($arg) + 1
-            if ($idx -lt $args.Count) {
-                $envRootValue = $args[$idx]
-            }
-        }
-        "--env-root" {
-            # Get next argument as env_root value
-            $idx = $args.IndexOf($arg) + 1
-            if ($idx -lt $args.Count) {
-                $envRootValue = $args[$idx]
             }
         }
         "--skip-long-path" {
@@ -191,6 +191,10 @@ $BRANCH_SDK_DEFAULT = ""
 # PyPI mirror configurations
 $PYPI_MIRROR_CN = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
+# Git version detection URLs
+$GIT_GITHUB_API_URL = "https://api.github.com/repos/git-for-windows/git/releases/latest"
+$GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
+
 # IP detection service
 $IPINFO_URL = "https://ipinfo.io/json"
 
@@ -235,7 +239,7 @@ function Print-Help {
         Write-Host "  -c, --cn, --gitee    使用中国镜像（Gitee，清华 PyPI）"
         Write-Host "  -o, --official       强制使用官方源"
         Write-Host "  -p, --pyocd          安装 pyocd（用于调试）"
-        Write-Host "  -e, --env-root [path] 设置自定义安装目录"
+        Write-Host "  -r, --env-root [path] 设置自定义安装目录"
         Write-Host "  -E, --en, --english  强制显示英文信息"
         Write-Host "  -Z, --zh, --chinese  强制显示中文信息"
         Write-Host "  -P, --python         强制安装便携式 Python（忽略系统 Python）"
@@ -259,7 +263,7 @@ function Print-Help {
         Write-Host "  -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)"
         Write-Host "  -o, --official       Force use official source"
         Write-Host "  -p, --pyocd          Install pyocd for debugging"
-        Write-Host "  -e, --env-root [path] Set custom install directory"
+        Write-Host "  -r, --env-root [path] Set custom install directory"
         Write-Host "  -E, --en, --english  Force English messages"
         Write-Host "  -Z, --zh, --chinese  Force Chinese messages"
         Write-Host "  -P, --python         Force install portable Python (ignore system Python)"
@@ -446,7 +450,7 @@ $MSG_ZH_downloading_portable_python = "正在下载便携式 Python，自: {0}"
 $MSG_ZH_python_installed = "Python 已安装成功。"
 $MSG_ZH_checking_git = "正在检查 Git..."
 $MSG_ZH_git_found = "找到 Git: {0}"
-$MSG_ZH_git_not_found = "未安装 Git。将安装 Git v2.52.0.windows.1。"
+$MSG_ZH_git_not_found = "未安装 Git。将安装最新版本的 Git。"
 $MSG_ZH_installing_pip = "正在安装 pip..."
 $MSG_ZH_pip_installed = "pip 安装成功"
 $MSG_ZH_pip_install_failed = "pip 安装失败"
@@ -1539,20 +1543,33 @@ function Show-DeletionOptions {
     return $response
 }
 
-function Handle-AutoModeRemoval {
-    Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
+function Remove-EnvWithOptions {
+    param(
+        [string]$DeleteMode  # "preserve" or "all"
+    )
     
     # Set global flags for restoration after installation
     $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
     $Global:TEMP_CONFIG_PATH = ""
     
-    # Backup config file
-    Backup-ConfigFile
-    
-    # Remove ENV_ROOT directory (excluding local_pkgs and .config.backup)
-    Remove-EnvDirectory -PreserveLocalPkgs -PreserveConfigBackup
+    if ($DeleteMode -eq "preserve") {
+        # Preserve config and local_pkgs
+        Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
+        Backup-ConfigFile
+        Remove-EnvDirectory -PreserveLocalPkgs -PreserveConfigBackup
+    }
+    elseif ($DeleteMode -eq "all") {
+        # Delete entire directory
+        Write-LogInfo "removing_env_root_all" $env:ENV_ROOT
+        $null = Remove-Item -Path $env:ENV_ROOT -Recurse -Force -ErrorAction SilentlyContinue
+    }
     
     Write-LogSuccess "env_root_removed" $env:ENV_ROOT
+}
+
+function Handle-AutoModeRemoval {
+    # Auto mode always preserves config and local_pkgs
+    Remove-EnvWithOptions -DeleteMode "preserve"
 }
 
 function Handle-InteractiveRemoval {
@@ -1560,29 +1577,12 @@ function Handle-InteractiveRemoval {
     $response = Show-DeletionOptions
     
     if ($response -match "^[Yy]$") {
-        # Preserve config and toolchain
-        Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
-        
-        # Set global flags for restoration after installation
-        $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
-        $Global:TEMP_CONFIG_PATH = ""
-        
-        # Backup config file
-        Backup-ConfigFile
-        
-        # Remove ENV_ROOT directory (excluding local_pkgs and .config.backup)
-        Remove-EnvDirectory -PreserveLocalPkgs -PreserveConfigBackup
-        
-        Write-LogSuccess "env_root_removed" $env:ENV_ROOT
+        # Preserve config and local_pkgs
+        Remove-EnvWithOptions -DeleteMode "preserve"
     }
     elseif ($response -match "^[Aa]$") {
         # Delete entire directory
-        Write-LogInfo "removing_env_root_all" $env:ENV_ROOT
-        
-        # Remove entire ENV_ROOT directory
-        $null = Remove-Item -Path $env:ENV_ROOT -Recurse -Force -ErrorAction SilentlyContinue
-        
-        Write-LogSuccess "env_root_removed" $env:ENV_ROOT
+        Remove-EnvWithOptions -DeleteMode "all"
     }
     else {
         Write-LogInfo "installation_cancelled"
@@ -1649,7 +1649,7 @@ function Ensure-Dependencies {
             else {
                 # Failed to get version, install portable Python
                 $usePortablePython = $true
-                Write-LogInfo "python_version_check_failed"
+                Write-LogInfo "python_version_failed"
             }
         }
     }
