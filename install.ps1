@@ -1172,12 +1172,6 @@ function Select-PythonInstallation {
         }
     }
 
-    # Save selected Python to global variable
-    if ($selectedPython) {
-        $Global:SELECTED_PYTHON = $selectedPython
-        Write-Host "DEBUG: Selected Python saved to global variable: $selectedPython" -ForegroundColor Magenta
-    }
-
     return $selectedPython
 }
 
@@ -1226,6 +1220,11 @@ function Create-Venv {
         # If no portable Python, try to find system Python
         $pythonPaths = Find-SystemPython
         $pythonCmd = Select-PythonInstallation -PythonPaths $pythonPaths
+    }
+
+    if ($pythonCmd) {
+        $Global:SELECTED_PYTHON = $pythonCmd
+        Write-Host "DEBUG: Selected Python saved to global variable: $pythonCmd" -ForegroundColor Magenta
     }
 
     if (-not $pythonCmd) {
@@ -1443,6 +1442,12 @@ function Ensure-Dependencies {
     # Check Python version and decide whether to use system Python or install portable version
     $pythonPaths = Find-SystemPython
     $pythonPath = Select-PythonInstallation -PythonPaths $pythonPaths
+
+    if ($pythonPath) {
+        $Global:SELECTED_PYTHON = $pythonPath
+        Write-Host "DEBUG: Selected Python saved to global variable: $pythonPath" -ForegroundColor Magenta
+    }
+
     $usePortablePython = $false
 
     # If -P/--python flag is set, force use portable Python and skip system Python check
