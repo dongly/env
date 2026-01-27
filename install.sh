@@ -357,8 +357,13 @@ get_message() {
                 installing_packages) echo "正在安装 Python 包..." ;;
                 env_root_exists) echo "RT-Thread ENV 目录已存在: %s" ;;
                 env_root_prompt) echo "检测到已存在的RT-Thread ENV。是否要删除并重新安装？" ;;
-                env_root_confirm) echo "确定要删除吗？[y/N] " ;;
+                env_root_confirm) echo "确定要删除吗？[Y/a/n]: " ;;
+                env_root_confirm_help) echo "  Y/y: 保留配置和工具链，删除其他（默认）" ;;
+                env_root_confirm_all) echo "  A/a: 删除整个目录（包括配置和工具链）" ;;
+                env_root_confirm_no) echo "  N/n: 取消安装" ;;
                 removing_env_root) echo "正在删除现有RT-Thread ENV: %s..." ;;
+                removing_env_root_preserving) echo "正在删除（保留配置和工具链）: %s..." ;;
+                removing_env_root_all) echo "正在删除整个目录: %s..." ;;
                 env_root_removed) echo "已删除 RT-Thread ENV: %s" ;;
                 installation_cancelled) echo "安装已取消" ;;
                 venv_not_found) echo "找不到虚拟环境，请重新创建" ;;
@@ -434,8 +439,13 @@ get_message() {
                 using_pypi_mirror) echo "Using PyPI mirror: %s" ;;
                 env_root_exists) echo "RT-Thread ENV directory already exists: %s" ;;
                 env_root_prompt) echo "Existing RT-Thread ENV detected. Do you want to delete and reinstall?" ;;
-                env_root_confirm) echo "Are you sure you want to delete? [y/N] " ;;
+                env_root_confirm) echo "Are you sure you want to delete? [Y/a/n]: " ;;
+                env_root_confirm_help) echo "  Y/y: Preserve config and toolchain, delete others (default)" ;;
+                env_root_confirm_all) echo "  A/a: Delete entire directory (including config and toolchain)" ;;
+                env_root_confirm_no) echo "  N/n: Cancel installation" ;;
                 removing_env_root) echo "Removing existing RT-Thread ENV: %s..." ;;
+                removing_env_root_preserving) echo "Removing (preserving config and toolchain): %s..." ;;
+                removing_env_root_all) echo "Removing entire directory: %s..." ;;
                 env_root_removed) echo "Existing RT-Thread ENV removed: %s" ;;
                 installation_cancelled) echo "Installation cancelled" ;;
                 installation_skip_existing) echo "RT-Thread ENV already exists, skipping installation (use -y to force reinstall)" ;;
@@ -794,11 +804,19 @@ check_existing_env() {
         [ "$env_script_exists" = true ] && echo "    - $env_script" >&2
         echo ""
         if [ "$auto_mode" = "true" ]; then
-            log_info "removing_env_root" "$ENV_ROOT"
+            log_info "removing_env_root_preserving" "$ENV_ROOT"
+            # Preserve config and local_pkgs
+            local config_backup=""
+            [ -f "$ENV_ROOT/tools/scripts/cmds/.config" ] && config_backup="$ENV_ROOT/tools/scripts/cmds/.config"
             for dir in "${existing_dirs[@]}"; do
                 rm -rf "$dir" 2>/dev/null || true
             done
             [ "$env_script_exists" = true ] && rm -f "$env_script"
+            # Restore config if backed up
+            if [ -n "$config_backup" ]; then
+                mkdir -p "$ENV_ROOT/tools/scripts/cmds" 2>/dev/null || true
+                cp "$config_backup" "$ENV_ROOT/tools/scripts/cmds/.config" 2>/dev/null || true
+            fi
             log_success "env_root_removed" "$ENV_ROOT"
         else
             echo ""
@@ -807,11 +825,24 @@ check_existing_env() {
             read -n 1 -r
             echo ""
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                log_info "removing_env_root" "$ENV_ROOT"
+                # Preserve config and toolchain
+                log_info "removing_env_root_preserving" "$ENV_ROOT"
+                local config_backup=""
+                [ -f "$ENV_ROOT/tools/scripts/cmds/.config" ] && config_backup="$ENV_ROOT/tools/scripts/cmds/.config"
                 for dir in "${existing_dirs[@]}"; do
                     rm -rf "$dir" 2>/dev/null || true
                 done
                 [ "$env_script_exists" = true ] && rm -f "$env_script"
+                # Restore config if backed up
+                if [ -n "$config_backup" ]; then
+                    mkdir -p "$ENV_ROOT/tools/scripts/cmds" 2>/dev/null || true
+                    cp "$config_backup" "$ENV_ROOT/tools/scripts/cmds/.config" 2>/dev/null || true
+                fi
+                log_success "env_root_removed" "$ENV_ROOT"
+            elif [[ $REPLY =~ ^[Aa]$ ]]; then
+                # Delete entire directory
+                log_info "removing_env_root_all" "$ENV_ROOT"
+                rm -rf "$ENV_ROOT" 2>/dev/null || true
                 log_success "env_root_removed" "$ENV_ROOT"
             else
                 log_info "installation_cancelled"
