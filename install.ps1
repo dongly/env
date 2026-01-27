@@ -418,7 +418,7 @@ $MSG_EN_using_custom_branch = "Using branch: {0}"
 $MSG_EN_using_custom_repo_branch = "Using custom repository: {0} (branch: {1})"
 $MSG_EN_multiple_python_found = "Multiple Python installations found:"
 $MSG_EN_select_python = "Select Python installation (1-{0}) [default: {1}], or {2} for portable: "
-$MSG_EN_install_portable_python = "Install portable Python / 安装便携式 Python - Python {0}"
+$MSG_EN_install_portable_python = "Install portable Python - Python {0} / 安装便携式 Python - Python {0}"
 $MSG_EN_auto_selected = "Auto-selected: {0} (latest version)"
 
 # Chinese messages
@@ -514,7 +514,7 @@ $MSG_ZH_pyocd_not_installed = "跳过 pyocd 安装"
 $MSG_ZH_copied_env_script = "已复制 env.ps1: {0}"
 $MSG_ZH_multiple_python_found = "发现多个 Python 安装:"
 $MSG_ZH_select_python = "选择 Python 安装 (1-{0}) [默认: {1}]，或 {2} 安装便携式: "
-$MSG_ZH_install_portable_python = "Install portable Python / 安装便携式 Python - Python {0}"
+$MSG_ZH_install_portable_python = "Install portable Python - Python {0} / 安装便携式 Python - Python {0}"
 $MSG_ZH_auto_selected = "自动选择: {0} (最新版本)"
 
 $MSG_ZH_setup_complete = "RT-Thread ENV 安装完成！"
