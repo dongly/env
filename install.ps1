@@ -1571,13 +1571,6 @@ function Setup-Repositories {
     if (Test-Path "$env:ENV_ROOT\tools\scripts\env.ps1") {
         Copy-Item -Path "$env:ENV_ROOT\tools\scripts\env.ps1" -Destination "$env:ENV_ROOT\env.ps1" -Force
         Write-LogSuccess "copied_env_script" "$env:ENV_ROOT\env.ps1"
-
-        # Save selected Python path to config file
-        $pythonConfigPath = Join-Path $env:ENV_ROOT "python_path.txt"
-        if ($Global:SELECTED_PYTHON) {
-            Set-Content -Path $pythonConfigPath -Value $Global:SELECTED_PYTHON -Force
-            Write-Host "DEBUG: Selected Python saved to config file: $pythonConfigPath" -ForegroundColor Magenta
-        }
     }
 
     Write-Host ""
