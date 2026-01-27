@@ -165,7 +165,6 @@ $Global:VENV_DIR = "venv\rt-env"
 # Flag to indicate if config and toolchain should be restored after installation
 $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
 $Global:TEMP_CONFIG_PATH = ""
-$Global:TEMP_LOCAL_PKGS_PATH = ""
 
 # Selected Python path (used during installation and activation)
 $Global:SELECTED_PYTHON = ""
@@ -366,15 +365,15 @@ $MSG_EN_installing_packages = "Installing Python packages..."
 $MSG_EN_env_root_exists = "RT-Thread ENV directory already exists: {0}"
 $MSG_EN_env_root_prompt = "Existing RT-Thread ENV detected. Do you want to delete and reinstall?"
 $MSG_EN_env_root_confirm = "Are you sure you want to delete? [Y/a/N]: "
-$MSG_EN_env_root_confirm_help = "  Y/y: Preserve config and toolchain, delete others (default)"
-$MSG_EN_env_root_confirm_all = "  A/a: Delete entire directory (including config and toolchain)"
+$MSG_EN_env_root_confirm_help = "  Y/y: Preserve config and local_pkgs, delete others (default)"
+$MSG_EN_env_root_confirm_all = "  A/a: Delete entire directory (including config and local_pkgs)"
 $MSG_EN_env_root_confirm_no = "  N/n: Cancel installation"
 $MSG_EN_removing_env_root = "Removing existing RT-Thread ENV: {0}..."
-$MSG_EN_removing_env_root_preserving = "Removing (preserving config and toolchain): {0}..."
+$MSG_EN_removing_env_root_preserving = "Removing (preserving config and local_pkgs): {0}..."
 $MSG_EN_removing_env_root_all = "Removing entire directory: {0}..."
 $MSG_EN_env_root_removed = "Existing RT-Thread ENV removed: {0}"
-$MSG_EN_restoring_config = "Restoring config and toolchain..."
-$MSG_EN_config_restored = "Config and toolchain restored"
+$MSG_EN_restoring_config = "Restoring config..."
+$MSG_EN_config_restored = "Config restored"
 $MSG_EN_installation_cancelled = "Installation cancelled"
 $MSG_EN_venv_not_found = "Virtual environment not found, please recreate"
 $MSG_EN_upgrading_pip = "Upgrading pip..."
@@ -478,15 +477,15 @@ $MSG_ZH_installing_packages = "正在安装 Python 包..."
 $MSG_ZH_env_root_exists = "RT-Thread ENV 目录已存在: {0}"
 $MSG_ZH_env_root_prompt = "检测到已存在的RT-Thread ENV。是否要删除并重新安装？"
 $MSG_ZH_env_root_confirm = "确定要删除吗？[Y/a/N]: "
-$MSG_ZH_env_root_confirm_help = "  Y/y: 保留配置和工具链，删除其他（默认）"
-$MSG_ZH_env_root_confirm_all = "  A/a: 删除整个目录（包括配置和工具链）"
+$MSG_ZH_env_root_confirm_help = "  Y/y: 保留配置和 local_pkgs，删除其他（默认）"
+$MSG_ZH_env_root_confirm_all = "  A/a: 删除整个目录（包括配置和 local_pkgs）"
 $MSG_ZH_env_root_confirm_no = "  N/n: 取消安装"
 $MSG_ZH_removing_env_root = "正在删除现有RT-Thread ENV: {0}..."
-$MSG_ZH_removing_env_root_preserving = "正在删除（保留配置和工具链）: {0}..."
+$MSG_ZH_removing_env_root_preserving = "正在删除（保留配置和 local_pkgs）: {0}..."
 $MSG_ZH_removing_env_root_all = "正在删除整个目录: {0}..."
 $MSG_ZH_env_root_removed = "已删除 RT-Thread ENV: {0}"
-$MSG_ZH_restoring_config = "正在恢复配置和工具链..."
-$MSG_ZH_config_restored = "配置和工具链已恢复"
+$MSG_ZH_restoring_config = "正在恢复配置..."
+$MSG_ZH_config_restored = "配置已恢复"
 $MSG_ZH_installation_cancelled = "安装已取消"
 $MSG_ZH_venv_not_found = "找不到虚拟环境，请重新创建"
 $MSG_ZH_upgrading_pip = "正在升级 pip..."
@@ -1450,16 +1449,14 @@ function Check-ExistingEnv {
             # Auto mode: preserve config and toolchain by default
             Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
             
-            # Define paths to preserve and move to ENV_ROOT
+            # Define paths to preserve
             $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
             $localPkgsPath = "$env:ENV_ROOT\local_pkgs"
             $tempConfigPath = "$env:ENV_ROOT\.config.backup"
-            $tempLocalPkgsPath = "$env:ENV_ROOT\local_pkgs.backup"
             
             # Set global flags for restoration after installation
             $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
             $Global:TEMP_CONFIG_PATH = ""
-            $Global:TEMP_LOCAL_PKGS_PATH = ""
             
             # Move config to ENV_ROOT root temporarily
             if (Test-Path $configPath) {
@@ -1468,22 +1465,21 @@ function Check-ExistingEnv {
                 $Global:TEMP_CONFIG_PATH = $tempConfigPath
             }
             
-            # Move local_pkgs to ENV_ROOT root temporarily
-            if (Test-Path $localPkgsPath) {
-                Copy-Item -Path $localPkgsPath -Destination $tempLocalPkgsPath -Recurse -Force -ErrorAction SilentlyContinue
-                $Global:RESTORE_CONFIG_AFTER_INSTALL = $true
-                $Global:TEMP_LOCAL_PKGS_PATH = $tempLocalPkgsPath
-            }
+            # Note: local_pkgs is not deleted, no need to backup
             
-            # Remove directories
+            # Remove directories (excluding local_pkgs)
             foreach ($dir in $existingDirs) {
+                # Skip local_pkgs directory
+                if ($dir -eq $localPkgsPath) {
+                    continue
+                }
                 Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
             }
             if ($envScriptExists) {
                 Remove-Item -Path $envScript -ErrorAction SilentlyContinue
             }
             
-            # Note: Config and toolchain will be restored after installation completes
+            # Note: Config will be restored after installation completes
             Write-LogSuccess "env_root_removed" $env:ENV_ROOT
         }
         else {
@@ -1510,16 +1506,14 @@ function Check-ExistingEnv {
                 # Preserve config and toolchain
                 Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
                 
-                # Move config to ENV_ROOT root temporarily
+                # Define paths to preserve
                 $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
                 $localPkgsPath = "$env:ENV_ROOT\local_pkgs"
                 $tempConfigPath = "$env:ENV_ROOT\.config.backup"
-                $tempLocalPkgsPath = "$env:ENV_ROOT\local_pkgs.backup"
                 
                 # Set global flags for restoration after installation
                 $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
                 $Global:TEMP_CONFIG_PATH = ""
-                $Global:TEMP_LOCAL_PKGS_PATH = ""
                 
                 if (Test-Path $configPath) {
                     Copy-Item -Path $configPath -Destination $tempConfigPath -Force
@@ -1527,21 +1521,21 @@ function Check-ExistingEnv {
                     $Global:TEMP_CONFIG_PATH = $tempConfigPath
                 }
                 
-                if (Test-Path $localPkgsPath) {
-                    Copy-Item -Path $localPkgsPath -Destination $tempLocalPkgsPath -Recurse -Force
-                    $Global:RESTORE_CONFIG_AFTER_INSTALL = $true
-                    $Global:TEMP_LOCAL_PKGS_PATH = $tempLocalPkgsPath
-                }
+                # Note: local_pkgs is not deleted, no need to backup
                 
-                # Remove directories
+                # Remove directories (excluding local_pkgs)
                 foreach ($dir in $existingDirs) {
+                    # Skip local_pkgs directory
+                    if ($dir -eq $localPkgsPath) {
+                        continue
+                    }
                     Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
                 }
                 if ($envScriptExists) {
                     Remove-Item -Path $envScript -ErrorAction SilentlyContinue
                 }
                 
-                # Note: Config and toolchain will be restored after installation completes
+                # Note: Config will be restored after installation completes
                 Write-LogSuccess "env_root_removed" $env:ENV_ROOT
             }
             elseif ($response -match "^[Aa]$") {
@@ -1819,11 +1813,7 @@ function Main {
             Remove-Item -Path $Global:TEMP_CONFIG_PATH -Force -ErrorAction SilentlyContinue
         }
         
-        # Restore local_pkgs
-        if ($Global:TEMP_LOCAL_PKGS_PATH -and (Test-Path $Global:TEMP_LOCAL_PKGS_PATH)) {
-            Copy-Item -Path $Global:TEMP_LOCAL_PKGS_PATH -Destination $localPkgsPath -Recurse -Force
-            Remove-Item -Path $Global:TEMP_LOCAL_PKGS_PATH -Recurse -Force -ErrorAction SilentlyContinue
-        }
+        # Note: local_pkgs was not deleted, no need to restore
         
         Write-LogSuccess "config_restored"
     }
