@@ -1004,6 +1004,8 @@ function Find-SystemPython {
     # Find Python in common installation paths first, then system PATH
     # Returns: array of python paths, $null if not found
 
+    Write-Host "DEBUG: Find-SystemPython called" -ForegroundColor Magenta
+
     $userProfile = $env:USERPROFILE
     $localAppData = $env:LOCALAPPDATA
     $programFiles = $env:ProgramFiles
@@ -1063,10 +1065,14 @@ function Find-SystemPython {
         $uniquePaths = @($foundPaths | Get-Unique | Where-Object { $_ })
     }
 
+    Write-Host "DEBUG: foundPaths.Count = $($foundPaths.Count), uniquePaths.Count = $($uniquePaths.Count)" -ForegroundColor Magenta
+
     if ($uniquePaths.Count -eq 0) {
+        Write-Host "DEBUG: Returning null (no Python found)" -ForegroundColor Magenta
         return $null
     }
     elseif ($uniquePaths.Count -eq 1) {
+        Write-Host "DEBUG: Returning single Python: $($uniquePaths[0])" -ForegroundColor Magenta
         return $uniquePaths[0]
     }
     else {
