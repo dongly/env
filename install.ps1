@@ -405,6 +405,9 @@ $MSG_EN_sdk = "     - sdk           : Install toolchains"
 $MSG_EN_using_custom_repo = "Using custom repository: {0}"
 $MSG_EN_using_custom_branch = "Using branch: {0}"
 $MSG_EN_using_custom_repo_branch = "Using custom repository: {0} (branch: {1})"
+$MSG_EN_multiple_python_found = "Multiple Python installations found:"
+$MSG_EN_select_python = "Select Python installation (1-{0}) [default: {1}]: "
+$MSG_EN_auto_selected = "Auto-selected: {0} (latest version)"
 
 # Chinese messages
 $MSG_ZH_banner_title = "RT-Thread ENV 安装程序"
@@ -490,6 +493,10 @@ $MSG_ZH_fixed_guiconfig = "已修复 guiconfig.py（添加缺失的导入）"
 $MSG_ZH_pyocd_installed = "将安装 pyocd 包"
 $MSG_ZH_pyocd_not_installed = "跳过 pyocd 安装"
 $MSG_ZH_copied_env_script = "已复制 env.ps1: {0}"
+$MSG_ZH_multiple_python_found = "发现多个 Python 安装:"
+$MSG_ZH_select_python = "选择 Python 安装 (1-{0}) [默认: {1}]: "
+$MSG_ZH_auto_selected = "自动选择: {0} (最新版本)"
+
 $MSG_ZH_setup_complete = "RT-Thread ENV 安装完成！"
 $MSG_ZH_next_steps = "后续步骤:"
 $MSG_ZH_activate_env = "1. 激活环境:"
@@ -1104,17 +1111,16 @@ function Select-PythonInstallation {
     $selectedPython = $null
 
     if ($PythonPaths.Count -eq 0) {
-        Write-Host "DEBUG: No Python installations found" -ForegroundColor Magenta
         return $null
     }
     elseif ($PythonPaths.Count -eq 1) {
-        Write-Host "DEBUG: Using single Python: $($PythonPaths[0])" -ForegroundColor Magenta
         $selectedPython = $PythonPaths[0]
     }
     else {
         # Multiple Python found
         Write-Host ""
-        Write-Host "Multiple Python installations found:"
+        $msgKey = "multiple_python_found"
+        Write-LogInfo $msgKey
         for ($i = 0; $i -lt $PythonPaths.Count; $i++) {
             $ver = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
             Write-Host "  $($i + 1)). $($PythonPaths[$i]) - $($ver.Line)"
@@ -1126,6 +1132,7 @@ function Select-PythonInstallation {
             # Find the latest version by comparing version strings
             $latestPython = $null
             $latestVersion = [version]"0.0.0"
+            $latestIndex = 0
 
             for ($i = 0; $i -lt $PythonPaths.Count; $i++) {
                 $verString = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
@@ -1135,12 +1142,14 @@ function Select-PythonInstallation {
                     if ($currentVersion -gt $latestVersion) {
                         $latestVersion = $currentVersion
                         $latestPython = $PythonPaths[$i]
+                        $latestIndex = $i
                     }
                 }
                 catch {
                     # If version parsing fails, use this Python if we haven't found one yet
                     if (-not $latestPython) {
                         $latestPython = $PythonPaths[$i]
+                        $latestIndex = $i
                     }
                     continue
                 }
@@ -1149,20 +1158,56 @@ function Select-PythonInstallation {
             # Fallback: if no Python was selected (all version parsing failed), use the first one
             if (-not $latestPython) {
                 $latestPython = $PythonPaths[0]
+                $latestIndex = 0
             }
 
-            Write-Host "Auto-selected: $latestPython (latest version)" -ForegroundColor Yellow
+            $msgKey = "auto_selected"
+            $msg = Get-Message $msgKey
+            $formatted = $msg -f $latestPython
+            Write-Host $formatted -ForegroundColor Yellow
             $selectedPython = $latestPython
         }
         else {
             # Interactive mode, let user choose
-            $choice = Read-Host "Select Python installation (1-$($PythonPaths.Count))"
-            $idx = [int]$choice - 1
-            if ($idx -ge 0 -and $idx -lt $PythonPaths.Count) {
-                $selectedPython = $PythonPaths[$idx]
+            # Find the latest version to use as default
+            $latestPython = $null
+            $latestVersion = [version]"0.0.0"
+            $latestIndex = 0
+
+            for ($i = 0; $i -lt $PythonPaths.Count; $i++) {
+                $verString = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
+                $verString = $verString.Line -replace 'Python ', ''
+                try {
+                    $currentVersion = [version]$verString
+                    if ($currentVersion -gt $latestVersion) {
+                        $latestVersion = $currentVersion
+                        $latestPython = $PythonPaths[$i]
+                        $latestIndex = $i
+                    }
+                }
+                catch {
+                    continue
+                }
+            }
+
+            $msgKey = "select_python"
+            $msg = Get-Message $msgKey
+            $formatted = $msg -f $PythonPaths.Count, ($latestIndex + 1)
+            Write-Host $formatted -NoNewline -ForegroundColor Yellow
+            $choice = Read-Host
+
+            if ([string]::IsNullOrEmpty($choice)) {
+                # Use default (latest)
+                $selectedPython = $PythonPaths[$latestIndex]
             }
             else {
-                $selectedPython = $PythonPaths[0]
+                $idx = [int]$choice - 1
+                if ($idx -ge 0 -and $idx -lt $PythonPaths.Count) {
+                    $selectedPython = $PythonPaths[$idx]
+                }
+                else {
+                    $selectedPython = $PythonPaths[$latestIndex]
+                }
             }
         }
     }
@@ -1423,7 +1468,6 @@ function Ensure-Dependencies {
 
     if ($pythonPath) {
         $Global:SELECTED_PYTHON = $pythonPath
-        Write-Host "DEBUG: Selected Python saved to global variable: $pythonPath" -ForegroundColor Magenta
     }
 
     $usePortablePython = $false
