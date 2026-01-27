@@ -1387,24 +1387,17 @@ function Main {
         $TOUCH_ENV_URL = $script:Config.CustomEnvRepo + "/raw/" + ($script:Config.CustomEnvBranch -replace "refs/heads/", "") + "/touch_env.py"
     }
 
-    # Get touch_env.py content (local or download)
+    # Download touch_env.py from network
+    Write-Host ""
+    Write-LogInfo "downloading_touch_env" $TOUCH_ENV_URL
     $scriptContent = $null
-    $localTouchEnvPath = Join-Path $PSScriptRoot "touch_env.py"
-    if (Test-Path $localTouchEnvPath) {
-        $scriptContent = Get-Content -Path $localTouchEnvPath -Raw -Encoding UTF8
-        Write-Host "[INFO] Using local touch_env.py" -ForegroundColor Cyan
+    try {
+        $response = Invoke-WebRequest -Uri $TOUCH_ENV_URL -UseBasicParsing -ErrorAction Stop
+        $scriptContent = $response.Content
     }
-    else {
-        Write-Host ""
-        Write-LogInfo "downloading_touch_env" $TOUCH_ENV_URL
-        try {
-            $response = Invoke-WebRequest -Uri $TOUCH_ENV_URL -UseBasicParsing -ErrorAction Stop
-            $scriptContent = $response.Content
-        }
-        catch {
-            Write-LogError "touch_env_download_failed" $_.Exception.Message
-            exit 1
-        }
+    catch {
+        Write-LogError "touch_env_download_failed" $_.Exception.Message
+        exit 1
     }
 
     # Step 4: Call touch_env.py to handle Step 5-10
