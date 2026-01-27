@@ -1,4 +1,4 @@
-#
+﻿#
 # RT-Thread ENV Installation Script (Windows)
 # Unified installation script for Windows
 # Supports: English / 中文
@@ -230,15 +230,15 @@ function Print-Help {
         Write-Host "  -c, --cn, --gitee    使用中国镜像（Gitee，清华 PyPI）"
         Write-Host "  -o, --official       强制使用官方源"
         Write-Host "  -p, --pyocd          安装 pyocd（用于调试）"
-        Write-Host "  -e, --env-root <path> 设置自定义安装目录"
+        Write-Host "  -e, --env-root [path] 设置自定义安装目录"
         Write-Host "  -E, --en, --english  强制显示英文信息"
         Write-Host "  -Z, --zh, --chinese  强制显示中文信息"
         Write-Host "  -P, --python         强制安装便携式 Python（忽略系统 Python）"
-        Write-Host "  --packages <repo>    指定 packages 仓库地址和分支"
+        Write-Host "  --packages [repo]    指定 packages 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
-        Write-Host "  --env <repo>         指定 env 仓库地址和分支"
+        Write-Host "  --env [repo]         指定 env 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
-        Write-Host "  --sdk <repo>         指定 sdk 仓库地址和分支"
+        Write-Host "  --sdk [repo]         指定 sdk 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
         Write-Host "  --skip-long-path     跳过启用 Windows 长路径支持"
         Write-Host "  -h, --help           显示此帮助信息"
@@ -254,15 +254,15 @@ function Print-Help {
         Write-Host "  -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)"
         Write-Host "  -o, --official       Force use official source"
         Write-Host "  -p, --pyocd          Install pyocd for debugging"
-        Write-Host "  -e, --env-root <path> Set custom install directory"
+        Write-Host "  -e, --env-root [path] Set custom install directory"
         Write-Host "  -E, --en, --english  Force English messages"
         Write-Host "  -Z, --zh, --chinese  Force Chinese messages"
         Write-Host "  -P, --python         Force install portable Python (ignore system Python)"
-        Write-Host "  --packages <repo>    Specify custom packages repository and branch"
+        Write-Host "  --packages [repo]    Specify custom packages repository and branch"
         Write-Host "                        Format: url[#branch]"
-        Write-Host "  --env <repo>         Specify custom env repository and branch"
+        Write-Host "  --env [repo]         Specify custom env repository and branch"
         Write-Host "                        Format: url[#branch]"
-        Write-Host "  --sdk <repo>         Specify custom sdk repository and branch"
+        Write-Host "  --sdk [repo]         Specify custom sdk repository and branch"
         Write-Host "                        Format: url[#branch]"
         Write-Host "  --skip-long-path     Skip enabling Windows long path support"
         Write-Host "  -h, --help           Show this help message"
@@ -1481,12 +1481,12 @@ function Backup-ConfigFile {
     $tempConfigPath = "$env:ENV_ROOT\.config.backup"
     
     if (Test-Path $configPath) {
-        Copy-Item -Path $configPath -Destination $tempConfigPath -Force -ErrorAction SilentlyContinue
+        $null = Copy-Item -Path $configPath -Destination $tempConfigPath -Force -ErrorAction SilentlyContinue
         $Global:RESTORE_CONFIG_AFTER_INSTALL = $true
         $Global:TEMP_CONFIG_PATH = $tempConfigPath
-        return $true
+        return
     }
-    return $false
+    return
 }
 
 function Remove-EnvDirectory {
@@ -1502,12 +1502,10 @@ function Remove-EnvDirectory {
     foreach ($item in $items) {
         # Skip local_pkgs directory if preserving
         if ($PreserveLocalPkgs -and ($item.Name -eq "local_pkgs" -or $item.FullName -eq $localPkgsPath)) {
-            $null = $true
             continue
         }
         # Skip .config.backup file if preserving
         if ($PreserveConfigBackup -and $item.Name -eq ".config.backup") {
-            $null = $true
             continue
         }
         $null = Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
