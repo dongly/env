@@ -242,14 +242,17 @@ def main():
         show_version_warning(False)
         exit(0)
 
+    # Check if any subcommand was provided
+    if not hasattr(args, 'func'):
+        # No subcommand provided, show help
+        parser.print_help()
+        exit(0)
+
     show_version_warning()
     export_environment_variable()
     init_logger(get_env_root())
 
-    if not vars(args):
-        parser.print_help()
-    else:
-        args.func(args)
+    args.func(args)
 
 
 def menuconfig():

@@ -1,4 +1,4 @@
-﻿#
+#
 # RT-Thread ENV Installation Script (Windows)
 # Unified installation script for Windows
 # Supports: English / 中文
@@ -1011,8 +1011,6 @@ function Find-SystemPython {
     # Find Python in common installation paths first, then system PATH
     # Returns: array of python paths, empty array if not found
 
-    Write-Host "DEBUG: Find-SystemPython called" -ForegroundColor Magenta
-
     $userProfile = $env:USERPROFILE
     $localAppData = $env:LOCALAPPDATA
     $programFiles = $env:ProgramFiles
@@ -1093,8 +1091,6 @@ function Find-SystemPython {
     if ($foundPaths.Count -gt 0) {
         $uniquePaths = @($foundPaths | Get-Unique | Where-Object { $_ })
     }
-
-    Write-Host "DEBUG: foundPaths.Count = $($foundPaths.Count), uniquePaths.Count = $($uniquePaths.Count)" -ForegroundColor Magenta
 
     return $uniquePaths
 }
