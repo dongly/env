@@ -22,6 +22,31 @@
 #   -h, --help           Show this help message
 #
 
+# Configuration
+# Repository URLs: GitHub (official) and Gitee (China mirror)
+$REPO_PACKAGES_GITHUB = "https://github.com/RT-Thread/packages.git"
+$REPO_ENV_GITHUB = "https://github.com/RT-Thread/env.git"
+$REPO_SDK_GITHUB = "https://github.com/RT-Thread/sdk.git"
+
+$REPO_PACKAGES_GITEE = "https://gitee.com/RT-Thread-Mirror/packages.git"
+$REPO_ENV_GITEE = "https://gitee.com/RT-Thread-Mirror/env.git"
+$REPO_SDK_GITEE = "https://gitee.com/RT-Thread-Mirror/sdk.git"
+
+# Default branches (empty means use git default)
+$BRANCH_PACKAGES_DEFAULT = ""
+$BRANCH_ENV_DEFAULT = ""
+$BRANCH_SDK_DEFAULT = ""
+
+# PyPI mirror and detection URLs
+$PYPI_MIRROR_CN = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+$GIT_GITHUB_API_URL = "https://api.github.com/repos/git-for-windows/git/releases/latest"
+$GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
+
+$IPINFO_URL = "https://ipinfo.io/json"
+
+$GIT_DOWNLOAD_URL = "https://git-scm.com/download/win"
+
 # Parameter variables
 $autoMode = $false
 $helpMode = $false
@@ -155,27 +180,6 @@ $Global:SELECTED_PYTHON = ""
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-
-$REPO_PACKAGES_GITHUB = "https://github.com/RT-Thread/packages.git"
-$REPO_ENV_GITHUB = "https://github.com/RT-Thread/env.git"
-$REPO_SDK_GITHUB = "https://github.com/RT-Thread/sdk.git"
-
-$REPO_PACKAGES_GITEE = "https://gitee.com/RT-Thread-Mirror/packages.git"
-$REPO_ENV_GITEE = "https://gitee.com/RT-Thread-Mirror/env.git"
-$REPO_SDK_GITEE = "https://gitee.com/RT-Thread-Mirror/sdk.git"
-
-$BRANCH_PACKAGES_DEFAULT = ""
-$BRANCH_ENV_DEFAULT = ""
-$BRANCH_SDK_DEFAULT = ""
-
-$PYPI_MIRROR_CN = "https://pypi.tuna.tsinghua.edu.cn/simple"
-
-$GIT_GITHUB_API_URL = "https://api.github.com/repos/git-for-windows/git/releases/latest"
-$GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
-
-$IPINFO_URL = "https://ipinfo.io/json"
-
-$GIT_DOWNLOAD_URL = "https://git-scm.com/download/win"
 
 # Get-SystemLanguage function
 # 检测系统语言，返回 'zh' 或 'en'
