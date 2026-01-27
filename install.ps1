@@ -1366,13 +1366,17 @@ function Main {
     # Step 1: Print installation banner
     Show-Banner
 
-    # Step 2: Remove portable Python if exists (only if not forcing portable Python installation)
-    if (-not $script:Config.UseEmbedPython) {
-        Remove-PortablePython
-    }
-
-    # Step 3: Ensure Python and Git are installed
+    # Step 2: Ensure Python and Git are installed
     Ensure-Dependencies
+
+    # Step 3: Remove portable Python if exists (only if not forcing portable Python installation and user selected system Python)
+    if (-not $script:Config.UseEmbedPython) {
+        $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
+        # Only remove if user didn't just install portable Python
+        if ($script:Config.SelectedPython -ne $portablePythonPath) {
+            Remove-PortablePython
+        }
+    }
 
     # Set touch_env.py download URL
     $TOUCH_ENV_URL = $TOUCH_ENV_URL_GITHUB
