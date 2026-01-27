@@ -43,6 +43,18 @@ import json
 from pathlib import Path
 
 # ============================================================================
+# Python Version Check
+# ============================================================================
+
+MIN_PYTHON_VERSION = (3, 6)
+
+if sys.version_info < MIN_PYTHON_VERSION:
+    print(
+        f"Error: Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or higher is required.", file=sys.stderr)
+    print(f"Current Python version: {sys.version}", file=sys.stderr)
+    sys.exit(1)
+
+# ============================================================================
 # Configuration Constants
 # ============================================================================
 
@@ -73,13 +85,47 @@ TEMP_CONFIG_FILE = ".config.backup"
 PORTABLE_PYTHON_DIR = "python"
 
 # ============================================================================
+# Runtime Configuration
+# ============================================================================
+
+class RuntimeConfig:
+    """Runtime configuration management"""
+    def __init__(self):
+        self._language = 'en'  # Default language
+
+    @property
+    def language(self):
+        """Get current language"""
+        return self._language
+
+    @language.setter
+    def language(self, value):
+        """Set language"""
+        self._language = value
+
+# Global runtime configuration instance
+_runtime_config = RuntimeConfig()
+
+def get_language():
+    """Get current language"""
+    return _runtime_config.language
+
+def set_language(lang):
+    """Set language"""
+    _runtime_config.language = lang
+
+# ============================================================================
 # TouchEnvConfig Class
 # ============================================================================
+
 
 class TouchEnvConfig:
     """Configuration management class for touch_env"""
 
     def __init__(self, args):
+        # Set language in runtime config
+        set_language(args.language)
+
         self.env_root = args.env_root
         self.use_cn = args.use_cn
         self.language = args.language
@@ -108,7 +154,8 @@ class TouchEnvConfig:
 
         # Validate language
         if self.language not in ['en', 'zh']:
-            raise ValueError(f"Invalid language: {self.language}. Must be 'en' or 'zh'")
+            raise ValueError(
+                f"Invalid language: {self.language}. Must be 'en' or 'zh'")
 
         # Validate custom_repos JSON
         if self.custom_repos:
@@ -121,14 +168,17 @@ class TouchEnvConfig:
 
                 repo_info = self.custom_repos[repo_name]
                 if not isinstance(repo_info, dict):
-                    raise ValueError(f"Repository info for {repo_name} must be a dictionary")
+                    raise ValueError(
+                        f"Repository info for {repo_name} must be a dictionary")
 
                 if 'url' not in repo_info:
-                    raise ValueError(f"Repository {repo_name} must have 'url' field")
+                    raise ValueError(
+                        f"Repository {repo_name} must have 'url' field")
 
 # ============================================================================
 # Internationalization Messages
 # ============================================================================
+
 
 MESSAGES = {
     'en': {
@@ -183,6 +233,7 @@ MESSAGES = {
         'removing_env_all': 'Removing entire directory: {0}...',
         'env_root_removed': 'Existing RT-Thread ENV removed: {0}',
         'installation_cancelled': 'Installation cancelled',
+        'installation_failed': 'Installation failed: {0}',
         'removing_portable_python': 'Removing portable Python: {0}...',
     },
     'zh': {
@@ -237,46 +288,58 @@ MESSAGES = {
         'removing_env_all': '正在删除整个目录: {0}...',
         'env_root_removed': '已删除 RT-Thread ENV: {0}',
         'installation_cancelled': '安装已取消',
+        'installation_failed': '安装失败: {0}',
         'removing_portable_python': '正在删除便携式 Python: {0}...',
     }
 }
 
 # ============================================================================
-# Logging Functions
+# Global Variables
 # ============================================================================
 
-def get_message(key, language='en'):
-    """Get localized message"""
-    return MESSAGES.get(language, {}).get(key, key)
+# ============================================================================
+# Message Functions
+# ============================================================================
 
-def log_info(key, language='en', *args):
-    """Log info message"""
-    msg = get_message(key, language)
+
+def get_message(key):
+    """Get localized message using current language"""
+    lang = get_language()
+    return MESSAGES.get(lang, {}).get(key, key)
+
+
+def log_info(key, *args):
+    """Log info message to stdout"""
+    msg = get_message(key)
     if args:
         msg = msg.format(*args)
-    print(f"\033[0;36m[{get_message('info', language)}]\033[0m {msg}", file=sys.stderr)
+    print(f"\033[0;36m[{get_message('info')}]\033[0m {msg}")
 
-def log_success(key, language='en', *args):
-    """Log success message"""
-    msg = get_message(key, language)
+
+def log_success(key, *args):
+    """Log success message to stdout"""
+    msg = get_message(key)
     if args:
         msg = msg.format(*args)
-    print(f"\033[0;32m[{get_message('success', language)}]\033[0m {msg}", file=sys.stderr)
+    print(f"\033[0;32m[{get_message('success')}]\033[0m {msg}")
 
-def log_error(key, language='en', *args):
-    """Log error message"""
-    msg = get_message(key, language)
+
+def log_error(key, *args):
+    """Log error message to stderr"""
+    msg = get_message(key)
     if args:
         msg = msg.format(*args)
-    print(f"\033[0;31m[{get_message('error', language)}]\033[0m {msg}", file=sys.stderr)
+    print(f"\033[0;31m[{get_message('error')}]\033[0m {msg}", file=sys.stderr)
+
 
 def log_raw(text):
-    """Log raw text without formatting"""
+    """Log raw text to stderr"""
     print(text, file=sys.stderr)
 
 # ============================================================================
 # Repository Functions
 # ============================================================================
+
 
 def clone_repository(config, repo_name, url, dest_rel, branch='', depth=1):
     """
@@ -305,15 +368,15 @@ def clone_repository(config, repo_name, url, dest_rel, branch='', depth=1):
                 text=True,
                 check=True
             )
-            log_success('dir_exists', config.language, dest_path)
+            log_success('dir_exists', dest_path)
             return
         except subprocess.CalledProcessError:
             # Invalid git repository, need to clean up
-            log_error('invalid_git_repo', config.language, dest_path)
+            log_error('invalid_git_repo', dest_path)
             shutil.rmtree(dest_path, ignore_errors=True)
 
     # Clone repository
-    log_info('cloning', config.language, url, dest_path)
+    log_info('cloning', url, dest_path)
 
     clone_args = ['git', 'clone', '--depth', str(depth)]
     if branch:
@@ -322,12 +385,13 @@ def clone_repository(config, repo_name, url, dest_rel, branch='', depth=1):
 
     try:
         subprocess.run(clone_args, check=True, capture_output=True, text=True)
-        log_success('cloned', config.language, dest_path)
+        log_success('cloned', dest_path)
     except subprocess.CalledProcessError as e:
         # Clone failed, clean up partial clone
-        log_error('clone_failed', config.language, e.stderr)
+        log_error('clone_failed', e.stderr)
         shutil.rmtree(dest_path, ignore_errors=True)
         raise RuntimeError(f"Failed to clone {url}") from e
+
 
 def setup_repositories(config):
     """
@@ -369,11 +433,11 @@ def setup_repositories(config):
             repo_info = config.custom_repos[repo_name]
             url = repo_info['url']
             branch = repo_info.get('branch', '')
-            
+
             if branch:
-                log_info('using_custom_repo_branch', config.language, url, branch)
+                log_info('using_custom_repo_branch', url, branch)
             else:
-                log_info('using_custom_repo', config.language, url)
+                log_info('using_custom_repo', url)
         else:
             url = repos_base[repo_name]
             branch = ''
@@ -386,6 +450,7 @@ def setup_repositories(config):
     # Copy env scripts
     copy_env_scripts(config)
 
+
 def generate_kconfig_file(config):
     """Generate Kconfig configuration file"""
     packages_dir = os.path.join(config.env_root, 'packages')
@@ -397,11 +462,12 @@ def generate_kconfig_file(config):
     with open(kconfig_path, 'w', encoding='utf-8') as f:
         f.write(kconfig_content)
 
-    log_success('generating_kconfig', config.language, kconfig_path)
+    log_success('generating_kconfig', kconfig_path)
 
     # Create local_pkgs directory
     local_pkgs_dir = os.path.join(config.env_root, 'local_pkgs')
     os.makedirs(local_pkgs_dir, exist_ok=True)
+
 
 def copy_env_scripts(config):
     """Copy env scripts to root directory"""
@@ -417,11 +483,12 @@ def copy_env_scripts(config):
 
     if os.path.exists(src):
         shutil.copy2(src, dst)
-        log_success('copied_env_script', config.language, dst)
+        log_success('copied_env_script', dst)
 
 # ============================================================================
 # Virtual Environment Functions
 # ============================================================================
+
 
 def create_venv(config):
     """
@@ -436,18 +503,19 @@ def create_venv(config):
     venv_path = config.venv_dir
 
     if os.path.exists(venv_path):
-        log_success('venv_exists', config.language)
+        log_success('venv_exists')
         return
 
-    log_info('creating_venv', config.language, venv_path)
+    log_info('creating_venv', venv_path)
 
     try:
         import venv
         venv.create(venv_path, with_pip=True)
-        log_success('venv_created', config.language)
-    except Exception as e:
-        log_error('venv_creation_failed', config.language, str(e))
+        log_success('venv_created')
+    except (OSError, PermissionError, ValueError) as e:
+        log_error('venv_creation_failed', str(e))
         raise RuntimeError(f"Failed to create virtual environment: {e}") from e
+
 
 def get_python_executable(config):
     """
@@ -468,6 +536,7 @@ def get_python_executable(config):
 # Package Installation Functions
 # ============================================================================
 
+
 def install_packages(config):
     """
     Install Python packages
@@ -481,11 +550,11 @@ def install_packages(config):
     python_exe = get_python_executable(config)
 
     if not os.path.exists(python_exe):
-        log_error('venv_not_found', config.language)
+        log_error('venv_not_found')
         raise RuntimeError("Virtual environment not found")
 
     # Upgrade pip
-    log_info('upgrading_pip', config.language)
+    log_info('upgrading_pip')
     subprocess.run(
         [python_exe, '-m', 'pip', 'install', '--upgrade', 'pip'],
         check=True,
@@ -498,8 +567,8 @@ def install_packages(config):
 
     # Add mirror source
     if config.use_cn:
-        log_info('using_cn_mirror', config.language)
-        log_info('using_pypi_mirror', config.language, PYPI_MIRROR_CN)
+        log_info('using_cn_mirror')
+        log_info('using_pypi_mirror', PYPI_MIRROR_CN)
         pip_args.extend(['--index-url', PYPI_MIRROR_CN])
 
     # Install rt-env package (editable mode)
@@ -510,16 +579,17 @@ def install_packages(config):
         pip_args.append('pyocd')
 
     # Execute installation
-    log_info('installing_packages', config.language)
+    log_info('installing_packages')
     try:
         subprocess.run(pip_args, check=True, capture_output=True, text=True)
-        log_success('installed_packages', config.language)
+        log_success('installed_packages')
     except subprocess.CalledProcessError as e:
-        log_error('package_install_failed', config.language, e.stderr)
+        log_error('package_install_failed', e.stderr)
         raise RuntimeError(f"Package installation failed: {e}") from e
 
     # Fix guiconfig.py missing import re issue
     fix_guiconfig_import(config)
+
 
 def fix_guiconfig_import(config):
     """
@@ -528,15 +598,15 @@ def fix_guiconfig_import(config):
     Args:
         config: TouchEnvConfig instance
     """
-    guiconfig_path = None
+    # Direct path for Windows and Unix-like systems
+    if platform.system() == 'Windows':
+        guiconfig_path = os.path.join(
+            config.venv_dir, 'Lib', 'site-packages', 'guiconfig.py')
+    else:
+        guiconfig_path = os.path.join(
+            config.venv_dir, 'lib', f'python{sys.version_info.major}.{sys.version_info.minor}', 'site-packages', 'guiconfig.py')
 
-    # Search for guiconfig.py in venv
-    for root, dirs, files in os.walk(config.venv_dir):
-        if 'guiconfig.py' in files:
-            guiconfig_path = os.path.join(root, 'guiconfig.py')
-            break
-
-    if not guiconfig_path:
+    if not os.path.exists(guiconfig_path):
         return
 
     try:
@@ -545,30 +615,59 @@ def fix_guiconfig_import(config):
 
         # Check if import re already exists
         if 'import re' not in content:
-            # Insert import re at the beginning
+            # Insert import re at the appropriate location
             lines = content.split('\n')
-            
-            # Find the first import or from statement
+
+            # Find the first non-comment, non-docstring line
+            # Skip shebang, encoding, and docstring
             import_index = 0
+            in_docstring = False
+            docstring_delimiter = None
+
             for i, line in enumerate(lines):
+                stripped = line.strip()
+
+                # Skip empty lines and comments
+                if not stripped or stripped.startswith('#'):
+                    continue
+
+                # Handle docstring
+                if (stripped.startswith('"""') or stripped.startswith("'''")):
+                    if in_docstring:
+                        if stripped.startswith(docstring_delimiter) and len(stripped) > 3:
+                            in_docstring = False
+                    else:
+                        in_docstring = True
+                        docstring_delimiter = stripped[:3]
+                    continue
+
+                if in_docstring:
+                    continue
+
+                # Found first actual code line
+                # Look for the first import or from statement
                 if line.startswith('import ') or line.startswith('from '):
                     import_index = i + 1
-            
-            # Insert import re
+                else:
+                    import_index = i
+                break
+
+            # Insert import re at the calculated position
             lines.insert(import_index, 'import re')
             content = '\n'.join(lines)
 
             with open(guiconfig_path, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-            log_success('fixed_guiconfig', config.language)
-    except Exception as e:
+            log_success('fixed_guiconfig')
+    except (IOError, PermissionError, UnicodeDecodeError, UnicodeEncodeError) as e:
         # Fix failure should not interrupt installation
-        log_error('fix_guiconfig_failed', config.language, str(e))
+        log_error('fix_guiconfig_failed', str(e))
 
 # ============================================================================
 # Configuration Backup/Restore Functions
 # ============================================================================
+
 
 def backup_config_file(config):
     """
@@ -577,11 +676,13 @@ def backup_config_file(config):
     Args:
         config: TouchEnvConfig instance
     """
-    config_path = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
+    config_path = os.path.join(
+        config.env_root, 'tools', 'scripts', 'cmds', '.config')
 
     if os.path.exists(config_path):
-        log_info('backup_config', config.language)
+        log_info('backup_config')
         shutil.copy2(config_path, config.temp_config_path)
+
 
 def restore_config(config):
     """
@@ -591,18 +692,20 @@ def restore_config(config):
         config: TouchEnvConfig instance
     """
     if config.restore_config and os.path.exists(config.temp_config_path):
-        config_path = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
+        config_path = os.path.join(
+            config.env_root, 'tools', 'scripts', 'cmds', '.config')
 
-        log_info('restoring_config', config.language)
+        log_info('restoring_config')
         shutil.copy2(config.temp_config_path, config_path)
         os.remove(config.temp_config_path)
-        log_success('config_restored', config.language)
+        log_success('config_restored')
     else:
-        log_info('no_config_to_restore', config.language)
+        log_info('no_config_to_restore')
 
 # ============================================================================
 # Check Existing ENV Functions
 # ============================================================================
+
 
 def check_existing_env(config):
     """
@@ -617,7 +720,7 @@ def check_existing_env(config):
     if not os.path.exists(config.env_root):
         return
 
-    log_raw(get_message('env_root_exists', config.language, config.env_root))
+    log_raw(get_message('env_root_exists', config.env_root))
     print()
 
     if config.auto_mode:
@@ -626,7 +729,7 @@ def check_existing_env(config):
     else:
         # Interactive mode: ask user
         response = show_deletion_options(config)
-        
+
         if response.lower() == 'y':
             # Preserve config and local_pkgs
             remove_env_directory(config, preserve=True)
@@ -635,8 +738,9 @@ def check_existing_env(config):
             remove_env_directory(config, preserve=False)
         else:
             # Cancel installation
-            log_info('installation_cancelled', config.language)
+            log_info('installation_cancelled')
             sys.exit(0)
+
 
 def show_deletion_options(config):
     """
@@ -648,19 +752,20 @@ def show_deletion_options(config):
     Returns:
         str: User response
     """
-    print(get_message('env_root_prompt', config.language))
-    print(get_message('env_root_confirm', config.language), end='', flush=True)
+    print(get_message('env_root_prompt'))
+    print(get_message('env_root_confirm'), end='', flush=True)
     print()
-    print(get_message('env_root_confirm_help', config.language))
-    print(get_message('env_root_confirm_all', config.language))
-    print(get_message('env_root_confirm_no', config.language))
+    print(get_message('env_root_confirm_help'))
+    print(get_message('env_root_confirm_all'))
+    print(get_message('env_root_confirm_no'))
     print('> ', end='', flush=True)
-    
+
     response = input()
-    
+
     if not response:
         return 'y'  # Default is y (preserve)
     return response
+
 
 def remove_env_directory(config, preserve=True):
     """
@@ -672,53 +777,55 @@ def remove_env_directory(config, preserve=True):
     """
     # Set restore_config flag
     config.restore_config = False
-    
+
     # Paths to preserve
     local_pkgs_path = os.path.join(config.env_root, 'local_pkgs')
     portable_python_path = os.path.join(config.env_root, PORTABLE_PYTHON_DIR)
     config_backup_path = config.temp_config_path
-    
+
     # Always backup config file before deletion
-    config_path = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
+    config_path = os.path.join(
+        config.env_root, 'tools', 'scripts', 'cmds', '.config')
     if os.path.exists(config_path):
         shutil.copy2(config_path, config_backup_path)
         config.restore_config = True
-    
+
     # Delete all items
     if preserve:
-        log_info('removing_env_preserving', config.language, config.env_root)
+        log_info('removing_env_preserving', config.env_root)
     else:
-        log_info('removing_env_all', config.language, config.env_root)
-    
+        log_info('removing_env_all', config.env_root)
+
     try:
         for item in os.listdir(config.env_root):
             item_path = os.path.join(config.env_root, item)
-            
+
             # Skip local_pkgs if preserving
             if preserve and item == 'local_pkgs':
                 continue
-            
+
             # Skip portable python if preserving
             if preserve and (item == PORTABLE_PYTHON_DIR or item_path == portable_python_path):
                 continue
-            
+
             # Skip .config.backup if preserving
             if preserve and (item == '.config.backup' or item_path == config_backup_path):
                 continue
-            
+
             # Delete item
             if os.path.isfile(item_path):
                 os.remove(item_path)
             else:
                 shutil.rmtree(item_path, ignore_errors=True)
-        
-        log_success('env_root_removed', config.language, config.env_root)
-    except Exception as e:
-        log_error('removing_failed', config.language, str(e))
+
+        log_success('env_root_removed', config.env_root)
+    except (OSError, PermissionError) as e:
+        log_error('removing_failed', str(e))
 
 # ============================================================================
 # User Interaction Functions
 # ============================================================================
+
 
 def prompt_pyocd(config):
     """
@@ -739,10 +846,11 @@ def prompt_pyocd(config):
         return False
 
     print()
-    print(get_message('pyocd_install_prompt', config.language))
-    response = input(get_message('pyocd_install_confirm', config.language))
+    print(get_message('pyocd_install_prompt'))
+    response = input(get_message('pyocd_install_confirm'))
 
     return response.lower() != 'n'
+
 
 def show_next_steps(config):
     """
@@ -753,14 +861,14 @@ def show_next_steps(config):
     """
     print()
     print("=" * 60)
-    log_success('setup_complete', config.language)
+    log_success('setup_complete')
     print("=" * 60)
     print()
-    log_info('next_steps', config.language)
+    log_info('next_steps')
     print()
 
     # Activate environment
-    print(get_message('activate_env', config.language))
+    print(get_message('activate_env'))
     if platform.system() == 'Windows':
         print(f"   . {config.env_root}\\env.ps1")
     else:
@@ -768,7 +876,7 @@ def show_next_steps(config):
     print()
 
     # Add to profile
-    print(get_message('add_to_profile', config.language))
+    print(get_message('add_to_profile'))
     if platform.system() == 'Windows':
         print(f"   echo '. {config.env_root}\\env.ps1' >> $PROFILE")
         print(f"   . $PROFILE")
@@ -780,21 +888,22 @@ def show_next_steps(config):
     print()
 
     # Install toolchain
-    print(get_message('install_toolchain', config.language))
-    print(f"   {get_message('install_toolchain_cmd', config.language)}")
+    print(get_message('install_toolchain'))
+    print(f"   {get_message('install_toolchain_cmd')}")
     print()
 
     # Available commands
-    print(get_message('after_activation', config.language))
-    print(f"   - menuconfig    : {get_message('menuconfig', config.language)}")
-    print(f"   - pkgs          : {get_message('pkgs', config.language)}")
-    print(f"   - scons         : {get_message('scons', config.language)}")
-    print(f"   - sdk           : {get_message('sdk', config.language)}")
+    print(get_message('after_activation'))
+    print(f"   - menuconfig    : {get_message('menuconfig')}")
+    print(f"   - pkgs          : {get_message('pkgs')}")
+    print(f"   - scons         : {get_message('scons')}")
+    print(f"   - sdk           : {get_message('sdk')}")
     print()
 
 # ============================================================================
 # Argument Parsing
 # ============================================================================
+
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -855,6 +964,7 @@ def parse_arguments():
 # Main Execution Function
 # ============================================================================
 
+
 def run_touch_env(args):
     """
     Main execution function
@@ -897,13 +1007,15 @@ def run_touch_env(args):
         return 0
 
     except Exception as e:
-        log_error('installation_failed', args.language, str(e))
+        log_error('installation_failed', str(e))
         return 1
+
 
 def main():
     """Main entry point"""
     args = parse_arguments()
     sys.exit(run_touch_env(args))
+
 
 if __name__ == '__main__':
     main()

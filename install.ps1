@@ -164,10 +164,43 @@ $script:Config = [PSCustomObject]@{
     CustomSdkRepo = ""
     CustomSdkBranch = ""
     SelectedPython = ""
+    TempFiles = @()  # Track temporary files for cleanup
 }
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# Register-CleanupHandler function
+# Register cleanup handler for temporary files
+function Register-CleanupHandler {
+    try {
+        Unregister-Event -SourceIdentifier Script.Cleanup -ErrorAction SilentlyContinue
+    }
+    catch {}
+
+    $cleanupAction = {
+        foreach ($tempFile in $script:Config.TempFiles) {
+            if (Test-Path $tempFile) {
+                Remove-Item $tempFile -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action $cleanupAction | Out-Null
+}
+
+# Register-CleanupHandler
+Register-CleanupHandler
+
+# Add-TempFile function
+# Track temporary file for cleanup
+function Add-TempFile {
+    param([string]$FilePath)
+
+    if ($script:Config.TempFiles -notcontains $FilePath) {
+        $script:Config.TempFiles += $FilePath
+    }
+}
 
 # Get-SystemLanguage function
 # Detect system language, returns 'zh' or 'en'
@@ -380,12 +413,12 @@ function Get-Message {
 function Write-LogInfo {
     param([string]$Key, [string]$Arg1, [string]$Arg2)
     $msg = Get-Message $Key
-    $formatted = $msg
-    if ($null -ne $Arg1) {
-        $formatted = $formatted -replace '\{0\}', $Arg1
-    }
-    if ($null -ne $Arg2) {
-        $formatted = $formatted -replace '\{1\}', $Arg2
+    $formatted = if ($null -ne $Arg1 -and $null -ne $Arg2) {
+        $msg -f $Arg1, $Arg2
+    } elseif ($null -ne $Arg1) {
+        $msg -f $Arg1
+    } else {
+        $msg
     }
     Write-Host "[$(Get-Message 'info')] $formatted" -ForegroundColor Cyan
 }
@@ -393,12 +426,12 @@ function Write-LogInfo {
 function Write-LogSuccess {
     param([string]$Key, [string]$Arg1, [string]$Arg2)
     $msg = Get-Message $Key
-    $formatted = $msg
-    if ($null -ne $Arg1) {
-        $formatted = $formatted -replace '\{0\}', $Arg1
-    }
-    if ($null -ne $Arg2) {
-        $formatted = $formatted -replace '\{1\}', $Arg2
+    $formatted = if ($null -ne $Arg1 -and $null -ne $Arg2) {
+        $msg -f $Arg1, $Arg2
+    } elseif ($null -ne $Arg1) {
+        $msg -f $Arg1
+    } else {
+        $msg
     }
     Write-Host "[$(Get-Message 'success')] $formatted" -ForegroundColor Green
 }
@@ -406,12 +439,12 @@ function Write-LogSuccess {
 function Write-LogWarning {
     param([string]$Key, [string]$Arg1, [string]$Arg2)
     $msg = Get-Message $Key
-    $formatted = $msg
-    if ($null -ne $Arg1) {
-        $formatted = $formatted -replace '\{0\}', $Arg1
-    }
-    if ($null -ne $Arg2) {
-        $formatted = $formatted -replace '\{1\}', $Arg2
+    $formatted = if ($null -ne $Arg1 -and $null -ne $Arg2) {
+        $msg -f $Arg1, $Arg2
+    } elseif ($null -ne $Arg1) {
+        $msg -f $Arg1
+    } else {
+        $msg
     }
     Write-Host "[$(Get-Message 'warning')] $formatted" -ForegroundColor Yellow
 }
@@ -419,12 +452,12 @@ function Write-LogWarning {
 function Write-LogError {
     param([string]$Key, [string]$Arg1, [string]$Arg2)
     $msg = Get-Message $Key
-    $formatted = $msg
-    if ($null -ne $Arg1) {
-        $formatted = $formatted -replace '\{0\}', $Arg1
-    }
-    if ($null -ne $Arg2) {
-        $formatted = $formatted -replace '\{1\}', $Arg2
+    $formatted = if ($null -ne $Arg1 -and $null -ne $Arg2) {
+        $msg -f $Arg1, $Arg2
+    } elseif ($null -ne $Arg1) {
+        $msg -f $Arg1
+    } else {
+        $msg
     }
     Write-Host "[$(Get-Message 'error')] $formatted" -ForegroundColor Red
 }
@@ -540,38 +573,45 @@ function Install-Git {
     $installerPath = Join-Path $env:TEMP $gitInfo.Installer
     $gitUrl = $gitInfo.Url
 
-    # Download Git installer
-    Invoke-WebRequest -Uri $gitUrl -OutFile $installerPath -UseBasicParsing
+    # Track temporary file for cleanup
+    Add-TempFile -FilePath $installerPath
 
-    Write-LogInfo "installing_git"
+    try {
+        # Download Git installer
+        Invoke-WebRequest -Uri $gitUrl -OutFile $installerPath -UseBasicParsing -ErrorAction Stop
 
-    if ($Interactive) {
-        # Interactive installation - show installer UI with default options
-        Start-Process -FilePath $installerPath -Wait
-    }
-    else {
-        # Silent installation with progress display
-        # /SILENT: Silent installation with progress bar
-        # /SUPPRESSMSGBOXES: Suppress message boxes
-        # /NORESTART: Prevent restart
-        # /COMPONENTS="": Install all components
-        # /TASKS="desktopicon,winterminal": Add desktop icon and Windows Terminal profile
-        # /MERGETASKS="desktopicon,winterminal": Additional tasks to merge
-        # /DEFAULTBRANCH="main": Set default branch name to main
-        Start-Process -FilePath $installerPath -ArgumentList @(
-            "/SILENT",
-            "/SUPPRESSMSGBOXES",
-            "/NORESTART",
-            "/COMPONENTS=",
-            '/TASKS="desktopicon,winterminal"',
-            "/DEFAULTBRANCH=main"
-        ) -Wait
-    }
+        Write-LogInfo "installing_git"
 
-    Remove-Item $installerPath -ErrorAction SilentlyContinue
-    
-    Write-LogSuccess "git_installed"
+        if ($Interactive) {
+            # Interactive installation - show installer UI with default options
+            Start-Process -FilePath $installerPath -Wait
+        }
+        else {
+            # Silent installation with progress display
+            # /SILENT: Silent installation with progress bar
+            # /SUPPRESSMSGBOXES: Suppress message boxes
+            # /NORESTART: Prevent restart
+            # /COMPONENTS="": Install all components
+            # /TASKS="desktopicon,winterminal": Add desktop icon and Windows Terminal profile
+            # /MERGETASKS="desktopicon,winterminal": Additional tasks to merge
+            # /DEFAULTBRANCH="main": Set default branch name to main
+            Start-Process -FilePath $installerPath -ArgumentList @(
+                "/SILENT",
+                "/SUPPRESSMSGBOXES",
+                "/NORESTART",
+                "/COMPONENTS=",
+                '/TASKS="desktopicon,winterminal"',
+                "/DEFAULTBRANCH=main"
+            ) -Wait
+        }
+
+        Write-LogSuccess "git_installed"
     }
+    finally {
+        # Cleanup installer
+        Remove-Item $installerPath -ErrorAction SilentlyContinue
+    }
+}
     
     # Python Installation Functions
     # Install-Python: Install portable Python
@@ -610,9 +650,10 @@ function Install-Git {
     
         # Save portable Python path to global variable
         $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
-    
+
         Write-LogSuccess "python_installed"
-        return $portablePython}
+        return $portablePython
+    }
 
 function Download-PortablePython {
     param([bool]$UseCNMirror)
@@ -623,6 +664,9 @@ function Download-PortablePython {
     Write-LogInfo "downloading_portable_python" $pythonUrl
     $archivePath = Join-Path $env:TEMP $PYTHON_ARCHIVE
 
+    # Track temporary file for cleanup
+    Add-TempFile -FilePath $archivePath
+
     # Download Python embed archive
     try {
         Invoke-WebRequest -Uri $pythonUrl -OutFile $archivePath -UseBasicParsing -ErrorAction Stop
@@ -631,7 +675,7 @@ function Download-PortablePython {
         Write-LogError "download_failed" $_.Exception.Message
         exit 1
     }
-    
+
     # Verify file was downloaded successfully
     if (-not (Test-Path $archivePath) -or (Get-Item $archivePath).Length -eq 0) {
         Write-LogError "download_failed" "File not found or empty"
@@ -708,11 +752,15 @@ function Enable-LongPathSupport {
 
         # Check if running as administrator
         $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-        
+
         if (-not $isAdmin) {
             Write-LogWarning "need_admin_privilege"
             # Create a temporary script to enable long paths
             $tempScript = [System.IO.Path]::GetTempFileName() + ".ps1"
+
+            # Track temporary file for cleanup
+            Add-TempFile -FilePath $tempScript
+
             @"
 # Enable long paths in registry
 try {
@@ -724,7 +772,7 @@ catch {
     exit 1
 }
 "@ | Out-File -FilePath $tempScript -Encoding UTF8
-            
+
             # Start new process with administrator privileges to run the temp script
             $psi = New-Object System.Diagnostics.ProcessStartInfo
             $psi.FileName = "powershell.exe"
@@ -734,11 +782,11 @@ catch {
             try {
                 $process = [System.Diagnostics.Process]::Start($psi)
                 Write-LogInfo "elevating_to_enable_long_paths"
-                
+
                 # Wait for the process to complete
                 $process.WaitForExit()
                 $exitCode = $process.ExitCode
-                
+
                 # Check if long paths were enabled based on exit code
                 if ($exitCode -eq 0) {
                     Write-LogSuccess "long_paths_enabled"
@@ -749,12 +797,6 @@ catch {
             }
             catch {
                 Write-LogWarning "long_paths_enable_failed"
-            }
-            finally {
-                # Clean up temporary script
-                if (Test-Path $tempScript) {
-                    Remove-Item $tempScript -ErrorAction SilentlyContinue
-                }
             }
         }
         else {
