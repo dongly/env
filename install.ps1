@@ -40,16 +40,13 @@ $customEnvBranch = ""
 $customSdkRepo = ""
 $customSdkBranch = ""
 
-# Parse-RepoArg function must be defined before it's used in argument parsing
+# Parse-RepoArg function
 function Parse-RepoArg {
     param(
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$RepoArg
     )
-    
-    # Parse repo and branch (format: repo_url[#branch])
-    # Use # as separator to avoid conflicts with URL protocols and SSH ports
     
     if ($RepoArg -match "#") {
         $parts = $RepoArg -split "#", 2
@@ -72,7 +69,7 @@ function Parse-RepoArg {
     }
 }
 
-# Process all arguments (support both - and -- formats)
+# Process all arguments
 foreach ($arg in $args) {
     switch -CaseSensitive ($arg) {
         "-y" { $autoMode = $true }
@@ -96,14 +93,12 @@ foreach ($arg in $args) {
         "--zh" { $zhMode = $true }
         "--chinese" { $zhMode = $true }
         "-r" {
-            # Get next argument as env_root value
             $idx = $args.IndexOf($arg) + 1
             if ($idx -lt $args.Count) {
                 $envRootValue = $args[$idx]
             }
         }
         "--env-root" {
-            # Get next argument as env_root value
             $idx = $args.IndexOf($arg) + 1
             if ($idx -lt $args.Count) {
                 $envRootValue = $args[$idx]
@@ -139,10 +134,6 @@ foreach ($arg in $args) {
     }
 }
 
-# ============================================================================
-# Check PowerShell Version
-# ============================================================================
-
 $requiredPSVersion = "5.1"
 $psVersion = $PSVersionTable.PSVersion
 if ($psVersion.Major -lt 5 -or ($psVersion.Major -eq 5 -and $psVersion.Minor -lt 1)) {
@@ -151,61 +142,40 @@ if ($psVersion.Major -lt 5 -or ($psVersion.Major -eq 5 -and $psVersion.Minor -lt
     exit 1
 }
 
-# ============================================================================
-# Configuration
-# ============================================================================
-
-# Environment directory (can be overridden by --env-root or $env:ENV_ROOT)
 $ENV_DEFAULT_DIR = ".rtenv"
 $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\$ENV_DEFAULT_DIR" }
 
-# Virtual environment directory name
 $Global:VENV_DIR = "venv\rt-env"
 
-# Flag to indicate if config and toolchain should be restored after installation
 $Global:RESTORE_CONFIG_AFTER_INSTALL = $false
 $Global:TEMP_CONFIG_PATH = ""
 
-# Selected Python path (used during installation and activation)
 $Global:SELECTED_PYTHON = ""
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# Repository configurations
-# GitHub (default)
 $REPO_PACKAGES_GITHUB = "https://github.com/RT-Thread/packages.git"
 $REPO_ENV_GITHUB = "https://github.com/RT-Thread/env.git"
 $REPO_SDK_GITHUB = "https://github.com/RT-Thread/sdk.git"
 
-# Gitee (China mirror)
 $REPO_PACKAGES_GITEE = "https://gitee.com/RT-Thread-Mirror/packages.git"
 $REPO_ENV_GITEE = "https://gitee.com/RT-Thread-Mirror/env.git"
 $REPO_SDK_GITEE = "https://gitee.com/RT-Thread-Mirror/sdk.git"
 
-# Default branches for each repository (empty means use git default)
 $BRANCH_PACKAGES_DEFAULT = ""
 $BRANCH_ENV_DEFAULT = ""
 $BRANCH_SDK_DEFAULT = ""
 
-# PyPI mirror configurations
 $PYPI_MIRROR_CN = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
-# Git version detection URLs
 $GIT_GITHUB_API_URL = "https://api.github.com/repos/git-for-windows/git/releases/latest"
 $GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
 
-# IP detection service
 $IPINFO_URL = "https://ipinfo.io/json"
 
-# Git download URL (for manual installation message)
 $GIT_DOWNLOAD_URL = "https://git-scm.com/download/win"
 
-# ============================================================================
-# Argument Parsing
-# ============================================================================
-
-# Detect system language as default
 function Get-SystemLanguage {
     $locale = [System.Globalization.CultureInfo]::CurrentUICulture.Name
     if ($locale -like "*zh*" -or $locale -like "*CN*") {
@@ -315,11 +285,8 @@ function Detect-China {
     return $use_cn
 }
 
-# ============================================================================
 # Messages
-# ============================================================================
 
-# English messages
 $MSG_EN_banner_title = "RT-Thread ENV Installation"
 $MSG_EN_info = "INFO"
 $MSG_EN_success = "SUCCESS"
@@ -563,9 +530,7 @@ function Write-LogError {
     Write-Host "[$(Get-Message 'error')] $formatted" -ForegroundColor Red
 }
 
-# ============================================================================
 # Git and Repository Functions
-# ============================================================================
 
 function Test-Command {
     param([string]$CommandName)
@@ -611,7 +576,6 @@ function Generate-KconfigFile {
     $content = 'source "$PKGS_DIR/packages/Kconfig"' + "`n"
     Set-Content -Path $kconfigPath -Value $content
 
-    # Create local_pkgs directory for local package storage
     $localPkgsPath = Join-Path $EnvRoot "local_pkgs"
     if (-not (Test-Path $localPkgsPath)) {
         New-Item -ItemType Directory -Path $localPkgsPath -Force | Out-Null
@@ -620,23 +584,16 @@ function Generate-KconfigFile {
     Write-LogSuccess "generating_kconfig" $kconfigPath
 }
 
-# ============================================================================
-# Git Installation (Windows-specific)
-# ============================================================================
-
 function Get-LatestGitVersion {
     param([bool]$UseCNMirror)
 
-    # For CN users, try npmmirror first
     if ($UseCNMirror) {
         try {
             Write-LogInfo "fetching_git_from_npmmirror"
             $response = Invoke-RestMethod -Uri $GIT_NPMMIRROR_URL -Method Get -UseBasicParsing
 
-            # Parse versions from response (JSON array)
             $versions = $response
 
-            # Filter out rc, prerelease, mingit versions
             $filteredVersions = $versions | Where-Object {
                 $_.name -notmatch "-rc[0-9]" -and
                 $_.name -notmatch "-prerelease$" -and
@@ -644,13 +601,11 @@ function Get-LatestGitVersion {
             }
 
             if ($filteredVersions.Count -gt 0) {
-                # Sort versions by name (descending)
                 $sortedVersions = $filteredVersions | Sort-Object -Property Name -Descending
 
                 $latest = $sortedVersions[0]
                 $versionNumber = $latest.name -replace '/$', ''
 
-                # Query the specific version directory to get file list
                 $versionUrl = "$GIT_NPMMIRROR_URL$versionNumber/"
                 $versionResponse = Invoke-RestMethod -Uri $versionUrl -Method Get -UseBasicParsing
 
@@ -761,25 +716,16 @@ function Install-Git {
         ) -Wait
     }
 
-    # Cleanup
     Remove-Item $installerPath -ErrorAction SilentlyContinue
 
     Write-LogSuccess "git_installed"
 }
 
-# ============================================================================
-# Python Installation (Windows-specific)
-# ============================================================================
-
 $PYTHON_VERSION = "3.13.11"
 $PYTHON_ARCHIVE = "python-3.13.11-amd64.zip"
-# Python download URLs
 $PYTHON_URL_DEFAULT = "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
 $PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
 
-# Git download URLs
-$GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
-$GIT_GITHUB_API_URL = "https://api.github.com/repos/git-for-windows/git/releases/latest"
 $GIT_FALLBACK_VERSION = "v2.52.0.windows.1"
 $GIT_FALLBACK_URL = "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-v2.52.0.windows.1-64-bit.exe"
 
@@ -992,14 +938,9 @@ function Install-Pip {
     }
 }
 
-# ============================================================================
 # Python Environment Setup
-# ============================================================================
 
 function Find-SystemPython {
-    # Find Python in common installation paths first, then system PATH
-    # Returns: array of python paths, empty array if not found
-
     $userProfile = $env:USERPROFILE
     $localAppData = $env:LOCALAPPDATA
     $programFiles = $env:ProgramFiles
@@ -1393,10 +1334,6 @@ function Restore-PreservedConfig {
     Write-LogSuccess "config_restored"
 }
 
-# ============================================================================
-# Banner and Next Steps
-# ============================================================================
-
 function Show-Banner {
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Cyan
@@ -1432,10 +1369,6 @@ function Show-NextSteps {
     Write-Host "$(Get-Message 'sdk')"
     Write-Host ""
 }
-
-# ============================================================================
-# Installation Steps Functions
-# ============================================================================
 
 function Backup-ConfigFile {
     # Backup .config file to ENV_ROOT root
@@ -1733,9 +1666,7 @@ function Prompt-Pyocd {
     }
 }
 
-# ============================================================================
 # Main Function
-# ============================================================================
 
 function Main {
     # Initialize globals
@@ -1817,9 +1748,5 @@ function Main {
     # Step 9: Show next steps
     Show-NextSteps
 }
-
-# ============================================================================
-# Run Main Function
-# ============================================================================
 
 Main
