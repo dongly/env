@@ -417,8 +417,8 @@ $MSG_EN_using_custom_repo = "Using custom repository: {0}"
 $MSG_EN_using_custom_branch = "Using branch: {0}"
 $MSG_EN_using_custom_repo_branch = "Using custom repository: {0} (branch: {1})"
 $MSG_EN_multiple_python_found = "Multiple Python installations found:"
-$MSG_EN_select_python = "Select Python installation (1-{0}) [default: {1}], or {2} for portable: "
-$MSG_EN_install_portable_python = "Install portable Python - Python {0} / 安装便携式 Python - Python {0}"
+$MSG_EN_select_python = "Select installed Python (1-{0}) [default: {1}], or {2} for portable: "
+$MSG_EN_install_portable_python = "Install portable Python - Python {0}"
 $MSG_EN_auto_selected = "Auto-selected: {0} (latest version)"
 
 # Chinese messages
@@ -513,8 +513,8 @@ $MSG_ZH_pyocd_installed = "将安装 pyocd 包"
 $MSG_ZH_pyocd_not_installed = "跳过 pyocd 安装"
 $MSG_ZH_copied_env_script = "已复制 env.ps1: {0}"
 $MSG_ZH_multiple_python_found = "发现多个 Python 安装:"
-$MSG_ZH_select_python = "选择 Python 安装 (1-{0}) [默认: {1}]，或 {2} 安装便携式: "
-$MSG_ZH_install_portable_python = "Install portable Python - Python {0} / 安装便携式 Python - Python {0}"
+$MSG_ZH_select_python = "选择已安装的 Python (1-{0}) [默认: {1}]，或 {2} 安装便携式: "
+$MSG_ZH_install_portable_python = "安装便携式 Python - Python {0}"
 $MSG_ZH_auto_selected = "自动选择: {0} (最新版本)"
 
 $MSG_ZH_setup_complete = "RT-Thread ENV 安装完成！"
@@ -1122,131 +1122,138 @@ function Find-SystemPython {
     return $uniquePaths
 }
 
+function Find-LatestPythonVersion {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$PythonPaths
+    )
+
+    $latestPython = $null
+    $latestVersion = [version]"0.0.0"
+    $latestIndex = 0
+
+    for ($i = 0; $i -lt $PythonPaths.Count; $i++) {
+        $verString = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
+        $verString = $verString.Line -replace 'Python ', ''
+        try {
+            $currentVersion = [version]$verString
+            if ($currentVersion -gt $latestVersion) {
+                $latestVersion = $currentVersion
+                $latestPython = $PythonPaths[$i]
+                $latestIndex = $i
+            }
+        }
+        catch {
+            # If version parsing fails, use this Python if we haven't found one yet
+            if (-not $latestPython) {
+                $latestPython = $PythonPaths[$i]
+                $latestIndex = $i
+            }
+            continue
+        }
+    }
+
+    # Fallback: if no Python was selected (all version parsing failed), use the first one
+    if (-not $latestPython) {
+        $latestPython = $PythonPaths[0]
+        $latestIndex = 0
+    }
+
+    return @{
+        Python = $latestPython
+        Index = $latestIndex
+    }
+}
+
+function Show-PythonOptions {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$PythonPaths
+    )
+
+    Write-Host ""
+    $msgKey = "multiple_python_found"
+    Write-LogInfo $msgKey
+    
+    for ($i = 0; $i -lt $PythonPaths.Count; $i++) {
+        $ver = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
+        Write-Host "  $($i + 1)). $($PythonPaths[$i]) - $($ver.Line)"
+    }
+    Write-Host "  $($PythonPaths.Count + 1)). $(Get-Message 'install_portable_python' $PYTHON_VERSION)" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+function Handle-PythonSelection {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$PythonPaths,
+        [Parameter(Mandatory = $true)]
+        [int]$LatestIndex
+    )
+
+    $msgKey = "select_python"
+    $msg = Get-Message $msgKey
+    $formatted = $msg -f $PythonPaths.Count, ($LatestIndex + 1), ($PythonPaths.Count + 1)
+    Write-Host $formatted -NoNewline -ForegroundColor Yellow
+    $choice = Read-Host
+
+    if ([string]::IsNullOrEmpty($choice)) {
+        # Use default (latest)
+        return $PythonPaths[$LatestIndex]
+    }
+    else {
+        $choiceInt = [int]$choice
+        if ($choiceInt -ge 1 -and $choiceInt -le $PythonPaths.Count) {
+            return $PythonPaths[$choiceInt - 1]
+        }
+        elseif ($choiceInt -eq ($PythonPaths.Count + 1)) {
+            # Install portable Python
+            Write-Host ""
+            Write-LogInfo "installing_portable_python" $PYTHON_VERSION
+            
+            # Install portable Python
+            Install-Python -UseCNMirror $Global:USE_CN
+            
+            # Return the portable Python path
+            $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
+            return $portablePython
+        }
+        else {
+            # Invalid choice, use default
+            return $PythonPaths[$LatestIndex]
+        }
+    }
+}
+
 function Select-PythonInstallation {
     param(
         [Parameter(Mandatory = $true)]
         [string[]]$PythonPaths
     )
 
-    $selectedPython = $null
-
     if ($PythonPaths.Count -eq 0) {
         return $null
     }
-    elseif ($PythonPaths.Count -eq 1) {
-        $selectedPython = $PythonPaths[0]
+
+    # Find the latest version to use as default
+    $latestInfo = Find-LatestPythonVersion -PythonPaths $PythonPaths
+    $latestPython = $latestInfo.Python
+    $latestIndex = $latestInfo.Index
+
+    # In auto mode, automatically select the latest version
+    if ($Global:AUTO_MODE) {
+        $msgKey = "auto_selected"
+        $msg = Get-Message $msgKey
+        $formatted = $msg -f $latestPython
+        Write-Host $formatted -ForegroundColor Yellow
+        return $latestPython
     }
     else {
-        # Multiple Python found
-        Write-Host ""
-        $msgKey = "multiple_python_found"
-        Write-LogInfo $msgKey
-        for ($i = 0; $i -lt $PythonPaths.Count; $i++) {
-            $ver = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
-            Write-Host "  $($i + 1)). $($PythonPaths[$i]) - $($ver.Line)"
-        }
-        Write-Host "  $($PythonPaths.Count + 1)). $(Get-Message 'install_portable_python' $PYTHON_VERSION)" -ForegroundColor Cyan
-        Write-Host ""
-
-        # In auto mode, automatically select the latest version
-        if ($Global:AUTO_MODE) {
-            # Find the latest version by comparing version strings
-            $latestPython = $null
-            $latestVersion = [version]"0.0.0"
-            $latestIndex = 0
-
-            for ($i = 0; $i -lt $PythonPaths.Count; $i++) {
-                $verString = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
-                $verString = $verString.Line -replace 'Python ', ''
-                try {
-                    $currentVersion = [version]$verString
-                    if ($currentVersion -gt $latestVersion) {
-                        $latestVersion = $currentVersion
-                        $latestPython = $PythonPaths[$i]
-                        $latestIndex = $i
-                    }
-                }
-                catch {
-                    # If version parsing fails, use this Python if we haven't found one yet
-                    if (-not $latestPython) {
-                        $latestPython = $PythonPaths[$i]
-                        $latestIndex = $i
-                    }
-                    continue
-                }
-            }
-
-            # Fallback: if no Python was selected (all version parsing failed), use the first one
-            if (-not $latestPython) {
-                $latestPython = $PythonPaths[0]
-                $latestIndex = 0
-            }
-
-            $msgKey = "auto_selected"
-            $msg = Get-Message $msgKey
-            $formatted = $msg -f $latestPython
-            Write-Host $formatted -ForegroundColor Yellow
-            $selectedPython = $latestPython
-        }
-        else {
-            # Interactive mode, let user choose
-            # Find the latest version to use as default
-            $latestPython = $null
-            $latestVersion = [version]"0.0.0"
-            $latestIndex = 0
-
-            for ($i = 0; $i -lt $PythonPaths.Count; $i++) {
-                $verString = & $PythonPaths[$i] --version 2>&1 | Select-String "Python"
-                $verString = $verString.Line -replace 'Python ', ''
-                try {
-                    $currentVersion = [version]$verString
-                    if ($currentVersion -gt $latestVersion) {
-                        $latestVersion = $currentVersion
-                        $latestPython = $PythonPaths[$i]
-                        $latestIndex = $i
-                    }
-                }
-                catch {
-                    continue
-                }
-            }
-
-            $msgKey = "select_python"
-            $msg = Get-Message $msgKey
-            $formatted = $msg -f $PythonPaths.Count, ($latestIndex + 1), ($PythonPaths.Count + 1)
-            Write-Host $formatted -NoNewline -ForegroundColor Yellow
-            $choice = Read-Host
-
-            if ([string]::IsNullOrEmpty($choice)) {
-                # Use default (latest)
-                $selectedPython = $PythonPaths[$latestIndex]
-            }
-            else {
-                $choiceInt = [int]$choice
-                if ($choiceInt -ge 1 -and $choiceInt -le $PythonPaths.Count) {
-                    $selectedPython = $PythonPaths[$choiceInt - 1]
-                }
-                elseif ($choiceInt -eq ($PythonPaths.Count + 1)) {
-                    # Install portable Python
-                    Write-Host ""
-                    Write-LogInfo "installing_portable_python" $PYTHON_VERSION
-                    
-                    # Install portable Python
-                    Install-Python -UseCNMirror $Global:USE_CN
-                    
-                    # Return the portable Python path
-                    $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
-                    $selectedPython = $portablePython
-                }
-                else {
-                    # Invalid choice, use default
-                    $selectedPython = $PythonPaths[$latestIndex]
-                }
-            }
-        }
+        # Interactive mode, let user choose
+        Show-PythonOptions -PythonPaths $PythonPaths
+        $selectedPython = Handle-PythonSelection -PythonPaths $PythonPaths -LatestIndex $latestIndex
+        return $selectedPython
     }
-
-    return $selectedPython
 }
 
 function Get-PythonVersionString {
