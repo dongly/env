@@ -326,7 +326,7 @@ $MSG_EN_missing_python = "Python not found. Please install Python first."
 $MSG_EN_using_system_python = "Using system Python: {0} - {1}"
 $MSG_EN_using_portable_python = "Will use portable Python {0}..."
 $MSG_EN_installing_portable_python = "Installing portable Python {0}..."
-$MSG_EN_downloading_portable_python = "Downloading portable Python..."
+$MSG_EN_downloading_portable_python = "Downloading portable Python, from: {0}"
 $MSG_EN_python_installed = "Python installed successfully."
 $MSG_EN_checking_git = "Checking Git..."
 $MSG_EN_git_found = "Git found: {0}"
@@ -437,7 +437,7 @@ $MSG_ZH_missing_python = "未安装 Python。请先安装 Python。"
 $MSG_ZH_using_system_python = "使用系统 Python: {0} - {1}"
 $MSG_ZH_using_portable_python = "将使用便携式 Python {0}..."
 $MSG_ZH_installing_portable_python = "正在安装便携式 Python {0}..."
-$MSG_ZH_downloading_portable_python = "正在下载便携式 Python..."
+$MSG_ZH_downloading_portable_python = "正在下载便携式 Python，自: {0}"
 $MSG_ZH_python_installed = "Python 已安装成功。"
 $MSG_ZH_checking_git = "正在检查 Git..."
 $MSG_ZH_git_found = "找到 Git: {0}"
@@ -842,11 +842,11 @@ function Install-Python {
 function Download-PortablePython {
     param([bool]$UseCNMirror)
 
-    Write-LogInfo "downloading_portable_python"
-    $archivePath = Join-Path $env:TEMP $PYTHON_ARCHIVE
-
     # Determine download URL based on mirror setting
     $pythonUrl = if ($UseCNMirror) { $PYTHON_URL_CN } else { $PYTHON_URL_DEFAULT }
+
+    Write-LogInfo "downloading_portable_python" $pythonUrl
+    $archivePath = Join-Path $env:TEMP $PYTHON_ARCHIVE
 
     # Download Python embed archive
     try {
@@ -1201,12 +1201,12 @@ function Handle-PythonSelection {
 
     if ([string]::IsNullOrEmpty($choice)) {
         # Use default (latest)
-        return $PythonPaths[$LatestIndex]
+        return [string]$PythonPaths[$LatestIndex]
     }
     else {
         $choiceInt = [int]$choice
         if ($choiceInt -ge 1 -and $choiceInt -le $PythonPaths.Count) {
-            return $PythonPaths[$choiceInt - 1]
+            return [string]$PythonPaths[$choiceInt - 1]
         }
         elseif ($choiceInt -eq ($PythonPaths.Count + 1)) {
             # Install portable Python
@@ -1218,11 +1218,11 @@ function Handle-PythonSelection {
             
             # Return the portable Python path
             $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
-            return $portablePython
+            return [string]$portablePython
         }
         else {
             # Invalid choice, use default
-            return $PythonPaths[$LatestIndex]
+            return [string]$PythonPaths[$LatestIndex]
         }
     }
 }
@@ -1248,7 +1248,7 @@ function Select-PythonInstallation {
         $msg = Get-Message $msgKey
         $formatted = $msg -f $latestPython
         Write-Host $formatted -ForegroundColor Yellow
-        return $latestPython
+        return [string]$latestPython
     }
     else {
         # Interactive mode, let user choose
