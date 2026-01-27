@@ -1233,6 +1233,11 @@ function Select-PythonInstallation {
         [string[]]$PythonPaths
     )
 
+    # If -P flag is set, skip Python selection (will use portable Python later)
+    if ($Global:USE_EMBED_PYTHON) {
+        return $null
+    }
+
     if ($PythonPaths.Count -eq 0) {
         return $null
     }
