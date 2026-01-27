@@ -1441,13 +1441,21 @@ function Check-ExistingEnv {
             # Auto mode: preserve config and toolchain by default
             Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
             
-            # Define paths to preserve
-            $preservePaths = @()
+            # Define paths to preserve and move to ENV_ROOT
             $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
             $localPkgsPath = "$env:ENV_ROOT\local_pkgs"
+            $tempConfigPath = "$env:ENV_ROOT\.config.backup"
+            $tempLocalPkgsPath = "$env:ENV_ROOT\local_pkgs.backup"
             
-            if (Test-Path $configPath) { $preservePaths += $configPath }
-            if (Test-Path $localPkgsPath) { $preservePaths += $localPkgsPath }
+            # Move config to ENV_ROOT root temporarily
+            if (Test-Path $configPath) {
+                Copy-Item -Path $configPath -Destination $tempConfigPath -Force -ErrorAction SilentlyContinue
+            }
+            
+            # Move local_pkgs to ENV_ROOT root temporarily
+            if (Test-Path $localPkgsPath) {
+                Copy-Item -Path $localPkgsPath -Destination $tempLocalPkgsPath -Recurse -Force -ErrorAction SilentlyContinue
+            }
             
             # Remove directories
             foreach ($dir in $existingDirs) {
@@ -1457,16 +1465,19 @@ function Check-ExistingEnv {
                 Remove-Item -Path $envScript -ErrorAction SilentlyContinue
             }
             
-            # Recreate preserved paths
-            foreach ($path in $preservePaths) {
-                if (-not (Test-Path $path)) {
-                    $parentDir = Split-Path $path -Parent
-                    if (-not (Test-Path $parentDir)) {
-                        New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
-                    }
-                    # Note: We can't restore the actual content, just the structure
-                    # In a real implementation, we would need to backup first
+            # Restore preserved paths from ENV_ROOT root
+            if (Test-Path $tempConfigPath) {
+                $parentDir = Split-Path $configPath -Parent
+                if (-not (Test-Path $parentDir)) {
+                    New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
                 }
+                Copy-Item -Path $tempConfigPath -Destination $configPath -Force
+                Remove-Item -Path $tempConfigPath -Force -ErrorAction SilentlyContinue
+            }
+            
+            if (Test-Path $tempLocalPkgsPath) {
+                Copy-Item -Path $tempLocalPkgsPath -Destination $localPkgsPath -Recurse -Force
+                Remove-Item -Path $tempLocalPkgsPath -Recurse -Force -ErrorAction SilentlyContinue
             }
             
             Write-LogSuccess "env_root_removed" $env:ENV_ROOT
@@ -1495,19 +1506,18 @@ function Check-ExistingEnv {
                 # Preserve config and toolchain
                 Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
                 
-                # Backup paths to preserve
-                $backupConfig = $null
-                $backupLocalPkgs = $null
+                # Move config to ENV_ROOT root temporarily
                 $configPath = "$env:ENV_ROOT\tools\scripts\cmds\.config"
                 $localPkgsPath = "$env:ENV_ROOT\local_pkgs"
+                $tempConfigPath = "$env:ENV_ROOT\.config.backup"
+                $tempLocalPkgsPath = "$env:ENV_ROOT\local_pkgs.backup"
                 
                 if (Test-Path $configPath) {
-                    $backupConfig = Get-Content $configPath -Raw
+                    Copy-Item -Path $configPath -Destination $tempConfigPath -Force
                 }
+                
                 if (Test-Path $localPkgsPath) {
-                    $backupLocalPkgs = Get-ChildItem $localPkgsPath -Recurse | ForEach-Object { 
-                        @{Path = $_.FullName.Replace($localPkgsPath, ""); Content = Get-Content $_.FullName -Raw -ErrorAction SilentlyContinue}
-                    }
+                    Copy-Item -Path $localPkgsPath -Destination $tempLocalPkgsPath -Recurse -Force
                 }
                 
                 # Remove directories
@@ -1518,28 +1528,19 @@ function Check-ExistingEnv {
                     Remove-Item -Path $envScript -ErrorAction SilentlyContinue
                 }
                 
-                # Restore preserved paths
-                if ($backupConfig) {
+                # Restore preserved paths from ENV_ROOT root
+                if (Test-Path $tempConfigPath) {
                     $parentDir = Split-Path $configPath -Parent
                     if (-not (Test-Path $parentDir)) {
                         New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
                     }
-                    Set-Content -Path $configPath -Value $backupConfig -Force
+                    Copy-Item -Path $tempConfigPath -Destination $configPath -Force
+                    Remove-Item -Path $tempConfigPath -Force -ErrorAction SilentlyContinue
                 }
-                if ($backupLocalPkgs) {
-                    if (-not (Test-Path $localPkgsPath)) {
-                        New-Item -ItemType Directory -Path $localPkgsPath -Force | Out-Null
-                    }
-                    foreach ($item in $backupLocalPkgs) {
-                        $targetPath = Join-Path $localPkgsPath $item.Path.TrimStart('\')
-                        $targetDir = Split-Path $targetPath -Parent
-                        if (-not (Test-Path $targetDir)) {
-                            New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-                        }
-                        if ($item.Content) {
-                            Set-Content -Path $targetPath -Value $item.Content -Force
-                        }
-                    }
+                
+                if (Test-Path $tempLocalPkgsPath) {
+                    Copy-Item -Path $tempLocalPkgsPath -Destination $localPkgsPath -Recurse -Force
+                    Remove-Item -Path $tempLocalPkgsPath -Recurse -Force -ErrorAction SilentlyContinue
                 }
                 
                 Write-LogSuccess "env_root_removed" $env:ENV_ROOT
