@@ -642,7 +642,8 @@ function Install-Git {
         param(
             [bool]$UseCNMirror,
             [bool]$SkipLongPath,
-            [bool]$RemoveExisting = $true
+            [bool]$RemoveExisting = $true,
+            [bool]$SkipVerification = $false
         )
     
         # Delete existing portable Python before installing new one (only if requested)
@@ -664,28 +665,30 @@ function Install-Git {
         # Save portable Python path to global variable
         $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
 
-        # Verify Python installation by checking version with retry
-        $maxRetries = 3
-        $retryDelay = 1
-        $pythonInstalled = $false
+        # Verify Python installation by checking version with retry (can be skipped)
+        if (-not $SkipVerification) {
+            $maxRetries = 3
+            $retryDelay = 1
+            $pythonInstalled = $false
 
-        for ($i = 0; $i -lt $maxRetries; $i++) {
-            try {
-                $version = & $portablePython --version 2>&1
-                if ($version -match "Python") {
-                    $pythonInstalled = $true
-                    break
+            for ($i = 0; $i -lt $maxRetries; $i++) {
+                try {
+                    $version = & $portablePython --version 2>&1
+                    if ($version -match "Python") {
+                        $pythonInstalled = $true
+                        break
+                    }
                 }
+                catch {
+                    # Python may need time to initialize
+                }
+                Start-Sleep -Seconds $retryDelay
             }
-            catch {
-                # Python may need time to initialize
-            }
-            Start-Sleep -Seconds $retryDelay
-        }
 
-        if (-not $pythonInstalled) {
-            Write-LogError "python_verification_failed"
-            exit 1
+            if (-not $pythonInstalled) {
+                Write-LogError "python_verification_failed"
+                exit 1
+            }
         }
 
         Write-LogSuccess "python_installed"
@@ -1042,8 +1045,8 @@ function Handle-PythonSelection {
             Write-Host ""
             Write-LogInfo "installing_portable_python" $PYTHON_VERSION
 
-            # Install portable Python (don't remove existing since Main function already did it)
-            Install-Python -UseCNMirror $script:Config.UseCN -RemoveExisting $false
+            # Install portable Python (don't remove existing since Main function already did it, skip verification)
+            Install-Python -UseCNMirror $script:Config.UseCN -RemoveExisting $false -SkipVerification
 
             # Return the portable Python path
             $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
@@ -1197,7 +1200,7 @@ function Ensure-Python {
 
     # Install portable Python if needed
     if ($usePortablePython) {
-        $script:Config.SelectedPython = Install-Python -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath
+        $script:Config.SelectedPython = Install-Python -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath -SkipVerification
     }
 }
 
