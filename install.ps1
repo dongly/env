@@ -1446,32 +1446,11 @@ function Show-NextSteps {
 # ============================================================================
 
 function Check-ExistingEnv {
-    # Check if any ENV subdirectory exists
-    $toolsPath = "$env:ENV_ROOT\tools"
-    $packagesPath = "$env:ENV_ROOT\packages"
-    $pythonPath = "$env:ENV_ROOT\python"
-    $venvPath = "$env:ENV_ROOT\$Global:VENV_DIR"
-    $envScript = "$env:ENV_ROOT\env.ps1"
-
-    $existingDirs = @()
-    if (Test-Path $toolsPath) { $existingDirs += $toolsPath }
-    if (Test-Path $packagesPath) { $existingDirs += $packagesPath }
-    if (Test-Path $pythonPath) { $existingDirs += $pythonPath }
-    if (Test-Path $venvPath) { $existingDirs += $venvPath }
-
-    $envScriptExists = Test-Path $envScript
-
-    if ($existingDirs.Count -gt 0 -or $envScriptExists) {
+    # Check if ENV_ROOT directory exists
+    if (Test-Path $env:ENV_ROOT) {
         Write-LogWarning "env_root_exists" $env:ENV_ROOT
-        # Show what will be deleted
-        Write-Host "  将删除以下目录/文件:" -ForegroundColor Yellow
-        foreach ($dir in $existingDirs) {
-            Write-Host "    - $dir" -ForegroundColor DarkGray
-        }
-        if ($envScriptExists) {
-            Write-Host "    - $envScript" -ForegroundColor DarkGray
-        }
         Write-Host ""
+        
         if ($Global:AUTO_MODE) {
             # Auto mode: preserve config and toolchain by default
             Write-LogInfo "removing_env_root_preserving" $env:ENV_ROOT
@@ -1494,16 +1473,19 @@ function Check-ExistingEnv {
             
             # Note: local_pkgs is not deleted, no need to backup
             
-            # Remove directories (excluding local_pkgs)
-            foreach ($dir in $existingDirs) {
+            # Remove ENV_ROOT directory (excluding local_pkgs)
+            # Get all items in ENV_ROOT
+            $items = Get-ChildItem -Path $env:ENV_ROOT -Force -ErrorAction SilentlyContinue
+            foreach ($item in $items) {
                 # Skip local_pkgs directory
-                if ($dir -eq $localPkgsPath) {
+                if ($item.Name -eq "local_pkgs" -or $item.FullName -eq $localPkgsPath) {
                     continue
                 }
-                Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
-            }
-            if ($envScriptExists) {
-                Remove-Item -Path $envScript -ErrorAction SilentlyContinue
+                # Skip .config.backup file (our backup)
+                if ($item.Name -eq ".config.backup") {
+                    continue
+                }
+                Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
             }
             
             # Note: Config will be restored after installation completes
@@ -1550,16 +1532,18 @@ function Check-ExistingEnv {
                 
                 # Note: local_pkgs is not deleted, no need to backup
                 
-                # Remove directories (excluding local_pkgs)
-                foreach ($dir in $existingDirs) {
+                # Remove ENV_ROOT directory (excluding local_pkgs)
+                $items = Get-ChildItem -Path $env:ENV_ROOT -Force -ErrorAction SilentlyContinue
+                foreach ($item in $items) {
                     # Skip local_pkgs directory
-                    if ($dir -eq $localPkgsPath) {
+                    if ($item.Name -eq "local_pkgs" -or $item.FullName -eq $localPkgsPath) {
                         continue
                     }
-                    Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
-                }
-                if ($envScriptExists) {
-                    Remove-Item -Path $envScript -ErrorAction SilentlyContinue
+                    # Skip .config.backup file (our backup)
+                    if ($item.Name -eq ".config.backup") {
+                        continue
+                    }
+                    Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
                 }
                 
                 # Note: Config will be restored after installation completes
