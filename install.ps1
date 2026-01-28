@@ -714,30 +714,27 @@ function Check-Python {
         [string]$PythonPath
     )
 
-    $result = New-PortingPythonConfig
-
     # Check if Python.exe exists
     if (-not (Test-Path $PythonPath)) {
-        $result.Result = 1
-        return $result
+        Write-LogError "python_not_found" $PythonPath
+        return 1
     }
 
     # Get Python version
     $version = Get-PythonVersionString -PythonPath $PythonPath
     if (-not $version) {
-        $result.Result = 1
-        return $result
+        Write-LogWarning "python_version_failed" $PythonPath
+        return 2
     }
 
     # Check if version meets minimum requirement (>= 3.6)
     if (-not (Test-PythonVersion -VersionString $version)) {
-        $result.Result = 2
-        return $result
+        Write-LogError "python_version_too_old" $version
+        return 3
     }
 
     # All checks passed
-    $Script:Config.PythonConfig.result = 0
-    return $Script:Config.PythonConfig
+    return 0
 }
 
 function Download-PortablePython {
@@ -1245,20 +1242,23 @@ function Show-Banner {
 
 function Ensure-Python {
     $result = $script:Config.PythonConfig
-    # 步骤 1: 查找系统 Python
+    # 步骤 1: 查找选择系统 Python
     if (-not $result.InstallPortablePython) {
         $result = Select-Python -PythonPaths (Find-SystemPython)
     }
 
     # 步骤 2: 验证系统 Python
     if (-not $result.InstallPortablePython -and $result.PythonPath) {
-        $result = Check-Python -PythonPath $result.PythonPath
+        $check_result = Check-Python -PythonPath $result.PythonPath
+        if ($check_result -ne 0) {
+            $result = New-PortingPythonConfig
+        }
     }
-    if (-not $result.InstallPortablePython -and $result.Result -ne 0) {
+    if ($result.InstallPortablePython -or $result.Result -ne 0) {
         Write-LogWarning "python_not_found_or_invalid"
         $result = New-PortingPythonConfig
-
     }
+
     # 步骤 3: 删除旧的便携式 Python
     $portablePythonDir = Join-Path $env:ENV_ROOT "python"
     if (Test-Path $portablePythonDir) {
@@ -1436,9 +1436,9 @@ function Init-Config {
     $script:Config.CustomSdk = $ParsedArgs.CustomSdk
 
     # Initialize PythonConfig
-   if ($ParsedArgs.PythonMode) {
-       $script:Config.PythonConfig = New-PortingPythonConfig
-   }
+    if ($ParsedArgs.PythonMode) {
+        $script:Config.PythonConfig = New-PortingPythonConfig
+    }
 
     # Set ENV_ROOT and validate
     if ($ParsedArgs.EnvRootValue) { $env:ENV_ROOT = $ParsedArgs.EnvRootValue }
