@@ -27,7 +27,7 @@
 # ============================================================================
 
 # Environment Configuration
-$ENV_DEFAULT_DIR = ".rtenv"
+$ENV_DEFAULT_DIR = "$env:USERPROFILE\.rtenv"
 
 # touch_env.py download URLs
 $TOUCH_ENV_URL_GITHUB = "https://raw.githubusercontent.com/RT-Thread/env/master/touch_env.py"
@@ -302,112 +302,112 @@ function Detect-China {
 # Centralized message dictionary for easy maintenance and localization
 $script:Messages = @{
     en = @{
-        banner_title                   = "RT-Thread ENV Installation"
-        info                           = "INFO"
-        success                        = "SUCCESS"
-        warning                        = "WARNING"
-        error                          = "ERROR"
-        python_version_too_low         = "Python version {0} is too old (requires >= 3.6). Installing portable Python..."
-        missing_python                 = "Python not found. Please install Python first."
-        using_system_python            = "Using system Python: {0} - {1}"
-        using_portable_python          = "Will use portable Python {0}..."
-        installing_portable_python     = "Installing portable Python {0}..."
-        downloading_portable_python    = "Downloading portable Python, from: {0}"
-        python_installed               = "Python installed successfully."
-        python_version_failed          = "Failed to get Python version. Installing portable Python..."
-        python_verification_failed     = "Python verification failed. Installation may be corrupted."
-        downloading_git                = "Downloading Git..."
-        installing_git                 = "Installing Git..."
-        git_installed                  = "Git installed. Please restart terminal and run this script again."
-        admin_required                 = "Error: The -y/--yes flag requires administrator privileges."
-        run_as_admin                   = "Please run this script as administrator."
-        fetching_git_from_npmmirror    = "Fetching Git version from npmmirror..."
-        fetching_git_from_github       = "Fetching Git version from GitHub API..."
-        git_version_found              = "Git version found: {0}"
-        npmmirror_fetch_failed         = "Failed to fetch Git version from npmmirror, trying GitHub API..."
-        download_failed                = "Download failed: {0}"
-        github_api_failed              = "GitHub API request failed, using fallback version..."
-        using_fixed_git_version        = "Using fixed Git version: {0}"
-        restart_required               = "Please restart terminal and run this script again to continue."
-        git_not_found                  = "Git is not installed. Please install Git first."
-        git_found                      = "Git found: {0}"
-        enabling_long_paths            = "Enabling Windows long path support..."
-        long_paths_enabled             = "Windows long path support enabled"
-        long_paths_enable_failed       = "Failed to enable long path support (may require admin privileges)"
-        need_admin_privilege           = "Enabling long paths requires administrator privileges"
-        elevating_to_enable_long_paths = "Attempting to enable long paths (UAC prompt may appear)"
-        install_portable_python        = "Install portable Python - Python {0}"
-        multiple_python_found          = "Multiple Python installations found:"
-        select_python                  = "Found {0} Python installation(s). Default is option {1} (latest). Select [1-{0}], or {2} to install portable Python: "
-        auto_selected                  = "Auto-selected Python: {0}"
-        python_not_found               = "Python not found. Please install Python first."
-        env_root_invalid               = "Error: ENV_ROOT cannot contain {0}"
-        removing_portable_python       = "Removing portable Python: {0}..."
-        removing_old_portable_python   = "Removing old portable Python: {0}..."
+        banner_title                     = "RT-Thread ENV Installation"
+        info                             = "INFO"
+        success                          = "SUCCESS"
+        warning                          = "WARNING"
+        error                            = "ERROR"
+        python_version_too_low           = "Python version {0} is too old (requires >= 3.6). Installing portable Python..."
+        missing_python                   = "Python not found. Please install Python first."
+        using_system_python              = "Using system Python: {0} - {1}"
+        using_portable_python            = "Will use portable Python {0}..."
+        installing_portable_python       = "Installing portable Python {0}..."
+        downloading_portable_python      = "Downloading portable Python, from: {0}"
+        python_installed                 = "Python installed successfully."
+        python_version_failed            = "Failed to get Python version. Installing portable Python..."
+        python_verification_failed       = "Python verification failed. Installation may be corrupted."
+        downloading_git                  = "Downloading Git..."
+        installing_git                   = "Installing Git..."
+        git_installed                    = "Git installed. Please restart terminal and run this script again."
+        admin_required                   = "Error: The -y/--yes flag requires administrator privileges."
+        run_as_admin                     = "Please run this script as administrator."
+        fetching_git_from_npmmirror      = "Fetching Git version from npmmirror..."
+        fetching_git_from_github         = "Fetching Git version from GitHub API..."
+        git_version_found                = "Git version found: {0}"
+        npmmirror_fetch_failed           = "Failed to fetch Git version from npmmirror, trying GitHub API..."
+        download_failed                  = "Download failed: {0}"
+        github_api_failed                = "GitHub API request failed, using fallback version..."
+        using_fixed_git_version          = "Using fixed Git version: {0}"
+        restart_required                 = "Please restart terminal and run this script again to continue."
+        git_not_found                    = "Git is not installed. Please install Git first."
+        git_found                        = "Git found: {0}"
+        enabling_long_paths              = "Enabling Windows long path support..."
+        long_paths_enabled               = "Windows long path support enabled"
+        long_paths_enable_failed         = "Failed to enable long path support (may require admin privileges)"
+        need_admin_privilege             = "Enabling long paths requires administrator privileges"
+        elevating_to_enable_long_paths   = "Attempting to enable long paths (UAC prompt may appear)"
+        install_portable_python          = "Install portable Python - Python {0}"
+        multiple_python_found            = "Multiple Python installations found:"
+        select_python                    = "Found {0} Python installation(s). Default is option {1} (latest). Select [1-{0}], or {2} to install portable Python: "
+        auto_selected                    = "Auto-selected Python: {0}"
+        python_not_found                 = "Python not found. Please install Python first."
+        env_root_invalid                 = "Error: ENV_ROOT cannot contain {0}"
+        removing_portable_python         = "Removing portable Python: {0}..."
+        removing_old_portable_python     = "Removing old portable Python: {0}..."
         removing_invalid_portable_python = "Removing invalid portable Python: {0}..."
-        python_not_found_or_invalid    = "Python not found or invalid. Installing portable Python..."
-        downloading_touch_env          = "Downloading touch_env.py from: {0}"
-        touch_env_failed               = "touch_env.py execution failed with exit code: {0}"
-        touch_env_download_failed      = "Failed to download touch_env.py: {0}"
-        python_pth_config_failed       = "Warning: Failed to configure Python _pth file. site-packages may not be available."
-        check_list                     = "Please check:"
-        check_list_connection          = "  1. Your internet connection"
-        check_list_url                = "  2. The URL is correct: {0}"
-        check_list_alt_url             = "  3. Try using -t parameter to specify a different URL"
+        python_not_found_or_invalid      = "Python not found or invalid. Installing portable Python..."
+        downloading_touch_env            = "Downloading touch_env.py from: {0}"
+        touch_env_failed                 = "touch_env.py execution failed with exit code: {0}"
+        touch_env_download_failed        = "Failed to download touch_env.py: {0}"
+        python_pth_config_failed         = "Warning: Failed to configure Python _pth file. site-packages may not be available."
+        check_list                       = "Please check:"
+        check_list_connection            = "  1. Your internet connection"
+        check_list_url                   = "  2. The URL is correct: {0}"
+        check_list_alt_url               = "  3. Try using -t parameter to specify a different URL"
     }
     zh = @{
-        banner_title                   = "RT-Thread ENV 安装程序"
-        info                           = "信息"
-        success                        = "成功"
-        warning                        = "警告"
-        error                          = "错误"
-        python_version_too_low         = "Python 版本 {0} 过低（需要 >= 3.6）。将安装便携式 Python..."
-        missing_python                 = "未安装 Python。请先安装 Python。"
-        using_system_python            = "使用系统 Python: {0} - {1}"
-        using_portable_python          = "将使用便携式 Python {0}..."
-        installing_portable_python     = "正在安装便携式 Python {0}..."
-        downloading_portable_python    = "正在下载便携式 Python，自: {0}"
-        python_installed               = "Python 已安装成功。"
-        python_version_failed          = "无法获取 Python 版本。正在安装便携式 Python..."
-        python_verification_failed     = "Python 验证失败。安装可能已损坏。"
-        downloading_git                = "正在下载 Git..."
-        installing_git                 = "正在安装 Git..."
-        git_installed                  = "Git 已安装。请重新启动终端并再次运行此脚本。"
-        admin_required                 = "错误: -y/--yes 参数需要管理员权限。"
-        run_as_admin                   = "请以管理员身份运行此脚本。"
-        fetching_git_from_npmmirror    = "正在从 npmmirror 获取 Git 版本..."
-        fetching_git_from_github       = "正在从 GitHub API 获取 Git 版本..."
-        git_version_found              = "找到 Git 版本: {0}"
-        npmmirror_fetch_failed         = "从 npmmirror 获取 Git 版本失败，尝试 GitHub API..."
-        download_failed                = "下载失败: {0}"
-        github_api_failed              = "GitHub API 请求失败，使用备选版本..."
-        using_fixed_git_version        = "使用固定 Git 版本: {0}"
-        restart_required               = "请重新启动终端并再次运行此脚本以继续。"
-        git_not_found                  = "未安装 Git。请先安装 Git。"
-        git_found                      = "找到 Git: {0}"
-        enabling_long_paths            = "正在启用 Windows 长路径支持..."
-        long_paths_enabled             = "Windows 长路径支持已启用"
-        long_paths_enable_failed       = "启用长路径支持失败（可能需要管理员权限）"
-        need_admin_privilege           = "启用长路径需要管理员权限"
-        elevating_to_enable_long_paths = "正在尝试启用长路径（可能会弹出 UAC 提示）"
-        install_portable_python        = "安装便携式 Python - Python {0}"
-        multiple_python_found          = "找到多个 Python 安装："
-        select_python                  = "找到 {0} 个 Python 安装。默认选项为 {1}（最新）。选择 [1-{0}]，或输入 {2} 安装便携式 Python: "
-        auto_selected                  = "自动选择 Python: {0}"
-        python_not_found               = "未找到 Python。请先安装 Python。"
-        env_root_invalid               = "错误: ENV_ROOT 不能包含 {0}"
-        removing_portable_python       = "正在删除便携式 Python: {0}..."
-        removing_old_portable_python   = "正在删除旧的便携式 Python: {0}..."
+        banner_title                     = "RT-Thread ENV 安装程序"
+        info                             = "信息"
+        success                          = "成功"
+        warning                          = "警告"
+        error                            = "错误"
+        python_version_too_low           = "Python 版本 {0} 过低（需要 >= 3.6）。将安装便携式 Python..."
+        missing_python                   = "未安装 Python。请先安装 Python。"
+        using_system_python              = "使用系统 Python: {0} - {1}"
+        using_portable_python            = "将使用便携式 Python {0}..."
+        installing_portable_python       = "正在安装便携式 Python {0}..."
+        downloading_portable_python      = "正在下载便携式 Python，自: {0}"
+        python_installed                 = "Python 已安装成功。"
+        python_version_failed            = "无法获取 Python 版本。正在安装便携式 Python..."
+        python_verification_failed       = "Python 验证失败。安装可能已损坏。"
+        downloading_git                  = "正在下载 Git..."
+        installing_git                   = "正在安装 Git..."
+        git_installed                    = "Git 已安装。请重新启动终端并再次运行此脚本。"
+        admin_required                   = "错误: -y/--yes 参数需要管理员权限。"
+        run_as_admin                     = "请以管理员身份运行此脚本。"
+        fetching_git_from_npmmirror      = "正在从 npmmirror 获取 Git 版本..."
+        fetching_git_from_github         = "正在从 GitHub API 获取 Git 版本..."
+        git_version_found                = "找到 Git 版本: {0}"
+        npmmirror_fetch_failed           = "从 npmmirror 获取 Git 版本失败，尝试 GitHub API..."
+        download_failed                  = "下载失败: {0}"
+        github_api_failed                = "GitHub API 请求失败，使用备选版本..."
+        using_fixed_git_version          = "使用固定 Git 版本: {0}"
+        restart_required                 = "请重新启动终端并再次运行此脚本以继续。"
+        git_not_found                    = "未安装 Git。请先安装 Git。"
+        git_found                        = "找到 Git: {0}"
+        enabling_long_paths              = "正在启用 Windows 长路径支持..."
+        long_paths_enabled               = "Windows 长路径支持已启用"
+        long_paths_enable_failed         = "启用长路径支持失败（可能需要管理员权限）"
+        need_admin_privilege             = "启用长路径需要管理员权限"
+        elevating_to_enable_long_paths   = "正在尝试启用长路径（可能会弹出 UAC 提示）"
+        install_portable_python          = "安装便携式 Python - Python {0}"
+        multiple_python_found            = "找到多个 Python 安装："
+        select_python                    = "找到 {0} 个 Python 安装。默认选项为 {1}（最新）。选择 [1-{0}]，或输入 {2} 安装便携式 Python: "
+        auto_selected                    = "自动选择 Python: {0}"
+        python_not_found                 = "未找到 Python。请先安装 Python。"
+        env_root_invalid                 = "错误: ENV_ROOT 不能包含 {0}"
+        removing_portable_python         = "正在删除便携式 Python: {0}..."
+        removing_old_portable_python     = "正在删除旧的便携式 Python: {0}..."
         removing_invalid_portable_python = "正在删除无效的便携式 Python: {0}..."
-        python_not_found_or_invalid    = "未找到 Python 或 Python 无效。正在安装便携式 Python..."
-        downloading_touch_env          = "正在下载 touch_env.py，自: {0}"
-        touch_env_failed               = "touch_env.py 执行失败，退出码: {0}"
-        touch_env_download_failed      = "下载 touch_env.py 失败: {0}"
-        python_pth_config_failed       = "警告: 配置 Python _pth 文件失败。site-packages 可能不可用。"
-        check_list                     = "请检查:"
-        check_list_connection          = "  1. 您的网络连接"
-        check_list_url                = "  2. URL 是否正确: {0}"
-        check_list_alt_url             = "  3. 尝试使用 -t 参数指定不同的 URL"
+        python_not_found_or_invalid      = "未找到 Python 或 Python 无效。正在安装便携式 Python..."
+        downloading_touch_env            = "正在下载 touch_env.py，自: {0}"
+        touch_env_failed                 = "touch_env.py 执行失败，退出码: {0}"
+        touch_env_download_failed        = "下载 touch_env.py 失败: {0}"
+        python_pth_config_failed         = "警告: 配置 Python _pth 文件失败。site-packages 可能不可用。"
+        check_list                       = "请检查:"
+        check_list_connection            = "  1. 您的网络连接"
+        check_list_url                   = "  2. URL 是否正确: {0}"
+        check_list_alt_url               = "  3. 尝试使用 -t 参数指定不同的 URL"
     }
 }
 
@@ -695,16 +695,25 @@ function New-PythonConfig {
     }
 }
 
+function New-PortingPythonConfig {
+    return [PSCustomObject]@{
+        InstallPortablePython = $true
+        PythonPath            = Join-Path $env:ENV_ROOT "python\python.exe"
+        Version               = $PYTHON_VERSION
+        Result                = 0
+    }
+}
+
 function Check-Python {
     param(
         [Parameter(Mandatory = $true)]
         [string]$PythonPath
     )
 
-    $result = New-PythonConfig
+    $result = New-PortingPythonConfig
 
-    # Check if Python path exists
-    if (-not (Test-Path $PythonPath)) {
+    # Check if Python.exe exists
+    if (-not (Test-File $PythonPath)) {
         $result.Result = 1
         return $result
     }
@@ -723,10 +732,8 @@ function Check-Python {
     }
 
     # All checks passed
-    $result.PythonPath = $PythonPath
-    $result.Version = $version
-    $result.Result = 0
-    return $result
+    $Script:Config.PythonConfig.result = 0
+    return $Script:Config.PythonConfig
 }
 
 function Download-PortablePython {
@@ -943,7 +950,7 @@ function Install-PortablePython {
 # Find-LatestPythonVersion: Find latest Python version
 # Show-PythonOptions: Show Python options
 # Handle-PythonSelection: Handle Python selection
-# Select-PythonInstallation: Select Python installation
+# Select-Python: Select Python installation
 # Get-PythonVersionString: Get Python version string
 # Test-PythonVersion: Test if Python version meets requirements
 
@@ -1104,11 +1111,11 @@ function Handle-PythonSelection {
         [Parameter(Mandatory = $true)]
         [string[]]$PythonPaths,
         [Parameter(Mandatory = $true)]
-        [int]$LatestIndex,
-        [bool]$SkipVerification = $false
+        [int]$LatestIndex
     )
 
     $result = New-PythonConfig
+    $result.InstallPortablePython = $false
 
     $msgKey = "select_python"
     $msg = Get-Message $msgKey
@@ -1135,48 +1142,24 @@ function Handle-PythonSelection {
             $result.PythonPath = $PythonPaths[$choiceInt - 1]
         }
         elseif ($choiceInt -eq ($PythonPaths.Count + 1)) {
-            # Install portable Python
-            Write-Host ""
-            Write-LogInfo "installing_portable_python" $PYTHON_VERSION
-
-            # Install portable Python
-            $installResult = Install-PortablePython -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath
-
-            # Return the portable Python path
-            $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
-            $result.PythonPath = $portablePython
-            $result.InstallPortablePython = $true
-            $result.Result = $installResult.Result
+            $result = New-PortingPythonConfig # Install portable Python
         }
         else {
             # Invalid choice, use default
             $result.PythonPath = $PythonPaths[$LatestIndex]
         }
     }
-
     return $result
 }
 
-function Select-PythonInstallation {
+function Select-Python {
     param(
         [Parameter(Mandatory = $true)]
         [string[]]$PythonPaths,
         [bool]$SkipVerification = $false
     )
 
-    $result = New-PythonConfig
-
-    # If -p flag is set, skip Python selection (will use portable Python later)
-    if ($script:Config.PythonConfig.InstallPortablePython) {
-        return $result
-    }
-
-    # Check if portable Python is already installed (user just installed it)
-    $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
-    if (Test-Path $portablePythonPath) {
-        # Portable Python already exists, skip system Python selection
-        return $result
-    }
+    $result = $Script:Config.PythonConfig 
 
     if ($PythonPaths.Count -eq 0) {
         return $result
@@ -1186,11 +1169,11 @@ function Select-PythonInstallation {
     $latestInfo = Find-LatestPythonVersion -PythonPaths $PythonPaths
     $latestPython = $latestInfo.Python
     $latestIndex = $latestInfo.Index
+    $result.InstallPortablePython = $false
 
     # In auto mode, automatically select the latest version
     if ($script:Config.AutoMode) {
-        $msgKey = "auto_selected"
-        $msg = Get-Message $msgKey
+        $msg = Get-Message "auto_selected"
         $formatted = $msg -f $latestPython
         Write-Host $formatted -ForegroundColor Yellow
         $result.PythonPath = $latestPython
@@ -1201,14 +1184,14 @@ function Select-PythonInstallation {
             $result.Result = 0
         }
         else {
-            $result.Result = 2  # Version too low or invalid
+            $result = New-PortingPythonConfig
         }
     }
     else {
         # Interactive mode, let user choose
         Show-PythonOptions -PythonPaths $PythonPaths
-        $selectedConfig = Handle-PythonSelection -PythonPaths $PythonPaths -LatestIndex $latestIndex -SkipVerification $SkipVerification
-        $result = $selectedConfig
+        $result = Handle-PythonSelection -PythonPaths $PythonPaths -LatestIndex $latestIndex
+ 
     }
 
     return $result
@@ -1257,73 +1240,33 @@ function Show-Banner {
 # Installation Process Functions
 
 function Ensure-Python {
-    $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
-
-    # Scenario 4: 使用 -p 参数 → 应强制安装便携式 Python
-    if ($script:Config.PythonConfig.InstallPortablePython) {
-        if (Test-Path $portablePythonPath) {
-            # Scenario 5: 便携式 Python 已存在 → 应删除旧版本再安装
-            Write-LogInfo "removing_old_portable_python" $portablePythonPath
-            Remove-Item -Path (Split-Path $portablePythonPath -Parent) -Recurse -Force -ErrorAction SilentlyContinue
-        }
-        # Install portable Python
-        Write-LogInfo "installing_portable_python" $script:PYTHON_VERSION
-        $script:Config.PythonConfig = Install-PortablePython -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath
-        if ($script:Config.PythonConfig.Result -ne 0) {
-            exit $script:Config.PythonConfig.Result
-        }
-        Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
-        return
+    $result = $script:Config.PythonConfig
+    # 步骤 1: 查找系统 Python
+    if (-not $result.InstallPortablePython) {
+        $result = Select-Python -PythonPaths (Find-SystemPython)
     }
 
-    # Step 1: Check if portable Python already exists (without -p parameter)
-    if (Test-Path $portablePythonPath) {
-        # Scenario 5: 便携式 Python 已存在且有效 → 直接使用
-        $script:Config.PythonConfig = Check-Python -PythonPath $portablePythonPath
-        if ($script:Config.PythonConfig.Result -eq 0) {
-            Write-LogInfo "using_portable_python" $script:Config.PythonConfig.Version
-            return
-        }
-        else {
-            # Portable Python is invalid, remove it
-            Write-LogInfo "removing_invalid_portable_python" $portablePythonPath
-            Remove-Item -Path (Split-Path $portablePythonPath -Parent) -Recurse -Force -ErrorAction SilentlyContinue
-        }
+    # 步骤 2: 验证系统 Python
+    if (-not $result.InstallPortablePython -and $result.PythonPath) {
+        $result = Check-Python -PythonPath $result.PythonPath
     }
 
-    # Step 2: Find system Python
-    $pythonPaths = Find-SystemPython
-
-    # Step 3: Select Python installation
-    $script:Config.PythonConfig = Select-PythonInstallation -PythonPaths $pythonPaths
-
-    # Step 4: Verify system Python
-    if ($script:Config.PythonConfig.PythonPath) {
-        $script:Config.PythonConfig = Check-Python -PythonPath $script:Config.PythonConfig.PythonPath
-
-        # Scenario 1: 系统有有效 Python → 应使用系统 Python
-        if ($script:Config.PythonConfig.Result -eq 0) {
-            Write-LogInfo "using_system_python" $script:Config.PythonConfig.Version $script:Config.PythonConfig.PythonPath
-            return
-        }
-        # Scenario 2: 系统 Python 版本过低 → 应安装便携式 Python
-        elseif ($script:Config.PythonConfig.Result -eq 2) {
-            Write-LogInfo "python_version_too_low" $script:Config.PythonConfig.Version
-        }
+    # 步骤 3: 删除旧的便携式 Python
+    $portablePythonDir = Join-Path $env:ENV_ROOT "python"
+    if (Test-Path $portablePythonDir) {
+        Write-LogInfo "removing_portable_python" $portablePythonDir
+        Remove-Item -Path $portablePythonDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    # Scenario 3: 无系统 Python → 应安装便携式 Python
-    if (-not $script:Config.PythonConfig.PythonPath -or $script:Config.PythonConfig.Result -ne 0) {
-        Write-LogInfo "python_not_found_or_invalid"
+    # 步骤 4: 安装便携式 Python（如果需要）
+    if ($result.InstallPortablePython) {
+        $result = Install-PortablePython -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath
     }
 
-    # Install portable Python
-    Write-LogInfo "installing_portable_python" $script:PYTHON_VERSION
-    $script:Config.PythonConfig = Install-PortablePython -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath
-    if ($script:Config.PythonConfig.Result -ne 0) {
-        exit $script:Config.PythonConfig.Result
+    # 步骤 5: 检查结果
+    if ($result.Result -ne 0) {
+        exit $result.Result
     }
-    Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
 }
 
 function Ensure-Git {
@@ -1453,7 +1396,7 @@ function Init-Config {
     Register-CleanupHandler
 
     # Set ENV_ROOT
-    $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\$ENV_DEFAULT_DIR" }
+    $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { $ENV_DEFAULT_DIR }
 
     # Initialize global config
     $script:Config = [PSCustomObject]@{
@@ -1466,7 +1409,7 @@ function Init-Config {
         CustomPackages = New-Repo
         CustomEnv      = New-Repo
         CustomSdk      = New-Repo
-        PythonConfig   = $null
+        PythonConfig   = New-PythonConfig
         TempFiles      = @()
     }
 
