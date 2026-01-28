@@ -222,6 +222,11 @@ MESSAGES = {
         'installation_cancelled': 'Installation cancelled',
         'installation_failed': 'Installation failed: {0}',
         'removing_portable_python': 'Removing portable Python: {0}...',
+        'skipping_item': 'Skipping: {0}',
+        'deleting_item': 'Deleting: {0}...',
+        'item_deleted': 'Deleted: {0}',
+        'file_delete_failed': 'Failed to delete file: {0} - {1}',
+        'dir_delete_failed': 'Failed to delete directory: {0} - {1}',
     },
     'zh': {
         'info': '信息',
@@ -277,6 +282,11 @@ MESSAGES = {
         'installation_cancelled': '安装已取消',
         'installation_failed': '安装失败: {0}',
         'removing_portable_python': '正在删除便携式 Python: {0}...',
+        'skipping_item': '跳过: {0}',
+        'deleting_item': '正在删除: {0}...',
+        'item_deleted': '已删除: {0}',
+        'file_delete_failed': '删除文件失败: {0} - {1}',
+        'dir_delete_failed': '删除目录失败: {0} - {1}',
     }
 }
 
@@ -789,25 +799,31 @@ def remove_env_directory(config, preserve=True):
 
             # Skip local_pkgs if preserving
             if preserve and item == 'local_pkgs':
+                log_raw('skipping_item', item)
                 continue
 
             # Skip portable python if preserving
             if preserve and (item == PORTABLE_PYTHON_DIR or item_path == portable_python_path):
+                log_raw('skipping_item', item)
                 continue
 
             # Skip .config.backup if preserving
             if preserve and (item == '.config.backup' or item_path == config_backup_path):
+                log_raw('skipping_item', item)
                 continue
 
             # Delete item
+            log_raw('deleting_item', item)
             if os.path.isfile(item_path):
                 try:
                     os.remove(item_path)
+                    log_raw('item_deleted', item)
                 except OSError as e:
                     log_error('file_delete_failed', item_path, str(e))
             else:
                 try:
                     shutil.rmtree(item_path)
+                    log_raw('item_deleted', item)
                 except OSError as e:
                     log_error('dir_delete_failed', item_path, str(e))
                     # If deletion fails, try to delete recursively
