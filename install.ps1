@@ -1398,8 +1398,8 @@ function Invoke-TouchEnv {
         Write-Host "运行参数:  $pythonArgs" -ForegroundColor Green
 
         # Run touch_env.py in the same window with full interactivity
-        $pythonCmd = "& `"$($script:Config.PythonConfig.PythonPath)`" $($pythonArgs -join ' ')"
-        $touchEnvExitCode = Invoke-Expression $pythonCmd
+        & $script:Config.PythonConfig.PythonPath $pythonArgs
+        $touchEnvExitCode = $LASTEXITCODE
 
         if ($touchEnvExitCode -ne 0) {
             Write-LogError "touch_env_failed" $touchEnvExitCode
