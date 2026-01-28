@@ -767,6 +767,39 @@ def show_deletion_options(config):
     return response
 
 
+def _safe_remove(item_path, item_name):
+    """Safely remove a file or directory"""
+    try:
+        if os.path.isfile(item_path):
+            os.remove(item_path)
+        else:
+            shutil.rmtree(item_path)
+        log_raw(f"已删除: {item_name}")
+        return True
+    except OSError:
+        log_error('delete_failed', item_path, str(item_path))
+        # Fallback: try to delete recursively
+        try:
+            for root, dirs, files in os.walk(item_path, topdown=False):
+                for file in files:
+                    try:
+                        os.remove(os.path.join(root, file))
+                    except OSError:
+                        pass
+                for dir in dirs:
+                    try:
+                        os.rmdir(os.path.join(root, dir))
+                    except OSError:
+                        pass
+            if os.path.isfile(item_path):
+                os.remove(item_path)
+            else:
+                os.rmdir(item_path)
+            return True
+        except OSError:
+            return False
+
+
 def remove_env_directory(config, preserve=True):
     """
     Remove ENV directory with optional preservation
@@ -775,23 +808,18 @@ def remove_env_directory(config, preserve=True):
         config: TouchEnvConfig instance
         preserve: If True, preserve config, local_pkgs, and portable python
     """
-    # Set restore_config flag
     config.restore_config = False
 
-    # Paths to preserve
-    local_pkgs_path = os.path.join(config.env_root, 'local_pkgs')
-    portable_python_path = os.path.join(config.env_root, PORTABLE_PYTHON_DIR)
-    config_backup_path = config.temp_config_path
-
-    # Always backup config file before deletion
-    config_path = os.path.join(
-        config.env_root, 'tools', 'scripts', 'cmds', '.config')
+    # Backup config file
+    config_path = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
     if os.path.exists(config_path):
-        shutil.copy2(config_path, config_backup_path)
+        shutil.copy2(config_path, config.temp_config_path)
         config.restore_config = True
 
-    # Delete all items
+    # Build exclude list - PORTABLE_PYTHON_DIR is never deleted
+    exclude_list = {PORTABLE_PYTHON_DIR}
     if preserve:
+        exclude_list.update({'local_pkgs', '.config.backup'})
         log_info('removing_env_preserving', config.env_root)
     else:
         log_info('removing_env_all', config.env_root)
@@ -799,74 +827,15 @@ def remove_env_directory(config, preserve=True):
     deletion_failed = False
     try:
         for item in os.listdir(config.env_root):
+            if item in exclude_list:
+                log_raw(f"跳过: {item}")
+                continue
+
             item_path = os.path.join(config.env_root, item)
-
-            # Skip local_pkgs if preserving
-            if preserve and item == 'local_pkgs':
-                log_raw(f"跳过: {item}")
-                continue
-
-            # Skip portable python if preserving
-            if preserve and (item == PORTABLE_PYTHON_DIR or item_path == portable_python_path):
-                log_raw(f"跳过: {item}")
-                continue
-
-            # Skip .config.backup if preserving
-            if preserve and (item == '.config.backup' or item_path == config_backup_path):
-                log_raw(f"跳过: {item}")
-                continue
-
-            # Delete item
             log_raw(f"正在删除: {item}...")
-            if os.path.isfile(item_path):
-                try:
-                    os.remove(item_path)
-                    log_raw(f"已删除: {item}")
-                except OSError as e:
-                    log_error('file_delete_failed', item_path, str(e))
-                    deletion_failed = True
-            else:
-                try:
-                    # First try to delete .git directory if exists (to release locks)
-                    git_dir = os.path.join(item_path, '.git')
-                    if os.path.exists(git_dir):
-                        log_raw(f"正在删除 .git 目录...")
-                        try:
-                            shutil.rmtree(git_dir)
-                            log_raw(f"已删除 .git 目录")
-                        except OSError as ge:
-                            log_raw(f"删除 .git 目录失败: {str(ge)}")
-                            deletion_failed = True
-                    
-                    # Now delete the directory
-                    shutil.rmtree(item_path)
-                    log_raw(f"已删除: {item}")
-                except OSError as e:
-                    log_error('dir_delete_failed', item_path, str(e))
-                    deletion_failed = True
-                    # If deletion fails, try to delete recursively
-                    try:
-                        for root, dirs, files in os.walk(item_path, topdown=False):
-                            for file in files:
-                                file_path = os.path.join(root, file)
-                                try:
-                                    os.remove(file_path)
-                                except OSError:
-                                    pass
-                            for dir in dirs:
-                                dir_path = os.path.join(root, dir)
-                                try:
-                                    os.rmdir(dir_path)
-                                except OSError:
-                                    pass
-                        try:
-                            os.rmdir(item_path)
-                        except OSError:
-                            pass
-                    except OSError:
-                        pass
-        
-        # Only report success if no deletion failures
+            if not _safe_remove(item_path, item):
+                deletion_failed = True
+
         if not deletion_failed:
             log_success('env_root_removed', config.env_root)
         else:
