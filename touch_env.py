@@ -135,6 +135,10 @@ class TouchEnvConfig:
         self.restore_config = args.restore_config
         self.custom_repos = args.custom_repos
 
+        # Backup-related attributes
+        self.backup_path = None
+        self.strategy = None  # 'preserve' or 'delete_all' or None
+
         # Compute internal paths
         self._compute_paths()
 
@@ -244,6 +248,8 @@ MESSAGES = {
         'backup_deleted': 'Backup deleted: {0}',
         'no_space_for_backup': 'Insufficient disk space for backup. Required: {0}, Available: {1}',
         'checking_disk_space': 'Checking disk space...',
+        'auto_restoring_backup': 'Automatically restoring backup...',
+        'keeping_current_state': 'Keeping current state as is...',
     },
     'zh': {
         'info': '信息',
@@ -307,21 +313,22 @@ MESSAGES = {
                 'env_root_not_fully_removed': '部分项目删除失败，请检查上面的错误信息。',
                 'backup_creating': '正在创建备份: {0}...',
                 'backup_created': '备份已创建: {0}',
-                'backup_restore_failed': '从备份恢复失败: {0}',
-                'backup_kept_for_manual_recovery': '备份已保留，可供手动恢复，位置: {0}',
-                'backup_create_failed': '创建备份失败: {0}',
-                'install_failed_options': '安装失败。您想要怎么做？',
-                'option_restore_backup': '  R/r: 从备份恢复（回滚到之前的状态）',
-                'option_keep_current': '  K/k: 保留当前状态（部分安装）',
-                'option_delete_backup': '  D/d: 删除备份并退出',
-                'install_failed_prompt': '您的选择 [R/k/d]: ',
-                'restore_from_backup': '正在从备份恢复: {0}...',
-                'backup_restored': '备份恢复成功',
-                'backup_deleted': '备份已删除: {0}',
-                'no_space_for_backup': '磁盘空间不足以创建备份。需要: {0}, 可用: {1}',
-                'checking_disk_space': '正在检查磁盘空间...',
-            }
-        
+                        'backup_restore_failed': '从备份恢复失败: {0}',
+                        'backup_kept_for_manual_recovery': '备份已保留，可供手动恢复，位置: {0}',
+                        'backup_create_failed': '创建备份失败: {0}',
+                        'install_failed_options': '安装失败。您想要怎么做？',
+                        'option_restore_backup': '  R/r: 从备份恢复（回滚到之前的状态）',
+                        'option_keep_current': '  K/k: 保留当前状态（部分安装）',
+                        'option_delete_backup': '  D/d: 删除备份并退出',
+                        'install_failed_prompt': '您的选择 [R/k/d]: ',
+                        'restore_from_backup': '正在从备份恢复: {0}...',
+                        'backup_restored': '备份恢复成功',
+                        'backup_deleted': '备份已删除: {0}',
+                        'no_space_for_backup': '磁盘空间不足以创建备份。需要: {0}, 可用: {1}',
+                        'checking_disk_space': '正在检查磁盘空间...',
+                        'auto_restoring_backup': '自动恢复备份中...',
+                        'keeping_current_state': '保持当前状态不变...',
+                    }        
         }
 
 # ============================================================================
@@ -740,7 +747,7 @@ def restore_config(config):
 
 def check_existing_env(config):
     """
-    Check if existing ENV exists and handle deletion
+    Check if existing ENV exists and handle backup
 
     Args:
         config: TouchEnvConfig instance
@@ -755,18 +762,33 @@ def check_existing_env(config):
     print()
 
     if config.auto_mode:
-        # Auto mode: preserve config and delete others
-        remove_env_directory(config, preserve=True)
+        # Auto mode: use 'preserve' strategy by default
+        config.strategy = 'preserve'
+        try:
+            config.backup_path = create_backup_directory(config)
+        except (OSError, RuntimeError) as e:
+            log_error('backup_create_failed', str(e))
+            sys.exit(1)
     else:
         # Interactive mode: ask user
         response = show_deletion_options(config)
 
         if response.lower() == 'y':
             # Preserve config and local_pkgs
-            remove_env_directory(config, preserve=True)
+            config.strategy = 'preserve'
+            try:
+                config.backup_path = create_backup_directory(config)
+            except (OSError, RuntimeError) as e:
+                log_error('backup_create_failed', str(e))
+                sys.exit(1)
         elif response.lower() == 'a':
             # Delete everything
-            remove_env_directory(config, preserve=False)
+            config.strategy = 'delete_all'
+            try:
+                config.backup_path = create_backup_directory(config)
+            except (OSError, RuntimeError) as e:
+                log_error('backup_create_failed', str(e))
+                sys.exit(1)
         else:
             # Cancel installation
             log_info('installation_cancelled')
@@ -961,6 +983,89 @@ def restore_backup(config, backup_path, preserve_items=True):
         return False
 
     return True
+
+
+def cleanup_backup_directory(backup_path):
+    """
+    Safely delete backup directory
+
+    Args:
+        backup_path: Path to backup directory
+
+    Returns:
+        bool: True if deletion succeeded, False otherwise
+    """
+    if not os.path.exists(backup_path):
+        return True
+
+    try:
+        shutil.rmtree(backup_path, ignore_errors=True)
+        log_info('backup_deleted', backup_path)
+        return True
+    except (OSError, PermissionError) as e:
+        log_error('dir_delete_failed', backup_path, str(e))
+        return False
+
+
+def handle_installation_failure(config, backup_path, strategy):
+    """
+    Handle installation failure by offering recovery options
+
+    Args:
+        config: TouchEnvConfig instance
+        backup_path: Path to backup directory
+        strategy: User's original strategy ('preserve' or 'delete_all')
+
+    Returns:
+        int: Exit code (0 for continue, 1 for exit)
+    """
+    # In auto mode, automatically restore backup if it exists
+    if config.auto_mode:
+        if backup_path and os.path.exists(backup_path):
+            log_info('auto_restoring_backup')
+            restore_backup(config, backup_path, preserve_items=True)
+        return 1
+
+    # Interactive mode: ask user what to do
+    print()
+    log_raw(get_message('install_failed_options'))
+    print()
+    print(get_message('option_restore_backup'))
+    print(get_message('option_keep_current'))
+    print(get_message('option_delete_backup'))
+    print()
+
+    response = input(get_message('install_failed_prompt'))
+
+    if not response:
+        response = 'k'  # Default: keep current
+
+    response = response.lower()
+
+    if response == 'r':
+        # Restore from backup
+        if backup_path and os.path.exists(backup_path):
+            log_info('restore_from_backup', backup_path)
+            success = restore_backup(config, backup_path, preserve_items=True)
+            if success:
+                log_success('backup_restored')
+            else:
+                log_warning('backup_restore_failed')
+        else:
+            log_info('no_config_to_restore')
+        return 1
+    elif response == 'd':
+        # Delete backup only
+        if backup_path and os.path.exists(backup_path):
+            cleanup_backup_directory(backup_path)
+        log_info('installation_cancelled')
+        return 1
+    else:
+        # Keep current state (default)
+        log_info('keeping_current_state')
+        if backup_path and os.path.exists(backup_path):
+            log_warning('backup_kept_for_manual_recovery', backup_path)
+        return 1
 
 
 def _safe_remove(path, name):
@@ -1243,14 +1348,16 @@ def run_touch_env(args):
     Returns:
         int: Exit code (0 for success, non-zero for failure)
     """
+    config = None
+
     try:
         # Initialize configuration
         config = TouchEnvConfig(args)
 
-        # Step 1: Check existing ENV and handle deletion
+        # Step 1: Check existing ENV and create backup
         check_existing_env(config)
 
-        # Step 2: Backup configuration file
+        # Step 2: Backup configuration file (from old installation if any)
         backup_config_file(config)
 
         # Step 3: Setup repositories
@@ -1269,13 +1376,27 @@ def run_touch_env(args):
         # Step 7: Restore configuration
         restore_config(config)
 
-        # Step 8: Show next steps
+        # Step 8: Handle backup based on strategy
+        if config.backup_path and os.path.exists(config.backup_path):
+            if config.strategy == 'preserve':
+                # Restore preserved items (.config and local_pkgs)
+                restore_backup(config, config.backup_path, preserve_items=True)
+            elif config.strategy == 'delete_all':
+                # Delete backup without restoring
+                cleanup_backup_directory(config.backup_path)
+
+        # Step 9: Show next steps
         show_next_steps(config)
 
         return 0
 
     except Exception as e:
         log_error('installation_failed', str(e))
+
+        # Handle backup if installation failed
+        if config and config.backup_path and os.path.exists(config.backup_path):
+            handle_installation_failure(config, config.backup_path, config.strategy)
+
         return 1
 
 
