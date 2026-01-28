@@ -713,7 +713,7 @@ function Check-Python {
     $result = New-PortingPythonConfig
 
     # Check if Python.exe exists
-    if (-not (Test-File $PythonPath)) {
+    if (-not (Test-Path $PythonPath)) {
         $result.Result = 1
         return $result
     }
@@ -1425,8 +1425,9 @@ function Init-Config {
     $script:Config.CustomSdk = $ParsedArgs.CustomSdk
 
     # Initialize PythonConfig
-    $script:Config.PythonConfig = New-PythonConfig
-    $script:Config.PythonConfig.InstallPortablePython = $ParsedArgs.PythonMode
+   if ($ParsedArgs.PythonMode) {
+       $script:Config.PythonConfig = New-PortingPythonConfig
+   }
 
     # Set ENV_ROOT and validate
     if ($ParsedArgs.EnvRootValue) { $env:ENV_ROOT = $ParsedArgs.EnvRootValue }
