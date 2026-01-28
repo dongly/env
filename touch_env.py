@@ -1098,6 +1098,10 @@ def remove_env_directory(config, preserve=True):
     """
     Remove ENV directory with optional preservation
 
+    .. deprecated::
+        This function is deprecated and will be removed in a future version.
+        Use backup mechanism instead: create_backup_directory() + restore_backup()
+
     Args:
         config: TouchEnvConfig instance
         preserve: If True, preserve config, local_pkgs, and always preserve portable python
