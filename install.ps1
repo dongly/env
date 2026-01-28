@@ -1397,20 +1397,21 @@ function Invoke-TouchEnv {
         # 显示"$env:TEMP\touch_env_output.txt" 的内容
         Write-Host "运行参数:  $pythonArgs" -ForegroundColor Green
 
-        # Run touch_env.py in the same window
+        # Run touch_env.py in the same window with interactive input support
         $processInfo = New-Object System.Diagnostics.ProcessStartInfo
         $processInfo.FileName = $script:Config.PythonConfig.PythonPath
         $processInfo.Arguments = $pythonArgs -join ' '
         $processInfo.UseShellExecute = $false
         $processInfo.RedirectStandardOutput = $true
         $processInfo.RedirectStandardError = $true
+        $processInfo.RedirectStandardInput = $true
         $processInfo.CreateNoWindow = $true
         
         $process = New-Object System.Diagnostics.Process
         $process.StartInfo = $processInfo
         $process.Start() | Out-Null
         
-        # Read output in real-time
+        # Read output in real-time and handle input
         while (!$process.HasExited) {
             if (!$process.StandardOutput.EndOfStream) {
                 $line = $process.StandardOutput.ReadLine()
@@ -1420,6 +1421,14 @@ function Invoke-TouchEnv {
                 $line = $process.StandardError.ReadLine()
                 if ($line) { Write-Host $line -ForegroundColor Red }
             }
+            
+            # Check if there's input available from console
+            if ([Console]::KeyAvailable) {
+                $key = [Console]::ReadKey($true)
+                $process.StandardInput.WriteLine($key.KeyChar)
+                $process.StandardInput.Flush()
+            }
+            
             Start-Sleep -Milliseconds 100
         }
         
