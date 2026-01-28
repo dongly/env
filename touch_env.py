@@ -822,8 +822,21 @@ def remove_env_directory(config, preserve=True):
                     log_error('file_delete_failed', item_path, str(e))
             else:
                 try:
+                    # First try to delete .git directory if exists (to release locks)
+                    git_dir = os.path.join(item_path, '.git')
+                    if os.path.exists(git_dir):
+                        log_raw(f"正在删除 .git 目录...")
+                        try:
+                            shutil.rmtree(git_dir)
+                            log_raw(f"已删除 .git 目录")
+                        except OSError as ge:
+                            log_raw(f"删除 .git 目录失败: {str(ge)}")
+                    
+                    # Now delete the directory
                     shutil.rmtree(item_path)
                     log_raw(f"已删除: {item}")
+                except OSError as e:
+                    log_error('dir_delete_failed', item_path, str(e))
                 except OSError as e:
                     log_error('dir_delete_failed', item_path, str(e))
                     # If deletion fails, try to delete recursively
