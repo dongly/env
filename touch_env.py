@@ -766,38 +766,38 @@ def show_deletion_options(config):
         return 'y'  # Default is y (preserve)
     return response
 
+def log_warning(key, *args):
+    """Log warning message to stderr"""
+    msg = get_message(key)
+    if args:
+        msg = msg.format(*args)
+    print(f"\033[0;33m[{get_message('warning')}]\033[0m {msg}", file=sys.stderr)
 
-def _safe_remove(item_path, item_name):
-    """Safely remove a file or directory"""
+
+def _safe_remove(path, name):
+    """
+    Safely remove a file or directory with error handling
+
+    Args:
+        path: Full path to the file or directory
+        name: Name of the item (for logging)
+
+    Returns:
+        bool: True if removal succeeded, False otherwise
+    """
     try:
-        if os.path.isfile(item_path):
-            os.remove(item_path)
-        else:
-            shutil.rmtree(item_path)
-        log_raw(f"已删除: {item_name}")
+        if os.path.isfile(path) or os.path.islink(path):
+            os.remove(path)
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
+        log_info('item_deleted', name)
         return True
-    except OSError:
-        log_error('delete_failed', item_path, str(item_path))
-        # Fallback: try to delete recursively
-        try:
-            for root, dirs, files in os.walk(item_path, topdown=False):
-                for file in files:
-                    try:
-                        os.remove(os.path.join(root, file))
-                    except OSError:
-                        pass
-                for dir in dirs:
-                    try:
-                        os.rmdir(os.path.join(root, dir))
-                    except OSError:
-                        pass
-            if os.path.isfile(item_path):
-                os.remove(item_path)
-            else:
-                os.rmdir(item_path)
-            return True
-        except OSError:
-            return False
+    except (OSError, PermissionError) as e:
+        if os.path.isfile(path) or os.path.islink(path):
+            log_error('file_delete_failed', name, str(e))
+        else:
+            log_error('dir_delete_failed', name, str(e))
+        return False
 
 
 def remove_env_directory(config, preserve=True):
@@ -806,42 +806,61 @@ def remove_env_directory(config, preserve=True):
 
     Args:
         config: TouchEnvConfig instance
-        preserve: If True, preserve config, local_pkgs, and portable python
+        preserve: If True, preserve config, local_pkgs, and always preserve portable python
+
+    Returns:
+        bool: True if all deletions succeeded, False if any deletions failed
     """
+    # Disable config restore flag since we're doing a fresh backup
     config.restore_config = False
 
-    # Backup config file
+    # Backup config file if it exists
     config_path = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
     if os.path.exists(config_path):
-        shutil.copy2(config_path, config.temp_config_path)
-        config.restore_config = True
+        try:
+            shutil.copy2(config_path, config.temp_config_path)
+            config.restore_config = True
+        except (OSError, PermissionError) as e:
+            log_error('file_delete_failed', '.config', str(e))
 
-    # Build exclude list - PORTABLE_PYTHON_DIR is never deleted
+    # Build exclude list
+    # PORTABLE_PYTHON_DIR is always preserved
     exclude_list = {PORTABLE_PYTHON_DIR}
+    
+    # When preserving, also skip local_pkgs
+    if preserve:    
+        exclude_list.add('local_pkgs')
+
+    # Log the deletion mode
     if preserve:
-        exclude_list.update({'local_pkgs', '.config.backup'})
         log_info('removing_env_preserving', config.env_root)
     else:
         log_info('removing_env_all', config.env_root)
 
+    # Remove items in the directory
     deletion_failed = False
     try:
         for item in os.listdir(config.env_root):
             if item in exclude_list:
-                log_raw(f"跳过: {item}")
+                log_info('skipping_item', item)
                 continue
 
             item_path = os.path.join(config.env_root, item)
-            log_raw(f"正在删除: {item}...")
+            log_info('deleting_item', item)
             if not _safe_remove(item_path, item):
                 deletion_failed = True
 
-        if not deletion_failed:
-            log_success('env_root_removed', config.env_root)
-        else:
-            log_warning('env_root_not_fully_removed')
     except (OSError, PermissionError) as e:
-        log_error('removing_failed', str(e))
+        log_error('dir_delete_failed', config.env_root, str(e))
+        return False
+
+    # Report completion status
+    if deletion_failed:
+        log_warning('env_root_not_fully_removed')
+        return False
+    else:
+        log_success('env_root_removed', config.env_root)
+        return True
 
 # ============================================================================
 # User Interaction Functions
