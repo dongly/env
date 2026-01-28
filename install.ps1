@@ -1549,12 +1549,16 @@ function Download-TouchEnv {
         # Use custom env repo for touch_env.py download
         # Convert GitHub repo URL to raw.githubusercontent.com URL
         $repo = $script:Config.CustomEnv.Repo
-        $branch = $script:Config.CustomEnv.Branch -replace "refs/heads/", ""
+        $branch = $script:Config.CustomEnv.Branch
 
         if ($repo -match "^https?://github\.com/([^/]+)/([^/]+?)(\.git)?$") {
-            # GitHub repository: https://github.com/owner/repo -> https://raw.githubusercontent.com/owner/repo/branch/file
+            # GitHub repository: https://github.com/owner/repo -> https://raw.githubusercontent.com/owner/repo/refs/heads/branch/file
             $owner = $Matches[1]
             $repoName = $Matches[2] -replace '\.git$', ''
+            # Ensure branch has refs/heads/ prefix for GitHub raw URLs
+            if (-not $branch.StartsWith("refs/heads/")) {
+                $branch = "refs/heads/$branch"
+            }
             $TOUCH_ENV_URL = "https://raw.githubusercontent.com/$owner/$repoName/$branch/touch_env.py"
         }
         else {
