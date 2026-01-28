@@ -1,5 +1,4 @@
-﻿#
-# RT-Thread ENV Installation Script (Windows)
+﻿# RT-Thread ENV Installation Script (Windows)
 # Unified installation script for Windows
 # Supports: English / 中文
 #
@@ -23,36 +22,35 @@
 #   -h, --help           Show this help message
 #
 
-# Configuration
-# Repository URLs: GitHub (official) and Gitee (China mirror)
-$REPO_PACKAGES_GITHUB = "https://github.com/RT-Thread/packages.git"
-$REPO_ENV_GITHUB = "https://github.com/RT-Thread/env.git"
-$REPO_SDK_GITHUB = "https://github.com/RT-Thread/sdk.git"
+# ============================================================================
+# Global Constants
+# ============================================================================
 
-$REPO_PACKAGES_GITEE = "https://gitee.com/RT-Thread-Mirror/packages.git"
-$REPO_ENV_GITEE = "https://gitee.com/RT-Thread-Mirror/env.git"
-$REPO_SDK_GITEE = "https://gitee.com/RT-Thread-Mirror/sdk.git"
+# Environment Configuration
+$ENV_DEFAULT_DIR = ".rtenv"
 
 # touch_env.py download URLs
 $TOUCH_ENV_URL_GITHUB = "https://raw.githubusercontent.com/RT-Thread/env/master/touch_env.py"
 $TOUCH_ENV_URL_GITEE = "https://gitee.com/RT-Thread-Mirror/env/raw/master/touch_env.py"
 
-# Default branches (empty means use git default)
-$BRANCH_PACKAGES_DEFAULT = ""
-$BRANCH_ENV_DEFAULT = ""
-$BRANCH_SDK_DEFAULT = ""
+# Python Configuration
+$PYTHON_VERSION = "3.13.11"
+$PYTHON_ARCHIVE = "python-${PYTHON_VERSION}-amd64.zip"
+$PYTHON_URL_DEFAULT = "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
+$PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
 
-# PyPI mirror and detection URLs
-$PYPI_MIRROR_CN = "https://pypi.tuna.tsinghua.edu.cn/simple"
-
-# Git download URLs
+# Git Configuration
+$GIT_FALLBACK_VERSION = "v2.52.0.windows.1"
+$GIT_FALLBACK_URL = "https://github.com/git-for-windows/git/releases/download/$GIT_FALLBACK_VERSION/Git-${GIT_FALLBACK_VERSION}-64-bit.exe"
 $GIT_GITHUB_API_URL = "https://api.github.com/repos/git-for-windows/git/releases/latest"
 $GIT_NPMMIRROR_URL = "https://registry.npmmirror.com/-/binary/git-for-windows/"
 
-# IPInfo API URL for detecting IP location
+# IP Detection Configuration
 $IPINFO_URL = "https://ipinfo.io/json"
 
-$ENV_DEFAULT_DIR = ".rtenv"
+# ============================================================================
+# Helper Functions
+# ============================================================================
 
 # New-Repo function
 # Create a repository configuration object
@@ -88,15 +86,6 @@ function Parse-RepoArg {
     }
     else {
         return New-Repo -Repo $RepoArg.Trim()
-    }
-}
-
-# New-Repo function
-# Create a repository configuration object
-function New-Repo {
-    return [PSCustomObject]@{
-        Repo   = ""
-        Branch = ""
     }
 }
 
@@ -175,28 +164,6 @@ function Parse-Arguments {
     return $result
 }
 
-# Parse command line arguments
-$parsedArgs = Parse-Arguments -Arguments $args
-
-$env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\$ENV_DEFAULT_DIR" }
-
-$script:Config = [PSCustomObject]@{
-    LangCurrent    = ""
-    UseCN          = $false
-    UseCNSet       = $false
-    InstallPyocd   = $false
-    AutoMode       = $false
-    NeedHelp       = $false
-    CustomPackages = New-Repo
-    CustomEnv      = New-Repo
-    CustomSdk      = New-Repo
-    PythonConfig   = $null
-    TempFiles      = @()  # Track temporary files for cleanup
-}
-
-Set-StrictMode -Version Latest # Enable strict mode
-$ErrorActionPreference = "Stop"# Stop on errors
-
 # Register-CleanupHandler function
 # Register-CleanupHandler function
 # Register cleanup handler for temporary files
@@ -221,7 +188,6 @@ function Register-CleanupHandler {
 # Register cleanup handler immediately when script loads
 # This ensures cleanup happens regardless of where/when the script exits
 # (before Main(), during parameter validation, or after installation)
-Register-CleanupHandler
 
 # Add-TempFile function
 # Track temporary file for cleanup
@@ -243,9 +209,6 @@ function Get-SystemLanguage {
     }
     return "en"
 }
-
-# Initialize config with default values
-$script:Config.LangCurrent = Get-SystemLanguage
 
 # Print-Help function
 # Display help information and exit
@@ -384,6 +347,10 @@ $script:Messages = @{
         touch_env_failed               = "touch_env.py execution failed with exit code: {0}"
         touch_env_download_failed      = "Failed to download touch_env.py: {0}"
         python_pth_config_failed       = "Warning: Failed to configure Python _pth file. site-packages may not be available."
+        check_list                     = "Please check:"
+        check_list_connection          = "  1. Your internet connection"
+        check_list_url                = "  2. The URL is correct: {0}"
+        check_list_alt_url             = "  3. Try using -t parameter to specify a different URL"
     }
     zh = @{
         banner_title                   = "RT-Thread ENV 安装程序"
@@ -431,6 +398,10 @@ $script:Messages = @{
         touch_env_failed               = "touch_env.py 执行失败，退出码: {0}"
         touch_env_download_failed      = "下载 touch_env.py 失败: {0}"
         python_pth_config_failed       = "警告: 配置 Python _pth 文件失败。site-packages 可能不可用。"
+        check_list                     = "请检查:"
+        check_list_connection          = "  1. 您的网络连接"
+        check_list_url                = "  2. URL 是否正确: {0}"
+        check_list_alt_url             = "  3. 尝试使用 -t 参数指定不同的 URL"
     }
 }
 
@@ -510,6 +481,45 @@ function Write-LogError {
         $msg
     }
     Write-Host "[$(Get-Message 'error')] $formatted" -ForegroundColor Red
+}
+
+# Write-LogRaw function
+# Write raw message with configurable color and i18n support
+function Write-LogRaw {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Key,
+        
+        [Parameter(Mandatory = $false)]
+        [ConsoleColor]$Color = "White",
+        
+        [Parameter(Mandatory = $false)]
+        [string]$Arg1 = "",
+        
+        [Parameter(Mandatory = $false)]
+        [string]$Arg2 = ""
+    )
+    
+    # Get message from dictionary (supports i18n)
+    $msg = if ($script:Messages.ContainsKey($script:Config.LangCurrent) -and $script:Messages[$script:Config.LangCurrent].ContainsKey($Key)) {
+        $script:Messages[$script:Config.LangCurrent][$Key]
+    }
+    else {
+        $Key  # Fallback to the key itself if not found in dictionary
+    }
+    
+    # Format message with arguments if provided
+    $formatted = if ($null -ne $Arg1 -and $null -ne $Arg2 -and $Arg1 -ne "" -and $Arg2 -ne "") {
+        $msg -f $Arg1, $Arg2
+    }
+    elseif ($null -ne $Arg1 -and $Arg1 -ne "") {
+        $msg -f $Arg1
+    }
+    else {
+        $msg
+    }
+    
+    Write-Host $formatted -ForegroundColor $Color
 }
 
 # Git Functions
@@ -670,14 +680,6 @@ function Install-Git {
 # Enable-LongPathSupport: Enable Windows long path support
 # Configure-PythonPth: Configure Python _pth file
 
-$PYTHON_VERSION = "3.13.11"
-$PYTHON_ARCHIVE = "python-3.13.11-amd64.zip"
-$PYTHON_URL_DEFAULT = "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
-$PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
-
-$GIT_FALLBACK_VERSION = "v2.52.0.windows.1"
-$GIT_FALLBACK_URL = "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-v2.52.0.windows.1-64-bit.exe"
-
 function New-PythonConfig {
     return [PSCustomObject]@{
         InstallPortablePython = $false
@@ -720,15 +722,6 @@ function Check-Python {
     $result.Result = 0
     return $result
 }
-
-function Get-EmbedPythonVersion {
-    return $PYTHON_VERSION
-}
-
-function Get-EmbedPythonPath {
-    return Join-Path $env:ENV_ROOT "python\python.exe"
-}
-
 
 function Download-PortablePython {
     param([bool]$UseCNMirror)
@@ -916,7 +909,7 @@ function Install-PortablePython {
             Enable-LongPathSupport
         }
         Configure-PythonPth
-            # Save portable Python path to global variable
+        # Save portable Python path to global variable
         $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
         Write-LogSuccess "python_installed"
 
@@ -1338,6 +1331,71 @@ function Ensure-Git {
     Write-LogSuccess "git_found" $gitVersion
 }
 
+# Save-TouchEnvToFile function
+# Save touch_env.py script content to temporary file
+function Save-TouchEnvToFile {
+    param(
+        [string]$ScriptContent
+    )
+
+    $touchEnvTempFile = Join-Path $env:TEMP "touch_env.py"
+    Add-TempFile -FilePath $touchEnvTempFile
+    Set-Content -Path $touchEnvTempFile -Value $ScriptContent -Encoding UTF8
+    return $touchEnvTempFile
+}
+
+# Build-TouchEnvArgs function
+# Build argument list for touch_env.py
+function Build-TouchEnvArgs {
+    param(
+        [string]$TouchEnvFilePath
+    )
+
+    # Build arguments list
+    $pythonArgs = @($TouchEnvFilePath)
+    $pythonArgs += "--env-root", $env:ENV_ROOT
+    if ($script:Config.UseCN) { $pythonArgs += "--use-cn" }
+    $pythonArgs += "--language", $script:Config.LangCurrent
+    if ($script:Config.AutoMode) { $pythonArgs += "--auto-mode" }
+    if ($script:Config.InstallPyocd) { $pythonArgs += "--install-pyocd" }
+
+    # Pass custom repositories as individual parameters
+    if ($script:Config.CustomEnv.Repo) {
+        $pythonArgs += "--repo-env", $script:Config.CustomEnv.Repo
+        if ($script:Config.CustomEnv.Branch) {
+            $pythonArgs += "--branch-env", $script:Config.CustomEnv.Branch
+        }
+    }
+
+    if ($script:Config.CustomPackages.Repo) {
+        $pythonArgs += "--repo-packages", $script:Config.CustomPackages.Repo
+        if ($script:Config.CustomPackages.Branch) {
+            $pythonArgs += "--branch-packages", $script:Config.CustomPackages.Branch
+        }
+    }
+
+    if ($script:Config.CustomSdk.Repo) {
+        $pythonArgs += "--repo-sdk", $script:Config.CustomSdk.Repo
+        if ($script:Config.CustomSdk.Branch) {
+            $pythonArgs += "--branch-sdk", $script:Config.CustomSdk.Branch
+        }
+    }
+
+    return $pythonArgs
+}
+
+# Show-TouchEnvError function
+# Show touch_env.py error output if available
+function Show-TouchEnvError {
+    $errorFile = "$env:TEMP\touch_env_error.txt"
+    if (Test-Path $errorFile) {
+        $errorOutput = Get-Content $errorFile -Raw
+        if ($errorOutput) {
+            Write-Host $errorOutput -ForegroundColor Red
+        }
+    }
+}
+
 # Invoke-TouchEnv function
 # Download and execute touch_env.py to handle Step 5-10
 function Invoke-TouchEnv {
@@ -1346,42 +1404,11 @@ function Invoke-TouchEnv {
     )
 
     try {
-        # Save touch_env.py to temp file first
-        $touchEnvTempFile = Join-Path $env:TEMP "touch_env.py"
-        Add-TempFile -FilePath $touchEnvTempFile
-        Set-Content -Path $touchEnvTempFile -Value $scriptContent -Encoding UTF8
+        # Save touch_env.py to temp file
+        $touchEnvFile = Save-TouchEnvToFile -ScriptContent $ScriptContent
 
         # Build arguments list
-        # Note: Boolean parameters (--use-cn, --auto-mode, --install-pyocd) use action='store_true' in Python
-        # Only pass the flag if value is $true, otherwise omit it
-        $pythonArgs = @($touchEnvTempFile)
-        $pythonArgs += "--env-root", $env:ENV_ROOT
-        if ($script:Config.UseCN) { $pythonArgs += "--use-cn" }
-        $pythonArgs += "--language", $script:Config.LangCurrent
-        if ($script:Config.AutoMode) { $pythonArgs += "--auto-mode" }
-        if ($script:Config.InstallPyocd) { $pythonArgs += "--install-pyocd" }
-
-        # Pass custom repositories as individual parameters
-        if ($script:Config.CustomEnv.Repo) {
-            $pythonArgs += "--repo-env", $script:Config.CustomEnv.Repo
-            if ($script:Config.CustomEnv.Branch) {
-                $pythonArgs += "--branch-env", $script:Config.CustomEnv.Branch
-            }
-        }
-
-        if ($script:Config.CustomPackages.Repo) {
-            $pythonArgs += "--repo-packages", $script:Config.CustomPackages.Repo
-            if ($script:Config.CustomPackages.Branch) {
-                $pythonArgs += "--branch-packages", $script:Config.CustomPackages.Branch
-            }
-        }
-
-        if ($script:Config.CustomSdk.Repo) {
-            $pythonArgs += "--repo-sdk", $script:Config.CustomSdk.Repo
-            if ($script:Config.CustomSdk.Branch) {
-                $pythonArgs += "--branch-sdk", $script:Config.CustomSdk.Branch
-            }
-        }
+        $pythonArgs = Build-TouchEnvArgs -TouchEnvFilePath $touchEnvFile
 
         # Run touch_env.py
         $process = Start-Process -FilePath $script:Config.PythonConfig.PythonPath -ArgumentList $pythonArgs -Wait -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\touch_env_output.txt" -RedirectStandardError "$env:TEMP\touch_env_error.txt"
@@ -1389,13 +1416,7 @@ function Invoke-TouchEnv {
 
         if ($touchEnvExitCode -ne 0) {
             Write-LogError "touch_env_failed" $touchEnvExitCode
-            # Show error output if available
-            if (Test-Path "$env:TEMP\touch_env_error.txt") {
-                $errorOutput = Get-Content "$env:TEMP\touch_env_error.txt" -Raw
-                if ($errorOutput) {
-                    Write-Host $errorOutput -ForegroundColor Red
-                }
-            }
+            Show-TouchEnvError
             exit $touchEnvExitCode
         }
     }
@@ -1405,30 +1426,55 @@ function Invoke-TouchEnv {
     }
 }
 
-# Initialize-Installation function
+# Init-Config function
 # Initialize installation environment and validate settings
-function Initialize-Installation {
+function Init-Config {
     param(
         [PSCustomObject]$ParsedArgs
     )
 
+    # Set strict mode and error handling
+    Set-StrictMode -Version Latest
+    $ErrorActionPreference = "Stop"
+
+    # Register cleanup handler
+    Register-CleanupHandler
+
+    # Set ENV_ROOT
+    $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { "$env:USERPROFILE\$ENV_DEFAULT_DIR" }
+
+    # Initialize global config
+    $script:Config = [PSCustomObject]@{
+        LangCurrent    = ""
+        UseCN          = $false
+        UseCNSet       = $false
+        InstallPyocd   = $false
+        AutoMode       = $false
+        NeedHelp       = $false
+        CustomPackages = New-Repo
+        CustomEnv      = New-Repo
+        CustomSdk      = New-Repo
+        PythonConfig   = $null
+        TempFiles      = @()
+    }
+
     # Set config from parsed arguments
-    $script:Config.LangCurrent = if ($parsedArgs.ZhMode) { "zh" } elseif ($parsedArgs.EnMode) { "en" } else { Get-SystemLanguage }
-    $script:Config.UseCN = $parsedArgs.CnMode
-    $script:Config.UseCNSet = $parsedArgs.CnMode -or $parsedArgs.OfficialMode
-    $script:Config.InstallPyocd = $parsedArgs.PyocdMode
-    $script:Config.AutoMode = $parsedArgs.AutoMode
-    $script:Config.NeedHelp = $parsedArgs.HelpMode
-    $script:Config.CustomPackages = $parsedArgs.CustomPackages
-    $script:Config.CustomEnv = $parsedArgs.CustomEnv
-    $script:Config.CustomSdk = $parsedArgs.CustomSdk
+    $script:Config.LangCurrent = if ($ParsedArgs.ZhMode) { "zh" } elseif ($ParsedArgs.EnMode) { "en" } else { Get-SystemLanguage }
+    $script:Config.UseCN = $ParsedArgs.CnMode
+    $script:Config.UseCNSet = $ParsedArgs.CnMode -or $ParsedArgs.OfficialMode
+    $script:Config.InstallPyocd = $ParsedArgs.PyocdMode
+    $script:Config.AutoMode = $ParsedArgs.AutoMode
+    $script:Config.NeedHelp = $ParsedArgs.HelpMode
+    $script:Config.CustomPackages = $ParsedArgs.CustomPackages
+    $script:Config.CustomEnv = $ParsedArgs.CustomEnv
+    $script:Config.CustomSdk = $ParsedArgs.CustomSdk
 
     # Initialize PythonConfig
     $script:Config.PythonConfig = New-PythonConfig
-    $script:Config.PythonConfig.InstallPortablePython = $parsedArgs.PythonMode
+    $script:Config.PythonConfig.InstallPortablePython = $ParsedArgs.PythonMode
 
     # Set ENV_ROOT and validate
-    if ($parsedArgs.EnvRootValue) { $env:ENV_ROOT = $parsedArgs.EnvRootValue }
+    if ($ParsedArgs.EnvRootValue) { $env:ENV_ROOT = $ParsedArgs.EnvRootValue }
     if ($env:ENV_ROOT -match "\s") {
         Write-LogError "env_root_invalid" "spaces"
         exit 1
@@ -1440,7 +1486,7 @@ function Initialize-Installation {
 
     # Check administrator privileges for auto mode
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if ($parsedArgs.AutoMode -and -not $isAdmin -and -not $parsedArgs.SkipLongPath) {
+    if ($ParsedArgs.AutoMode -and -not $isAdmin -and -not $ParsedArgs.SkipLongPath) {
         Write-LogError "admin_required"
         Write-LogWarning "run_as_admin"
         exit 1
@@ -1458,32 +1504,39 @@ function Initialize-Installation {
     }
 
     # Override with --official flag
-    if ($parsedArgs.OfficialMode) {
+    if ($ParsedArgs.OfficialMode) {
         $script:Config.UseCN = $false
     }
 }
 
-# Main Function
-# Main function: Coordinate all installation steps
+# Show-DownloadError function
+# Show download error message with checklist
+function Show-DownloadError {
+    param(
+        [string]$Url
+    )
 
-function Main {
-    # Initialize installation environment
-    Initialize-Installation -ParsedArgs $parsedArgs
+    Write-Host ""
+    Write-LogRaw "check_list" -Color Yellow
+    Write-LogRaw "check_list_connection" -Color Yellow
+    Write-LogRaw "check_list_url" -Color Yellow -Arg1 $Url
+    Write-LogRaw "check_list_alt_url" -Color Yellow
+}
 
-    # Step 1: Print installation banner
-    Show-Banner
-
-    # Step 2: Ensure Python and Git are installed
-    Ensure-Python
-    Ensure-Git
+# Download-TouchEnv function
+# Download touch_env.py script from network with fallback handling
+function Download-TouchEnv {
+    param(
+        [PSCustomObject]$ParsedArgs
+    )
 
     # Set touch_env.py download URL
     $TOUCH_ENV_URL = $TOUCH_ENV_URL_GITHUB
     if ($script:Config.UseCN) {
         $TOUCH_ENV_URL = $TOUCH_ENV_URL_GITEE
     }
-    if ($parsedArgs.TouchEnvUrlValue) {
-        $TOUCH_ENV_URL = $parsedArgs.TouchEnvUrlValue
+    if ($ParsedArgs.TouchEnvUrlValue) {
+        $TOUCH_ENV_URL = $ParsedArgs.TouchEnvUrlValue
     }
     elseif ($script:Config.CustomEnv.Repo) {
         # Use custom env repo for touch_env.py download
@@ -1510,27 +1563,42 @@ function Main {
             }
             catch {
                 Write-LogError "touch_env_download_failed" $_.Exception.Message
-                Write-Host ""
-                Write-Host "Please check:" -ForegroundColor Yellow
-                Write-Host "  1. Your internet connection" -ForegroundColor Yellow
-                Write-Host "  2. The URL is correct: $TOUCH_ENV_URL" -ForegroundColor Yellow
-                Write-Host "  3. Try using -t parameter to specify a different URL" -ForegroundColor Yellow
+                Show-DownloadError -Url $TOUCH_ENV_URL
                 exit 1
             }
         }
         else {
             Write-LogError "touch_env_download_failed" $_.Exception.Message
-            Write-Host ""
-            Write-Host "Please check:" -ForegroundColor Yellow
-            Write-Host "  1. Your internet connection" -ForegroundColor Yellow
-            Write-Host "  2. The URL is correct: $TOUCH_ENV_URL" -ForegroundColor Yellow
-            Write-Host "  3. Try using -t parameter to specify a different URL" -ForegroundColor Yellow
+            Show-DownloadError -Url $TOUCH_ENV_URL
             exit 1
         }
     }
+
+    return $scriptContent
+}
+
+# Main Function
+# Main function: Coordinate all installation steps
+function Main {
+    # Parse command line arguments
+    $parsedArgs = Parse-Arguments -Arguments $args
+
+    # Initialize configuration
+    Init-Config -ParsedArgs $parsedArgs
+
+    # Step 1: Print installation banner
+    Show-Banner
+
+    # Step 2: Ensure Python and Git are installed
+    Ensure-Python
+    Ensure-Git
+
+    # Step 3: Download touch_env.py
+    $scriptContent = Download-TouchEnv -ParsedArgs $parsedArgs
 
     # Step 4: Call touch_env.py to handle Step 5-10
     Invoke-TouchEnv -ScriptContent $scriptContent
 }
 
+# Execute main function
 Main
