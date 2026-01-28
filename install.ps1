@@ -343,6 +343,9 @@ $script:Messages = @{
         python_not_found               = "Python not found. Please install Python first."
         env_root_invalid               = "Error: ENV_ROOT cannot contain {0}"
         removing_portable_python       = "Removing portable Python: {0}..."
+        removing_old_portable_python   = "Removing old portable Python: {0}..."
+        removing_invalid_portable_python = "Removing invalid portable Python: {0}..."
+        python_not_found_or_invalid    = "Python not found or invalid. Installing portable Python..."
         downloading_touch_env          = "Downloading touch_env.py from: {0}"
         touch_env_failed               = "touch_env.py execution failed with exit code: {0}"
         touch_env_download_failed      = "Failed to download touch_env.py: {0}"
@@ -394,6 +397,9 @@ $script:Messages = @{
         python_not_found               = "未找到 Python。请先安装 Python。"
         env_root_invalid               = "错误: ENV_ROOT 不能包含 {0}"
         removing_portable_python       = "正在删除便携式 Python: {0}..."
+        removing_old_portable_python   = "正在删除旧的便携式 Python: {0}..."
+        removing_invalid_portable_python = "正在删除无效的便携式 Python: {0}..."
+        python_not_found_or_invalid    = "未找到 Python 或 Python 无效。正在安装便携式 Python..."
         downloading_touch_env          = "正在下载 touch_env.py，自: {0}"
         touch_env_failed               = "touch_env.py 执行失败，退出码: {0}"
         touch_env_download_failed      = "下载 touch_env.py 失败: {0}"
@@ -1250,13 +1256,28 @@ function Show-Banner {
 # Installation Process Functions
 
 function Ensure-Python {
-    # Initialize PythonConfig
-    $script:Config.PythonConfig = New-PythonConfig
-
-    # Step 1: Check if portable Python already exists
     $portablePythonPath = Join-Path $env:ENV_ROOT "python\python.exe"
+
+    # Scenario 4: 使用 -p 参数 → 应强制安装便携式 Python
+    if ($script:Config.PythonConfig.InstallPortablePython) {
+        if (Test-Path $portablePythonPath) {
+            # Scenario 5: 便携式 Python 已存在 → 应删除旧版本再安装
+            Write-LogInfo "removing_old_portable_python" $portablePythonPath
+            Remove-Item -Path (Split-Path $portablePythonPath -Parent) -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        # Install portable Python
+        Write-LogInfo "installing_portable_python" $script:PYTHON_VERSION
+        $script:Config.PythonConfig = Install-PortablePython -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath
+        if ($script:Config.PythonConfig.Result -ne 0) {
+            exit $script:Config.PythonConfig.Result
+        }
+        Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
+        return
+    }
+
+    # Step 1: Check if portable Python already exists (without -p parameter)
     if (Test-Path $portablePythonPath) {
-        # Portable Python already exists, use it
+        # Scenario 5: 便携式 Python 已存在且有效 → 直接使用
         $script:Config.PythonConfig = Check-Python -PythonPath $portablePythonPath
         if ($script:Config.PythonConfig.Result -eq 0) {
             Write-LogInfo "using_portable_python" $script:Config.PythonConfig.Version
@@ -1264,50 +1285,43 @@ function Ensure-Python {
         }
         else {
             # Portable Python is invalid, remove it
-            Write-LogInfo "removing_portable_python" $portablePythonPath
-            Remove-Item -Path $portablePythonPath -Recurse -Force -ErrorAction SilentlyContinue
+            Write-LogInfo "removing_invalid_portable_python" $portablePythonPath
+            Remove-Item -Path (Split-Path $portablePythonPath -Parent) -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 
     # Step 2: Find system Python
     $pythonPaths = Find-SystemPython
 
-    # Step 3: Select Python installation (or install portable)
-    if (-not $script:Config.PythonConfig.InstallPortablePython) {
-        $script:Config.PythonConfig = Select-PythonInstallation -PythonPaths $pythonPaths
-    }
+    # Step 3: Select Python installation
+    $script:Config.PythonConfig = Select-PythonInstallation -PythonPaths $pythonPaths
 
     # Step 4: Verify system Python
-    if (-not $script:Config.PythonConfig.InstallPortablePython -and $script:Config.PythonConfig.PythonPath) {
+    if ($script:Config.PythonConfig.PythonPath) {
         $script:Config.PythonConfig = Check-Python -PythonPath $script:Config.PythonConfig.PythonPath
-    }
 
-    # Step 5: Check if system Python is valid
-    if (-not $script:Config.PythonConfig.InstallPortablePython) {
-        if ($script:Config.PythonConfig.Result -eq 0 -and $script:Config.PythonConfig.PythonPath) {
-            # System Python is valid
+        # Scenario 1: 系统有有效 Python → 应使用系统 Python
+        if ($script:Config.PythonConfig.Result -eq 0) {
             Write-LogInfo "using_system_python" $script:Config.PythonConfig.Version $script:Config.PythonConfig.PythonPath
             return
         }
+        # Scenario 2: 系统 Python 版本过低 → 应安装便携式 Python
         elseif ($script:Config.PythonConfig.Result -eq 2) {
-            # System Python version is too low
             Write-LogInfo "python_version_too_low" $script:Config.PythonConfig.Version
-        }
-        else {
-            # No Python found or invalid path
-            Write-LogInfo "python_not_found"
         }
     }
 
-    # Step 6: Install portable Python (if needed)
+    # Scenario 3: 无系统 Python → 应安装便携式 Python
+    if (-not $script:Config.PythonConfig.PythonPath -or $script:Config.PythonConfig.Result -ne 0) {
+        Write-LogInfo "python_not_found_or_invalid"
+    }
+
+    # Install portable Python
     Write-LogInfo "installing_portable_python" $script:PYTHON_VERSION
     $script:Config.PythonConfig = Install-PortablePython -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath
-
-    # Step 7: Check result
     if ($script:Config.PythonConfig.Result -ne 0) {
         exit $script:Config.PythonConfig.Result
     }
-
     Write-LogInfo "using_portable_python" $script:PYTHON_VERSION
 }
 
