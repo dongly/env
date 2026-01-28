@@ -1485,7 +1485,8 @@ function Init-Config {
     if (-not $script:Config.UseCNSet) {
         $script:Config.UseCN = Detect-China
     }
-    Write-LogInfo "mirror_selection" (if ($script:Config.UseCN) { "china_mirror" } else { "official_mirror" })
+    $mirrorType = if ($script:Config.UseCN) { "china_mirror" } else { "official_mirror" }
+    Write-LogInfo "mirror_selection" $mirrorType
 
     # Override with --official flag
     if ($ParsedArgs.OfficialMode) {
