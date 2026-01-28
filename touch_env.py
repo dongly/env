@@ -801,9 +801,36 @@ def remove_env_directory(config, preserve=True):
 
             # Delete item
             if os.path.isfile(item_path):
-                os.remove(item_path)
+                try:
+                    os.remove(item_path)
+                except OSError as e:
+                    log_error('file_delete_failed', item_path, str(e))
             else:
-                shutil.rmtree(item_path, ignore_errors=True)
+                try:
+                    shutil.rmtree(item_path)
+                except OSError as e:
+                    log_error('dir_delete_failed', item_path, str(e))
+                    # If deletion fails, try to delete recursively
+                    try:
+                        for root, dirs, files in os.walk(item_path, topdown=False):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                try:
+                                    os.remove(file_path)
+                                except OSError:
+                                    pass
+                            for dir in dirs:
+                                dir_path = os.path.join(root, dir)
+                                try:
+                                    os.rmdir(dir_path)
+                                except OSError:
+                                    pass
+                        try:
+                            os.rmdir(item_path)
+                        except OSError:
+                            pass
+                    except OSError:
+                        pass
 
         log_success('env_root_removed', config.env_root)
     except (OSError, PermissionError) as e:
