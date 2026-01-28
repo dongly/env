@@ -1397,48 +1397,9 @@ function Invoke-TouchEnv {
         # 显示"$env:TEMP\touch_env_output.txt" 的内容
         Write-Host "运行参数:  $pythonArgs" -ForegroundColor Green
 
-        # Run touch_env.py in the same window with interactive input support
-        $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-        $processInfo.FileName = $script:Config.PythonConfig.PythonPath
-        $processInfo.Arguments = $pythonArgs -join ' '
-        $processInfo.UseShellExecute = $false
-        $processInfo.RedirectStandardOutput = $true
-        $processInfo.RedirectStandardError = $true
-        $processInfo.RedirectStandardInput = $true
-        $processInfo.CreateNoWindow = $true
-        
-        $process = New-Object System.Diagnostics.Process
-        $process.StartInfo = $processInfo
-        $process.Start() | Out-Null
-        
-        # Read output in real-time and handle input
-        while (!$process.HasExited) {
-            if (!$process.StandardOutput.EndOfStream) {
-                $line = $process.StandardOutput.ReadLine()
-                if ($line) { Write-Host $line }
-            }
-            if (!$process.StandardError.EndOfStream) {
-                $line = $process.StandardError.ReadLine()
-                if ($line) { Write-Host $line -ForegroundColor Red }
-            }
-            
-            # Check if there's input available from console
-            if ([Console]::KeyAvailable) {
-                $key = [Console]::ReadKey($true)
-                $process.StandardInput.WriteLine($key.KeyChar)
-                $process.StandardInput.Flush()
-            }
-            
-            Start-Sleep -Milliseconds 100
-        }
-        
-        # Read remaining output
-        $output = $process.StandardOutput.ReadToEnd()
-        $error = $process.StandardError.ReadToEnd()
-        if ($output) { Write-Host $output }
-        if ($error) { Write-Host $error -ForegroundColor Red }
-        
-        $touchEnvExitCode = $process.ExitCode
+        # Run touch_env.py in the same window with full interactivity
+        $pythonCmd = "& `"$($script:Config.PythonConfig.PythonPath)`" $($pythonArgs -join ' ')"
+        $touchEnvExitCode = Invoke-Expression $pythonCmd
 
         if ($touchEnvExitCode -ne 0) {
             Write-LogError "touch_env_failed" $touchEnvExitCode
