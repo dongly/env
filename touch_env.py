@@ -85,6 +85,10 @@ TEMP_CONFIG_FILE = ".config.backup"
 # Portable Python directory name
 PORTABLE_PYTHON_DIR = "python"
 
+# Backup configuration constants
+BACKUP_MIN_SPACE_GB = 1  # Minimum space required if size calculation fails (GB)
+BACKUP_SAFETY_MARGIN = 1.2  # Safety margin for backup space (20%)
+
 # ============================================================================
 # Runtime Configuration
 # ============================================================================
@@ -211,6 +215,8 @@ MESSAGES = {
         'invalid_git_repo': 'Invalid git repository: {0}',
         'venv_not_found': 'Virtual environment not found',
         'package_install_failed': 'Package installation failed: {0}',
+        'venv_creation_failed': 'Virtual environment creation failed: {0}',
+        'fix_guiconfig_failed': 'Failed to fix guiconfig.py: {0}',
         'using_custom_repo': 'Using custom repository: {0}',
         'using_custom_repo_branch': 'Using custom repository: {0} (branch: {1})',
         'backup_config': 'Backing up configuration file...',
@@ -289,6 +295,8 @@ MESSAGES = {
         'invalid_git_repo': '无效的 git 仓库: {0}',
         'venv_not_found': '找不到虚拟环境',
         'package_install_failed': '包安装失败: {0}',
+        'venv_creation_failed': '虚拟环境创建失败: {0}',
+        'fix_guiconfig_failed': '修复 guiconfig.py 失败: {0}',
         'using_custom_repo': '使用自定义仓库: {0}',
         'using_custom_repo_branch': '使用自定义仓库: {0} (分支: {1})',
         'backup_config': '正在备份配置文件...',
