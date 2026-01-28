@@ -1527,17 +1527,19 @@ function Download-TouchEnv {
         [PSCustomObject]$ParsedArgs
     )
 
-    # Set touch_env.py download URL
-    $TOUCH_ENV_URL = $TOUCH_ENV_URL_GITHUB
-    if ($script:Config.UseCN) {
-        $TOUCH_ENV_URL = $TOUCH_ENV_URL_GITEE
-    }
+    # Set touch_env.py download URL (priority: -t > --env > UseCN/Gitee > GitHub)
     if ($ParsedArgs.TouchEnvUrlValue) {
         $TOUCH_ENV_URL = $ParsedArgs.TouchEnvUrlValue
     }
     elseif ($script:Config.CustomEnv.Repo) {
         # Use custom env repo for touch_env.py download
         $TOUCH_ENV_URL = $script:Config.CustomEnv.Repo + "/raw/" + ($script:Config.CustomEnv.Branch -replace "refs/heads/", "") + "/touch_env.py"
+    }
+    elseif ($script:Config.UseCN) {
+        $TOUCH_ENV_URL = $TOUCH_ENV_URL_GITEE
+    }
+    else {
+        $TOUCH_ENV_URL = $TOUCH_ENV_URL_GITHUB
     }
 
     # Download touch_env.py from network
@@ -1598,4 +1600,4 @@ function Main {
 }
 
 # Execute main function
-Main
+Main @args
