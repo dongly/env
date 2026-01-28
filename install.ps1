@@ -352,6 +352,9 @@ $script:Messages = @{
         python_pth_config_failed         = "Warning: Failed to configure Python _pth file. site-packages may not be available."
         python_ready                     = "Python ready: {0} (version {1})"
         python_setup_failed              = "Python setup failed with error code: {0}"
+        mirror_selection                 = "Using mirror: {0}"
+        china_mirror                     = "China (Gitee, npmmirror)"
+        official_mirror                  = "Official (GitHub, PyPI)"
         check_list                       = "Please check:"
         check_list_connection            = "  1. Your internet connection"
         check_list_url                   = "  2. The URL is correct: {0}"
@@ -408,6 +411,9 @@ $script:Messages = @{
         python_pth_config_failed         = "警告: 配置 Python _pth 文件失败。site-packages 可能不可用。"
         python_ready                     = "Python 已就绪: {0} (版本 {1})"
         python_setup_failed              = "Python 设置失败，错误码: {0}"
+        mirror_selection                 = "使用镜像: {0}"
+        china_mirror                     = "中国（Gitee, npmmirror）"
+        official_mirror                  = "官方（GitHub, PyPI）"
         check_list                       = "请检查:"
         check_list_connection            = "  1. 您的网络连接"
         check_list_url                   = "  2. URL 是否正确: {0}"
@@ -690,8 +696,14 @@ function Install-Git {
 # Enable-LongPathSupport: Enable Windows long path support
 # Configure-PythonPth: Configure Python _pth file
 
+class PythonConfig {
+    [bool]$InstallPortablePython
+    [string]$PythonPath
+    [string]$Version
+    [int]$Result
+}
 function New-PythonConfig {
-    return [PSCustomObject]@{
+    return [PythonConfig] @{
         InstallPortablePython = $false
         PythonPath            = ""
         Version               = ""
@@ -700,7 +712,7 @@ function New-PythonConfig {
 }
 
 function New-PortingPythonConfig {
-    return [PSCustomObject]@{
+    return [PythonConfig] @{
         InstallPortablePython = $true
         PythonPath            = Join-Path $env:ENV_ROOT "python\python.exe"
         Version               = $PYTHON_VERSION
@@ -711,30 +723,35 @@ function New-PortingPythonConfig {
 function Check-Python {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$PythonPath
+        [PythonConfig]$PythonConfig
     )
 
+    $result = New-PortingPythonConfig
     # Check if Python.exe exists
-    if (-not (Test-Path $PythonPath)) {
-        Write-LogError "python_not_found" $PythonPath
-        return 1
+    if (-not (Test-Path $PythonConfig.PythonPath)) {
+        Write-LogError "python_not_found" $PythonConfig.PythonPath
+        $result.Result = 1
+        return $result
     }
 
     # Get Python version
-    $version = Get-PythonVersionString -PythonPath $PythonPath
+    $version = Get-PythonVersionString -PythonPath $PythonConfig.PythonPath
     if (-not $version) {
-        Write-LogWarning "python_version_failed" $PythonPath
-        return 2
+        Write-LogWarning "python_version_failed" $PythonConfig.PythonPath
+        $result.Result = 2
+        return $result
     }
+    $PythonConfig.Version = $version
 
     # Check if version meets minimum requirement (>= 3.6)
     if (-not (Test-PythonVersion -VersionString $version)) {
         Write-LogError "python_version_too_old" $version
-        return 3
+        $result.Result = 3
+        return $result
     }
 
     # All checks passed
-    return 0
+    return $PythonConfig
 }
 
 function Download-PortablePython {
@@ -1118,8 +1135,7 @@ function Handle-PythonSelection {
     $result = New-PythonConfig
     $result.InstallPortablePython = $false
 
-    $msgKey = "select_python"
-    $msg = Get-Message $msgKey
+    $msg = Get-Message "select_python"
     $formatted = $msg -f $PythonPaths.Count, ($LatestIndex + 1), ($PythonPaths.Count + 1)
     Write-Host $formatted -NoNewline -ForegroundColor Yellow
     $choice = Read-Host
@@ -1192,8 +1208,7 @@ function Select-Python {
         # Interactive mode, let user choose
         Show-PythonOptions -PythonPaths $PythonPaths
         $result = Handle-PythonSelection -PythonPaths $PythonPaths -LatestIndex $latestIndex
- 
-    }
+     }
 
     return $result
 }
@@ -1249,14 +1264,15 @@ function Ensure-Python {
 
     # 步骤 2: 验证系统 Python
     if (-not $result.InstallPortablePython -and $result.PythonPath) {
-        $check_result = Check-Python -PythonPath $result.PythonPath
-        if ($check_result -ne 0) {
-            $result = New-PortingPythonConfig
-        }
+        $result = Check-Python -PythonConfig $result
     }
-    if ($result.InstallPortablePython -or $result.Result -ne 0) {
-        Write-LogWarning "python_not_found_or_invalid"
-        $result = New-PortingPythonConfig
+    if ($result.InstallPortablePython ) {
+        if ($result.Result -eq 0) {
+            Write-LogWarning "installing_portable_python"
+        }
+        else {
+            Write-LogWarning "python_not_found_or_invalid"
+        }
     }
 
     # 步骤 3: 删除旧的便携式 Python
@@ -1469,6 +1485,7 @@ function Init-Config {
     if (-not $script:Config.UseCNSet) {
         $script:Config.UseCN = Detect-China
     }
+    Write-LogInfo "mirror_selection" (if ($script:Config.UseCN) { "china_mirror" } else { "official_mirror" })
 
     # Override with --official flag
     if ($ParsedArgs.OfficialMode) {
@@ -1512,9 +1529,9 @@ function Download-TouchEnv {
             $owner = $Matches[1]
             $repoName = $Matches[2] -replace '\.git$', ''
             # Ensure branch has refs/heads/ prefix for GitHub raw URLs
-            if (-not $branch.StartsWith("refs/heads/")) {
-                $branch = "refs/heads/$branch"
-            }
+            # if (-not $branch.StartsWith("refs/heads/")) {
+            #     $branch = "refs/heads/$branch"
+            # }
             $TOUCH_ENV_URL = "https://raw.githubusercontent.com/$owner/$repoName/$branch/touch_env.py"
         }
         else {
