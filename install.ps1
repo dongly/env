@@ -1397,8 +1397,8 @@ function Invoke-TouchEnv {
         # 显示"$env:TEMP\touch_env_output.txt" 的内容
         Write-Host "运行参数:  $pythonArgs" -ForegroundColor Green
 
-        # Run touch_env.py
-        $process = Start-Process -FilePath $script:Config.PythonConfig.PythonPath -ArgumentList $pythonArgs -Wait -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\touch_env_output.txt" -RedirectStandardError "$env:TEMP\touch_env_error.txt"
+        # Run touch_env.py with real-time output
+        $process = Start-Process -FilePath $script:Config.PythonConfig.PythonPath -ArgumentList $pythonArgs -Wait -WindowStyle Normal -PassThru
         $touchEnvExitCode = $process.ExitCode
 
         if ($touchEnvExitCode -ne 0) {
