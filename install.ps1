@@ -1139,13 +1139,14 @@ function Handle-PythonSelection {
             Write-Host ""
             Write-LogInfo "installing_portable_python" $PYTHON_VERSION
 
-            # Install portable Python (don't remove existing since Ensure-Python already did it, skip verification)
-            Install-Python -UseCNMirror $script:Config.UseCN -RemoveExisting $false -SkipVerification $SkipVerification
+            # Install portable Python
+            $installResult = Install-PortablePython -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath
 
             # Return the portable Python path
             $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
             $result.PythonPath = $portablePython
             $result.InstallPortablePython = $true
+            $result.Result = $installResult.Result
         }
         else {
             # Invalid choice, use default
