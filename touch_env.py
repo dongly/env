@@ -1039,6 +1039,7 @@ def run_touch_env(args):
 
 def main():
     """Main entry point"""
+    log_info('touch_env.py start ...')
     args = parse_arguments()
     sys.exit(run_touch_env(args))
 
