@@ -887,6 +887,82 @@ def create_backup_directory(config):
     return backup_path
 
 
+def restore_backup(config, backup_path, preserve_items=True):
+    """
+    Restore items from backup directory
+
+    Args:
+        config: TouchEnvConfig instance with env_root path
+        backup_path: Path to backup directory
+        preserve_items: If True, restore preserved items (.config, local_pkgs)
+                       If False, delete backup without restoring
+
+    Returns:
+        bool: True if operation succeeded, False otherwise
+    """
+    if not preserve_items:
+        # Strategy A: Delete backup without restoring
+        log_info('backup_deleted', backup_path)
+        try:
+            shutil.rmtree(backup_path, ignore_errors=True)
+            return True
+        except Exception as e:
+            log_error('backup_restore_failed', str(e))
+            return False
+
+    # Strategy Y: Restore preserved items
+    # Check if env_root exists
+    if not os.path.exists(config.env_root):
+        log_error('backup_restore_failed', f'env_root does not exist: {config.env_root}')
+        return False
+
+    items_to_restore = {
+        '.config': os.path.join('tools', 'scripts', 'cmds', '.config'),
+        'local_pkgs': 'local_pkgs'
+    }
+
+    failed_items = []
+
+    for item_name, rel_path in items_to_restore.items():
+        src = os.path.join(backup_path, rel_path)
+        dst = os.path.join(config.env_root, rel_path)
+
+        if not os.path.exists(src):
+            log_info('skipping_item', item_name)
+            continue
+
+        log_info('restore_from_backup', item_name)
+
+        try:
+            # Create destination directory if needed
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+
+            if os.path.isfile(src):
+                shutil.copy2(src, dst)
+            elif os.path.isdir(src):
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+
+            log_success('backup_restored', item_name)
+        except (OSError, PermissionError) as e:
+            log_error('backup_restore_failed', f'{item_name}: {e}')
+            failed_items.append(item_name)
+
+    # Delete backup after restoration
+    try:
+        shutil.rmtree(backup_path, ignore_errors=True)
+        log_info('backup_deleted', backup_path)
+    except Exception as e:
+        log_warning('backup_kept_for_manual_recovery', backup_path)
+        return False
+
+    # Report result
+    if failed_items:
+        log_warning('backup_restore_failed', ', '.join(failed_items))
+        return False
+
+    return True
+
+
 def _safe_remove(path, name):
     """
     Safely remove a file or directory with error handling
