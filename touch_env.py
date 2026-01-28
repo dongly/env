@@ -41,6 +41,7 @@ import shutil
 import subprocess
 import json
 from pathlib import Path
+from datetime import datetime
 
 # ============================================================================
 # Python Version Check
@@ -772,6 +773,16 @@ def log_warning(key, *args):
     if args:
         msg = msg.format(*args)
     print(f"\033[0;33m[{get_message('warning')}]\033[0m {msg}", file=sys.stderr)
+
+
+def get_backup_timestamp():
+    """
+    Generate timestamp for backup directory naming
+
+    Returns:
+        str: Timestamp in format YYYYMMDD_HHMMSS
+    """
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
 def _safe_remove(path, name):
