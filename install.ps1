@@ -1397,8 +1397,38 @@ function Invoke-TouchEnv {
         # 显示"$env:TEMP\touch_env_output.txt" 的内容
         Write-Host "运行参数:  $pythonArgs" -ForegroundColor Green
 
-        # Run touch_env.py with real-time output
-        $process = Start-Process -FilePath $script:Config.PythonConfig.PythonPath -ArgumentList $pythonArgs -Wait -WindowStyle Normal -PassThru
+        # Run touch_env.py in the same window
+        $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $processInfo.FileName = $script:Config.PythonConfig.PythonPath
+        $processInfo.Arguments = $pythonArgs -join ' '
+        $processInfo.UseShellExecute = $false
+        $processInfo.RedirectStandardOutput = $true
+        $processInfo.RedirectStandardError = $true
+        $processInfo.CreateNoWindow = $true
+        
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $processInfo
+        $process.Start() | Out-Null
+        
+        # Read output in real-time
+        while (!$process.HasExited) {
+            if (!$process.StandardOutput.EndOfStream) {
+                $line = $process.StandardOutput.ReadLine()
+                if ($line) { Write-Host $line }
+            }
+            if (!$process.StandardError.EndOfStream) {
+                $line = $process.StandardError.ReadLine()
+                if ($line) { Write-Host $line -ForegroundColor Red }
+            }
+            Start-Sleep -Milliseconds 100
+        }
+        
+        # Read remaining output
+        $output = $process.StandardOutput.ReadToEnd()
+        $error = $process.StandardError.ReadToEnd()
+        if ($output) { Write-Host $output }
+        if ($error) { Write-Host $error -ForegroundColor Red }
+        
         $touchEnvExitCode = $process.ExitCode
 
         if ($touchEnvExitCode -ne 0) {
