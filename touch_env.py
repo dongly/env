@@ -227,6 +227,7 @@ MESSAGES = {
         'item_deleted': 'Deleted: {0}',
         'file_delete_failed': 'Failed to delete file: {0} - {1}',
         'dir_delete_failed': 'Failed to delete directory: {0} - {1}',
+        'env_root_not_fully_removed': 'Some items could not be deleted. Please check the error messages above.',
     },
     'zh': {
         'info': '信息',
@@ -286,9 +287,11 @@ MESSAGES = {
         'deleting_item': '正在删除: {0}...',
         'item_deleted': '已删除: {0}',
         'file_delete_failed': '删除文件失败: {0} - {1}',
-        'dir_delete_failed': '删除目录失败: {0} - {1}',
-    }
-}
+                'dir_delete_failed': '删除目录失败: {0} - {1}',
+                'env_root_not_fully_removed': '部分项目删除失败，请检查上面的错误信息。',
+            }
+        
+        }
 
 # ============================================================================
 # Global Variables
@@ -793,6 +796,7 @@ def remove_env_directory(config, preserve=True):
     else:
         log_info('removing_env_all', config.env_root)
 
+    deletion_failed = False
     try:
         for item in os.listdir(config.env_root):
             item_path = os.path.join(config.env_root, item)
@@ -820,6 +824,7 @@ def remove_env_directory(config, preserve=True):
                     log_raw(f"已删除: {item}")
                 except OSError as e:
                     log_error('file_delete_failed', item_path, str(e))
+                    deletion_failed = True
             else:
                 try:
                     # First try to delete .git directory if exists (to release locks)
@@ -831,14 +836,14 @@ def remove_env_directory(config, preserve=True):
                             log_raw(f"已删除 .git 目录")
                         except OSError as ge:
                             log_raw(f"删除 .git 目录失败: {str(ge)}")
+                            deletion_failed = True
                     
                     # Now delete the directory
                     shutil.rmtree(item_path)
                     log_raw(f"已删除: {item}")
                 except OSError as e:
                     log_error('dir_delete_failed', item_path, str(e))
-                except OSError as e:
-                    log_error('dir_delete_failed', item_path, str(e))
+                    deletion_failed = True
                     # If deletion fails, try to delete recursively
                     try:
                         for root, dirs, files in os.walk(item_path, topdown=False):
@@ -860,8 +865,12 @@ def remove_env_directory(config, preserve=True):
                             pass
                     except OSError:
                         pass
-
-        log_success('env_root_removed', config.env_root)
+        
+        # Only report success if no deletion failures
+        if not deletion_failed:
+            log_success('env_root_removed', config.env_root)
+        else:
+            log_warning('env_root_not_fully_removed')
     except (OSError, PermissionError) as e:
         log_error('removing_failed', str(e))
 
