@@ -347,6 +347,7 @@ $script:Messages = @{
         removing_invalid_portable_python = "Removing invalid portable Python: {0}..."
         python_not_found_or_invalid      = "Python not found or invalid. Installing portable Python..."
         downloading_touch_env            = "Downloading touch_env.py from: {0}"
+        touch_env_downloaded             = "touch_env.py downloaded successfully."
         touch_env_failed                 = "touch_env.py execution failed with exit code: {0}"
         touch_env_download_failed        = "Failed to download touch_env.py: {0}"
         python_pth_config_failed         = "Warning: Failed to configure Python _pth file. site-packages may not be available."
@@ -406,6 +407,7 @@ $script:Messages = @{
         removing_invalid_portable_python = "正在删除无效的便携式 Python: {0}..."
         python_not_found_or_invalid      = "未找到 Python 或 Python 无效。正在安装便携式 Python..."
         downloading_touch_env            = "正在下载 touch_env.py，自: {0}"
+        touch_env_downloaded             = "touch_env.py 下载完成。"
         touch_env_failed                 = "touch_env.py 执行失败，退出码: {0}"
         touch_env_download_failed        = "下载 touch_env.py 失败: {0}"
         python_pth_config_failed         = "警告: 配置 Python _pth 文件失败。site-packages 可能不可用。"
@@ -1392,6 +1394,9 @@ function Invoke-TouchEnv {
         # Build arguments list
         $pythonArgs = Build-TouchEnvArgs -TouchEnvFilePath $touchEnvFile
 
+        # 显示"$env:TEMP\touch_env_output.txt" 的内容
+        Write-Host "运行参数:  $pythonArgs" -ForegroundColor Green
+
         # Run touch_env.py
         $process = Start-Process -FilePath $script:Config.PythonConfig.PythonPath -ArgumentList $pythonArgs -Wait -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\touch_env_output.txt" -RedirectStandardError "$env:TEMP\touch_env_error.txt"
         $touchEnvExitCode = $process.ExitCode
@@ -1486,7 +1491,7 @@ function Init-Config {
         $script:Config.UseCN = Detect-China
     }
     $mirrorType = if ($script:Config.UseCN) { "china_mirror" } else { "official_mirror" }
-    Write-LogInfo "mirror_selection" $mirrorType
+    Write-LogInfo "mirror_selection" (Get-Message $mirrorType)
 
     # Override with --official flag
     if ($ParsedArgs.OfficialMode) {
@@ -1556,6 +1561,7 @@ function Download-TouchEnv {
         # Try with SSL verification first
         $response = Invoke-WebRequest -Uri $TOUCH_ENV_URL -UseBasicParsing -ErrorAction Stop
         $scriptContent = $response.Content
+        Write-LogInfo "touch_env_downloaded"
     }
     catch {
         # If SSL error, try without SSL verification
