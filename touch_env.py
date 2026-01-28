@@ -799,31 +799,31 @@ def remove_env_directory(config, preserve=True):
 
             # Skip local_pkgs if preserving
             if preserve and item == 'local_pkgs':
-                log_raw('skipping_item', item)
+                log_raw(f"跳过: {item}")
                 continue
 
             # Skip portable python if preserving
             if preserve and (item == PORTABLE_PYTHON_DIR or item_path == portable_python_path):
-                log_raw('skipping_item', item)
+                log_raw(f"跳过: {item}")
                 continue
 
             # Skip .config.backup if preserving
             if preserve and (item == '.config.backup' or item_path == config_backup_path):
-                log_raw('skipping_item', item)
+                log_raw(f"跳过: {item}")
                 continue
 
             # Delete item
-            log_raw('deleting_item', item)
+            log_raw(f"正在删除: {item}...")
             if os.path.isfile(item_path):
                 try:
                     os.remove(item_path)
-                    log_raw('item_deleted', item)
+                    log_raw(f"已删除: {item}")
                 except OSError as e:
                     log_error('file_delete_failed', item_path, str(e))
             else:
                 try:
                     shutil.rmtree(item_path)
-                    log_raw('item_deleted', item)
+                    log_raw(f"已删除: {item}")
                 except OSError as e:
                     log_error('dir_delete_failed', item_path, str(e))
                     # If deletion fails, try to delete recursively
