@@ -350,6 +350,8 @@ $script:Messages = @{
         touch_env_failed                 = "touch_env.py execution failed with exit code: {0}"
         touch_env_download_failed        = "Failed to download touch_env.py: {0}"
         python_pth_config_failed         = "Warning: Failed to configure Python _pth file. site-packages may not be available."
+        python_ready                     = "Python ready: {0} (version {1})"
+        python_setup_failed              = "Python setup failed with error code: {0}"
         check_list                       = "Please check:"
         check_list_connection            = "  1. Your internet connection"
         check_list_url                   = "  2. The URL is correct: {0}"
@@ -404,6 +406,8 @@ $script:Messages = @{
         touch_env_failed                 = "touch_env.py 执行失败，退出码: {0}"
         touch_env_download_failed        = "下载 touch_env.py 失败: {0}"
         python_pth_config_failed         = "警告: 配置 Python _pth 文件失败。site-packages 可能不可用。"
+        python_ready                     = "Python 已就绪: {0} (版本 {1})"
+        python_setup_failed              = "Python 设置失败，错误码: {0}"
         check_list                       = "请检查:"
         check_list_connection            = "  1. 您的网络连接"
         check_list_url                   = "  2. URL 是否正确: {0}"
@@ -1250,7 +1254,11 @@ function Ensure-Python {
     if (-not $result.InstallPortablePython -and $result.PythonPath) {
         $result = Check-Python -PythonPath $result.PythonPath
     }
+    if (-not $result.InstallPortablePython -and $result.Result -ne 0) {
+        Write-LogWarning "python_not_found_or_invalid"
+        $result = New-PortingPythonConfig
 
+    }
     # 步骤 3: 删除旧的便携式 Python
     $portablePythonDir = Join-Path $env:ENV_ROOT "python"
     if (Test-Path $portablePythonDir) {
@@ -1265,8 +1273,11 @@ function Ensure-Python {
 
     # 步骤 5: 检查结果
     if ($result.Result -ne 0) {
+        Write-LogError "python_setup_failed" $result.Result
         exit $result.Result
     }
+    $Script:Config.PythonConfig = $result
+    Write-LogSuccess "python_ready" $result.PythonPath $result.Version
 }
 
 function Ensure-Git {
