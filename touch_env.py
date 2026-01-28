@@ -815,6 +815,78 @@ def get_backup_timestamp():
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
+def create_backup_directory(config):
+    """
+    Create backup directory with timestamp
+
+    Args:
+        config: TouchEnvConfig instance with env_root path
+
+    Returns:
+        str: Path to the backup directory
+
+    Raises:
+        OSError: If backup creation fails
+        RuntimeError: If insufficient disk space
+    """
+    log_info('checking_disk_space')
+
+    # Get backup directory size estimate (optimized for large directories)
+    env_size = 0
+    try:
+        for dirpath, _, filenames in os.walk(config.env_root):
+            for filename in filenames:
+                filepath = os.path.join(dirpath, filename)
+                try:
+                    env_size += os.path.getsize(filepath)
+                except (OSError, PermissionError):
+                    # Skip files we can't access
+                    continue
+    except OSError as e:
+        log_error('backup_create_failed', f'Failed to calculate size: {e}')
+        # Continue anyway, as size estimate is just a safety check
+        env_size = 0
+
+    # Check disk space
+    disk_usage = shutil.disk_usage(os.path.dirname(config.env_root))
+    available_space = disk_usage.free
+
+    # If we couldn't calculate size, require minimum 1GB
+    if env_size == 0:
+        required_space = 1024 * 1024 * 1024  # 1GB
+    else:
+        # Require 20% extra space as safety margin
+        required_space = int(env_size * 1.2)
+
+    if available_space < required_space:
+        log_error('no_space_for_backup',
+                 f'{required_space // (1024*1024)} MB',
+                 f'{available_space // (1024*1024)} MB')
+        raise RuntimeError(f'Insufficient disk space for backup')
+
+    # Generate backup path
+    timestamp = get_backup_timestamp()
+    backup_name = f"{os.path.basename(config.env_root)}.backup.{timestamp}"
+    backup_path = os.path.join(os.path.dirname(config.env_root), backup_name)
+
+    # Check if backup already exists
+    if os.path.exists(backup_path):
+        log_error('backup_create_failed', f'Backup directory already exists: {backup_path}')
+        raise RuntimeError(f'Backup directory already exists: {backup_path}')
+
+    # Create backup by renaming
+    log_info('backup_creating', backup_path)
+
+    try:
+        shutil.move(config.env_root, backup_path)
+        log_success('backup_created', backup_path)
+    except (OSError, PermissionError) as e:
+        log_error('backup_create_failed', str(e))
+        raise
+
+    return backup_path
+
+
 def _safe_remove(path, name):
     """
     Safely remove a file or directory with error handling
