@@ -1248,9 +1248,6 @@ function Show-Banner {
 }
 
 # Installation Process Functions
-# Ensure-Dependencies: Ensure Python and Git are installed
-# Setup-Repositories: Setup repositories
-# Prompt-Pyocd: Prompt for pyocd installation
 
 function Ensure-Python {
     # Initialize PythonConfig
