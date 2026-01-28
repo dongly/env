@@ -191,8 +191,14 @@ main()
 
 - **开发 Agent**: glm-4.7
 - **审核 Agent**: minimax-m2.1
+- **测试 Agent**: glm-4.7
 - **流程**: 一步开发 → 一步审核 → 测试 --成功--> git commit → 继续
                  |-<-----失败-------|
+
+## .iflow/progress.md 要求                 
+
+- 时间格式：YYYY-MM-DD HH:MM:SS
+
 ## Git 保存策略
 
 - 每个步骤完成后立即 git add
