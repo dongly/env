@@ -103,11 +103,6 @@ REPO_PACKAGES_GITEE = "https://gitee.com/RT-Thread-Mirror/packages.git"
 REPO_ENV_GITEE = "https://gitee.com/RT-Thread-Mirror/env.git"
 REPO_SDK_GITEE = "https://gitee.com/RT-Thread-Mirror/sdk.git"
 
-# Default branches (empty means use git default)
-BRANCH_PACKAGES_DEFAULT = ""
-BRANCH_ENV_DEFAULT = ""
-BRANCH_SDK_DEFAULT = ""
-
 # PyPI mirror
 PYPI_MIRROR_CN = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
