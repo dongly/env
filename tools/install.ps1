@@ -14,7 +14,7 @@
 #
 # Usage:
 # 用法:
-#   .\install.ps1 [-y] [-c] [-o] [-d] [-p] [-r <path>] [-e|-z] [-P <repo>[#<branch>]] [-E <repo>[#<branch>]] [-S <repo>[#<branch>]] [-b <strategy>] [-t <url>] [-h]
+#   .\install.ps1 [-y] [-c] [-o] [-d] [-p [path]] [-r <path>] [-e|-z] [-P <repo>[#<branch>]] [-E <repo>[#<branch>]] [-S <repo>[#<branch>]] [-b <strategy>] [-t <url>] [-h]
 #
 # Options:
 # 选项:
@@ -32,8 +32,8 @@
 #                        强制显示英文信息
 #   -z, --zh, --chinese  Force Chinese messages
 #                        强制显示中文信息
-#   -p, --python         Force install portable Python (ignore system Python)
-#                        强制安装便携式 Python（忽略系统 Python）
+#   -p, --python [path]  Force install portable Python, install directory is path (default: D:\Tools\Python)
+#                        安装便携式 Python, 安装目录为 path（默认：D:\Tools\Python）
 #   -P, --packages <repo>[#<branch>]  Specify custom packages repository and branch
 #                        指定 packages 仓库地址和分支
 #                        格式: url[#branch]
@@ -60,9 +60,6 @@
 # ============================================================================
 # Global Constants
 # ============================================================================
-
-# Environment Configuration
-$ENV_DEFAULT_DIR = "$env:USERPROFILE\.rtenv"
 
 # touch_env.py download URLs
 $TOUCH_ENV_URL_GITHUB = "https://raw.githubusercontent.com/RT-Thread/env/master/tools/touch_env.py"
@@ -135,11 +132,11 @@ function Parse-Arguments {
         CnMode           = $false
         OfficialMode     = $false
         PyocdMode        = $false
-        PythonMode       = $false
+        PythonPath       = ""
         EnMode           = $false
         ZhMode           = $false
         BackupStrategy   = ""
-        EnvRootValue     = ""
+        EnvRoot          = ""
         CustomPackages   = New-Repo
         CustomEnv        = New-Repo
         CustomSdk        = New-Repo
@@ -161,8 +158,8 @@ function Parse-Arguments {
             "--official" { $result.OfficialMode = $true }
             "-d" { $result.PyocdMode = $true }
             "--pyocd" { $result.PyocdMode = $true }
-            "-p" { $result.PythonMode = $true }
-            "--python" { $result.PythonMode = $true }
+            "-p" { $result.PythonPath = $Arguments[++$i] }
+            "--python" { $result.PythonPath = $Arguments[++$i] }
             "-E" {
                 $result.CustomEnv = Parse-RepoArg -RepoArg $Arguments[++$i]
             }
@@ -175,8 +172,8 @@ function Parse-Arguments {
             "-z" { $result.ZhMode = $true }
             "--zh" { $result.ZhMode = $true }
             "--chinese" { $result.ZhMode = $true }
-            "-r" { $result.EnvRootValue = $Arguments[++$i] }
-            "--env-root" { $result.EnvRootValue = $Arguments[++$i] }
+            "-r" { $result.EnvRoot = $Arguments[++$i] }
+            "--env-root" { $result.EnvRoot = $Arguments[++$i] }
             "-P" {
                 $result.CustomPackages = Parse-RepoArg -RepoArg $Arguments[++$i]
             }
@@ -258,7 +255,7 @@ function Print-Help {
         Write-Host "  -c, --cn, --gitee    使用中国镜像（Gitee，清华 PyPI）"
         Write-Host "  -o, --official       强制使用官方源"
         Write-Host "  -d, --pyocd          安装 pyocd（用于调试）"
-        Write-Host "  -p, --python         强制安装便携式 Python（忽略系统 Python）"
+        Write-Host "  -p, --python [path]  安装便携式 Python, 安装目录为 path（默认：D:\Tools\Python）"
         Write-Host "  -r, --env-root [path] 设置自定义安装目录"
         Write-Host "  -e, --en, --english  强制显示英文信息"
         Write-Host "  -z, --zh, --chinese  强制显示中文信息"
@@ -283,7 +280,7 @@ function Print-Help {
         Write-Host "  -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)"
         Write-Host "  -o, --official       Force use official source"
         Write-Host "  -d, --pyocd          Install pyocd for debugging"
-        Write-Host "  -p, --python         Force install portable Python (ignore system Python)"
+        Write-Host "  -p, --python [path]  Force install portable Python, install directory is path (default: D:\Tools\Python)"
         Write-Host "  -r, --env-root [path] Set custom install directory"
         Write-Host "  -e, --en, --english  Force English messages"
         Write-Host "  -z, --zh, --chinese  Force Chinese messages"
@@ -378,7 +375,6 @@ $script:Messages = @{
         select_python                    = "Found {0} Python installation(s). Default is option {1} (latest). Select [1-{0}], or {2} to install portable Python: "
         auto_selected                    = "Auto-selected Python: {0}"
         python_not_found                 = "Python not found. Please install Python first."
-        env_root_invalid                 = "Error: ENV_ROOT cannot contain {0}"
         removing_portable_python         = "Removing portable Python: {0}..."
         removing_old_portable_python     = "Removing old portable Python: {0}..."
         removing_invalid_portable_python = "Removing invalid portable Python: {0}..."
@@ -440,7 +436,6 @@ $script:Messages = @{
         select_python                    = "找到 {0} 个 Python 安装。默认选项为 {1}（最新）。选择 [1-{0}]，或输入 {2} 安装便携式 Python: "
         auto_selected                    = "自动选择 Python: {0}"
         python_not_found                 = "未找到 Python。请先安装 Python。"
-        env_root_invalid                 = "错误: ENV_ROOT 不能包含 {0}"
         removing_portable_python         = "正在删除便携式 Python: {0}..."
         removing_old_portable_python     = "正在删除旧的便携式 Python: {0}..."
         removing_invalid_portable_python = "正在删除无效的便携式 Python: {0}..."
@@ -755,7 +750,7 @@ function New-PythonConfig {
 function New-PortingPythonConfig {
     return [PythonConfig] @{
         InstallPortablePython = $true
-        PythonPath            = Join-Path $env:ENV_ROOT "python\python.exe"
+        PythonPath            = Join-Path $script:Config.PythonPath "python.exe"
         Version               = $PYTHON_VERSION
         Result                = 0
     }
@@ -827,8 +822,8 @@ function Extract-PortablePython {
     Write-LogInfo "installing_portable_python" $PYTHON_VERSION
 
     $archivePath = Join-Path $env:TEMP $PYTHON_ARCHIVE
-    $pythonTargetDir = "$env:ENV_ROOT\python"
-    
+    $pythonTargetDir = $script:Config.PythonPath
+
     if (Test-Path $pythonTargetDir) {
         Remove-Item -Path $pythonTargetDir -Recurse -Force
     }
@@ -951,7 +946,7 @@ catch {
 
 function Configure-PythonPth {
     # Modify python3xx._pth to enable site-packages and ensurepip
-    $pythonTargetDir = "$env:ENV_ROOT\python"
+    $pythonTargetDir = $script:Config.PythonPath
     try {
         $pthFile = Get-ChildItem -Path $pythonTargetDir -Filter "*._pth" -ErrorAction Stop
         if ($pthFile) {
@@ -981,7 +976,7 @@ function Install-PortablePython {
         }
         Configure-PythonPth
         # Save portable Python path to global variable
-        $portablePython = Join-Path $env:ENV_ROOT "python\python.exe"
+        $portablePython = Join-Path $script:Config.PythonPath "python.exe"
         Write-LogSuccess "python_installed"
 
         # Get Python version
@@ -1315,19 +1310,12 @@ function Ensure-Python {
         }
     }
 
-    # 步骤 3: 删除旧的便携式 Python
-    $portablePythonDir = Join-Path $env:ENV_ROOT "python"
-    if (Test-Path $portablePythonDir) {
-        Write-LogInfo "removing_portable_python" $portablePythonDir
-        Remove-Item -Path $portablePythonDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
-    # 步骤 4: 安装便携式 Python（如果需要）
+    # 步骤 3: 安装便携式 Python（如果需要）
     if ($result.InstallPortablePython) {
         $result = Install-PortablePython -UseCNMirror $script:Config.UseCN
     }
 
-    # 步骤 5: 检查结果
+    # 步骤 4: 检查结果
     if ($result.Result -ne 0) {
         Write-LogError "python_setup_failed" $result.Result
         exit $result.Result
@@ -1380,7 +1368,10 @@ function Build-TouchEnvArgs {
 
     # Build arguments list
     $pythonArgs = @($TouchEnvFilePath)
-    $pythonArgs += "--env-root", $env:ENV_ROOT
+    # 条件传递 --env-root
+    if ($script:Config.EnvRoot) {
+        $pythonArgs += "--env-root", $script:Config.EnvRoot
+    }
     if ($script:Config.UseCN) { $pythonArgs += "--use-cn" }
     $pythonArgs += "--language", $script:Config.LangCurrent
     if ($script:Config.AutoMode) { $pythonArgs += "--auto-mode" }
@@ -1468,7 +1459,7 @@ function Invoke-TouchEnv {
 # Initialize installation environment and validate settings
 function Init-Config {
     param(
-        [PSCustomObject]$ParsedArgs
+        [PSCustomObject]$ParsedArg
     )
 
     # Set strict mode and error handling
@@ -1495,6 +1486,8 @@ function Init-Config {
         CustomEnv      = New-Repo
         CustomSdk      = New-Repo
         PythonConfig   = New-PythonConfig
+        PythonPath     = ""
+        EnvRoot        = ""
         TempFiles      = @()
     }
 
@@ -1510,21 +1503,11 @@ function Init-Config {
     $script:Config.CustomEnv = $ParsedArgs.CustomEnv
     $script:Config.CustomSdk = $ParsedArgs.CustomSdk
 
-    # Initialize PythonConfig
-    if ($ParsedArgs.PythonMode) {
-        $script:Config.PythonConfig = New-PortingPythonConfig
-    }
+    # Set PythonPath (default: D:\Tools\Python)
+    $script:Config.PythonPath = if ($ParsedArgs.PythonPath) { $ParsedArgs.PythonPath } else { "D:\Tools\Python" }
 
-    # Set ENV_ROOT and validate
-    if ($ParsedArgs.EnvRootValue) { $env:ENV_ROOT = $ParsedArgs.EnvRootValue }
-    if ($env:ENV_ROOT -match "\s") {
-        Write-LogError "env_root_invalid" "spaces"
-        exit 1
-    }
-    if ($env:ENV_ROOT -match "[^\x00-\x7F]") {
-        Write-LogError "env_root_invalid" "non-ASCII characters"
-        exit 1
-    }
+    # Set EnvRoot for passing to touch_env.py
+    $script:Config.EnvRoot = $ParsedArgs.EnvRoot
 
     # Check administrator privileges
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
