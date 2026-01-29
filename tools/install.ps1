@@ -85,43 +85,6 @@ $IPINFO_URL = "https://ipinfo.io/json"
 # Helper Functions
 # ============================================================================
 
-# New-Repo function
-# Create a repository configuration object
-function New-Repo {
-    param(
-        [string]$Repo = "",
-        [string]$Branch = ""
-    )
-    return [PSCustomObject]@{
-        Repo   = $Repo
-        Branch = $Branch
-    }
-}
-
-# Parse-RepoArg function
-# Parse repository argument, format: url[#branch]
-function Parse-RepoArg {
-    param(
-        [Parameter(Mandatory = $true)]
-        [ValidateNotNullOrEmpty()]
-        [string]$RepoArg
-    )
-
-    if ($RepoArg -match "#") {
-        $parts = $RepoArg -split "#", 2
-        if ($parts.Count -ne 2) {
-            throw "Invalid repository format: $RepoArg"
-        }
-        if ([string]::IsNullOrWhiteSpace($parts[0])) {
-            throw "Repository URL cannot be empty"
-        }
-        return New-Repo -Repo $parts[0].Trim() -Branch $parts[1].Trim()
-    }
-    else {
-        return New-Repo -Repo $RepoArg.Trim()
-    }
-}
-
 # Parse-Arguments function
 # Parse command line arguments and return parsed values
 function Read-OptionalArg {
@@ -154,9 +117,9 @@ function Parse-Arguments {
         ZhMode           = $false
         BackupStrategy   = ""
         EnvRoot          = ""
-        CustomPackages   = New-Repo
-        CustomEnv        = New-Repo
-        CustomSdk        = New-Repo
+        CustomPackages   = ""
+        CustomEnv        = ""
+        CustomSdk        = ""
         TouchEnvUrlValue = ""
     }
 
@@ -177,12 +140,8 @@ function Parse-Arguments {
             "--pyocd" { $result.PyocdMode = $true }
             "-p" { $result.PythonPath = Read-OptionalArg -Arguments $Arguments -Index $i }
             "--python" { $result.PythonPath = Read-OptionalArg -Arguments $Arguments -Index $i }
-            "-E" {
-                $result.CustomEnv = Parse-RepoArg -RepoArg $Arguments[++$i]
-            }
-            "--env" {
-                $result.CustomEnv = Parse-RepoArg -RepoArg $Arguments[++$i]
-            }
+            "-E" { $result.CustomEnv = $Arguments[++$i] }
+            "--env" { $result.CustomEnv = $Arguments[++$i] }
             "-e" { $result.EnMode = $true }
             "--en" { $result.EnMode = $true }
             "--english" { $result.EnMode = $true }
@@ -191,18 +150,10 @@ function Parse-Arguments {
             "--chinese" { $result.ZhMode = $true }
             "-r" { $result.EnvRoot = $Arguments[++$i] }
             "--env-root" { $result.EnvRoot = $Arguments[++$i] }
-            "-P" {
-                $result.CustomPackages = Parse-RepoArg -RepoArg $Arguments[++$i]
-            }
-            "--packages" {
-                $result.CustomPackages = Parse-RepoArg -RepoArg $Arguments[++$i]
-            }
-            "-S" {
-                $result.CustomSdk = Parse-RepoArg -RepoArg $Arguments[++$i]
-            }
-            "--sdk" {
-                $result.CustomSdk = Parse-RepoArg -RepoArg $Arguments[++$i]
-            }
+            "-P" { $result.CustomPackages = $Arguments[++$i] }
+            "--packages" { $result.CustomPackages = $Arguments[++$i] }
+            "-S" { $result.CustomSdk = $Arguments[++$i] }
+            "--sdk" { $result.CustomSdk = $Arguments[++$i] }
             "-b" { $result.BackupStrategy = $Arguments[++$i] }
             "--backup" { $result.BackupStrategy = $Arguments[++$i] }
             "-t" { $result.TouchEnvUrlValue = $Arguments[++$i] }
@@ -1525,28 +1476,16 @@ function Build-TouchEnvArgs {
     if ($script:Config.InstallPyocd) { $pythonArgs += "--install-pyocd" }
 
     # Pass custom repositories with branch info in URL fragment
-    if ($script:Config.CustomEnv.Repo) {
-        $repoUrl = $script:Config.CustomEnv.Repo
-        if ($script:Config.CustomEnv.Branch) {
-            $repoUrl = "$repoUrl#$($script:Config.CustomEnv.Branch)"
-        }
-        $pythonArgs += "--repo-env", $repoUrl
+    if ($script:Config.CustomEnv) {
+        $pythonArgs += "--repo-env", $script:Config.CustomEnv
     }
 
-    if ($script:Config.CustomPackages.Repo) {
-        $repoUrl = $script:Config.CustomPackages.Repo
-        if ($script:Config.CustomPackages.Branch) {
-            $repoUrl = "$repoUrl#$($script:Config.CustomPackages.Branch)"
-        }
-        $pythonArgs += "--repo-packages", $repoUrl
+    if ($script:Config.CustomPackages) {
+        $pythonArgs += "--repo-packages", $script:Config.CustomPackages
     }
 
-    if ($script:Config.CustomSdk.Repo) {
-        $repoUrl = $script:Config.CustomSdk.Repo
-        if ($script:Config.CustomSdk.Branch) {
-            $repoUrl = "$repoUrl#$($script:Config.CustomSdk.Branch)"
-        }
-        $pythonArgs += "--repo-sdk", $repoUrl
+    if ($script:Config.CustomSdk) {
+        $pythonArgs += "--repo-sdk", $script:Config.CustomSdk
     }
 
     # Pass backup strategy
@@ -1629,9 +1568,9 @@ function Init-Config {
         NeedHelp       = $false
         BackupStrategy = ""
         IsAdmin        = $false
-        CustomPackages = New-Repo
-        CustomEnv      = New-Repo
-        CustomSdk      = New-Repo
+        CustomPackages = ""
+        CustomEnv      = ""
+        CustomSdk      = ""
         PythonConfig   = New-PythonConfig
         EnvRoot        = ""
         TempFiles      = @()
@@ -1707,20 +1646,24 @@ function Download-TouchEnv {
     if ($ParsedArgs.TouchEnvUrlValue) {
         $TOUCH_ENV_URL = $ParsedArgs.TouchEnvUrlValue
     }
-    elseif ($script:Config.CustomEnv.Repo) {
+    elseif ($script:Config.CustomEnv) {
         # Use custom env repo for touch_env.py download
-        # Convert GitHub repo URL to raw.githubusercontent.com URL
-        $repo = $script:Config.CustomEnv.Repo
-        $branch = $script:Config.CustomEnv.Branch
+        # Parse URL and branch from string (format: url[#branch])
+        if ($script:Config.CustomEnv -match "#") {
+            $parts = $script:Config.CustomEnv -split "#", 2
+            $repo = $parts[0]
+            $branch = $parts[1]
+        }
+        else {
+            $repo = $script:Config.CustomEnv
+            $branch = "master"
+        }
 
+        # Convert GitHub repo URL to raw.githubusercontent.com URL
         if ($repo -match "^https?://github\.com/([^/]+)/([^/]+?)(\.git)?$") {
-            # GitHub repository: https://github.com/owner/repo -> https://raw.githubusercontent.com/owner/repo/refs/heads/branch/file
+            # GitHub repository: https://github.com/owner/repo -> https://raw.githubusercontent.com/owner/repo/branch/tools/touch_env.py
             $owner = $Matches[1]
             $repoName = $Matches[2] -replace '\.git$', ''
-            # Ensure branch has refs/heads/ prefix for GitHub raw URLs
-            # if (-not $branch.StartsWith("refs/heads/")) {
-            #     $branch = "refs/heads/$branch"
-            # }
             $TOUCH_ENV_URL = "https://raw.githubusercontent.com/$owner/$repoName/$branch/tools/touch_env.py"
         }
         else {
