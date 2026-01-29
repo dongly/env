@@ -950,8 +950,13 @@ def _interactive_menu(options):
     first_run = True
 
     while True:
-        # Clear only the menu area (skip on first run)
-        if not first_run:
+        if first_run:
+            # First run: print empty lines to overwrite previous output
+            print('\n' * lines_to_clear, end='')
+            # Move cursor up to the beginning of menu area
+            print(f'\033[{lines_to_clear}A', end='')
+        else:
+            # Clear only the menu area
             print(f'\033[{lines_to_clear}M\033[{lines_to_clear}A', end='')
         first_run = False
 
