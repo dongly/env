@@ -945,12 +945,16 @@ def _interactive_menu(options):
             selected_index = i
             break
 
-    # Calculate lines to clear (prompt + blank + options + blank + 2 help lines = 7 + len(options))
-    lines_to_clear = 7 + len(options)
+    # Calculate lines to clear (prompt + blank + options + blank + 2 help lines = 5 + len(options))
+    lines_to_clear = 5 + len(options)
+    first_run = True
 
     while True:
-        # Clear only the menu area
-        print(f'\033[{lines_to_clear}M\033[{lines_to_clear}A', end='')
+        # Clear only the menu area (skip on first run)
+        if not first_run:
+            print(f'\033[{lines_to_clear}M\033[{lines_to_clear}A', end='')
+        first_run = False
+
         print(get_message('env_root_prompt'))
         print()
 
