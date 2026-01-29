@@ -256,6 +256,8 @@ MESSAGES = {
         'checking_disk_space': 'Checking disk space...',
         'auto_restoring_backup': 'Automatically restoring backup...',
         'keeping_current_state': 'Keeping current state as is...',
+        'start': 'Starting RT-Thread ENV installation...',
+        'end': 'RT-Thread ENV installation process ended',
     },
     'zh': {
         'info': '信息',
@@ -336,7 +338,9 @@ MESSAGES = {
                         'checking_disk_space': '正在检查磁盘空间...',
                         'auto_restoring_backup': '自动恢复备份中...',
                         'keeping_current_state': '保持当前状态不变...',
-                    }        
+                        'start': '开始 RT-Thread ENV 安装...',
+                        'end': 'RT-Thread ENV 安装流程结束',
+                    }
         }
 
 # ============================================================================
@@ -603,9 +607,7 @@ def install_packages(config):
     log_info('upgrading_pip')
     subprocess.run(
         [python_exe, '-m', 'pip', 'install', '--upgrade', 'pip'],
-        check=True,
-        capture_output=True,
-        text=True
+        check=True
     )
 
     # Build pip install arguments
@@ -627,10 +629,10 @@ def install_packages(config):
     # Execute installation
     log_info('installing_packages')
     try:
-        subprocess.run(pip_args, check=True, capture_output=True, text=True)
+        subprocess.run(pip_args, check=True)
         log_success('installed_packages')
     except subprocess.CalledProcessError as e:
-        log_error('package_install_failed', e.stderr)
+        log_error('package_install_failed', str(e))
         raise RuntimeError(f"Package installation failed: {e}") from e
 
     # Fix guiconfig.py missing import re issue
@@ -821,11 +823,16 @@ def show_deletion_options(config):
     print(get_message('env_root_confirm_no'))
     print('> ', end='', flush=True)
 
-    response = input()
+    try:
+        response = input()
 
-    if not response:
-        return 'y'  # Default is y (preserve)
-    return response
+        if not response:
+            return 'y'  # Default is y (preserve)
+        return response
+    except KeyboardInterrupt:
+        print()
+        log_info('installation_cancelled')
+        sys.exit(0)
 
 def log_warning(key, *args):
     """Log warning message to stderr"""
@@ -1402,7 +1409,12 @@ def run_touch_env(args):
 
         return 0
 
+    except KeyboardInterrupt:
+        print()
+        log_info('installation_cancelled')
+        return 1
     except Exception as e:
+        print()
         log_error('installation_failed', str(e))
 
         # Handle backup if installation failed
@@ -1414,10 +1426,23 @@ def run_touch_env(args):
 
 def main():
     """Main entry point"""
-    log_info('touch_env.py start ...')
-    args = parse_arguments()
-    sys.exit(run_touch_env(args))
+    try:
+        log_info('start')
+        args = parse_arguments()
+        result = run_touch_env(args)
+        log_info('end')
+        sys.exit(result)
+    except KeyboardInterrupt:
+        print()
+        log_info('installation_cancelled')
+        log_info('end')
+        sys.exit(1)
+    except Exception as e:
+        print()
+        log_error('installation_failed', str(e))
+        log_info('end')
+        sys.exit(1)
 
-
+# ============================================================================
 if __name__ == '__main__':
     main()
