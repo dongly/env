@@ -124,6 +124,22 @@ function Parse-RepoArg {
 
 # Parse-Arguments function
 # Parse command line arguments and return parsed values
+function Read-OptionalArg {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
+        [Parameter(Mandatory = $true)]
+        [int]$Index
+    )
+
+    if ($Index + 1 -lt $Arguments.Count -and $Arguments[$Index + 1] -notmatch "^-") {
+        return $Arguments[++$Index]
+    }
+    else {
+        return ""
+    }
+}
+
 function Parse-Arguments {
     param([string[]]$Arguments)
 
@@ -159,22 +175,8 @@ function Parse-Arguments {
             "--official" { $result.OfficialMode = $true }
             "-d" { $result.PyocdMode = $true }
             "--pyocd" { $result.PyocdMode = $true }
-            "-p" {
-                if ($i + 1 -lt $Arguments.Count -and $Arguments[$i + 1] -notmatch "^-") {
-                    $result.PythonPath = $Arguments[++$i]
-                }
-                else {
-                    $result.PythonPath = ""
-                }
-            }
-            "--python" {
-                if ($i + 1 -lt $Arguments.Count -and $Arguments[$i + 1] -notmatch "^-") {
-                    $result.PythonPath = $Arguments[++$i]
-                }
-                else {
-                    $result.PythonPath = ""
-                }
-            }
+            "-p" { $result.PythonPath = Read-OptionalArg -Arguments $Arguments -Index $i }
+            "--python" { $result.PythonPath = Read-OptionalArg -Arguments $Arguments -Index $i }
             "-E" {
                 $result.CustomEnv = Parse-RepoArg -RepoArg $Arguments[++$i]
             }
