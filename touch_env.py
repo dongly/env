@@ -2,39 +2,60 @@
 # -*- coding: utf-8 -*-
 #
 # RT-Thread ENV Setup Script (Python)
+# RT-Thread ENV 安装脚本 (Python)
 #
 # This script handles the setup of RT-Thread ENV after the repository is cloned.
+# 此脚本在仓库克隆后处理 RT-Thread ENV 的设置。
 # It performs steps 4-9 of the installation process:
-# 1. Setup repositories (clone packages, sdk, env)
-# 2. Create Python virtual environment
-# 3. Install Python packages
-# 4. Restore preserved configuration
-# 5. Show next steps
+# 执行安装过程的步骤 4-9：
+# 1. Setup repositories (clone packages, sdk, env) - 设置仓库（克隆 packages, sdk, env）
+# 2. Create Python virtual environment - 创建 Python 虚拟环境
+# 3. Install Python packages - 安装 Python 包
+# 4. Restore preserved configuration - 恢复保留的配置
+# 5. Show next steps - 显示后续步骤
 #
 # Usage:
+# 用法:
 #   python touch_env.py [OPTIONS]
 #
 # Options:
-#   --env-root <path>           Installation root directory (default: ~/.rt-env)
-#   --use-cn                     Use China mirror (Gitee, TUNA PyPI)
-#   --language <lang>            Language: 'en' or 'zh'
-#   --auto-mode                  Auto-install without prompts
-#   --backup <strategy>          Backup strategy: preserve, delete_all, backup_all
-#   --install-pyocd              Install pyocd for debugging
-#   --restore-config             Restore preserved configuration
-#   --repo-env <url>             Custom env repository URL
-#   --repo-packages <url>        Custom packages repository URL
-#   --repo-sdk <url>             Custom sdk repository URL
-#   --branch-env <branch>        Branch for custom env repository
-#   --branch-packages <branch>   Branch for custom packages repository
-#   --branch-sdk <branch>        Branch for custom sdk repository
+# 选项:
+#   --env-root <path>          Installation root directory (default: ~/.rt-env)
+#                              安装根目录（默认：~/.rt-env）
+#   --use-cn                   Use China mirror (Gitee, TUNA PyPI)
+#                              使用中国镜像（Gitee, TUNA PyPI）
+#   --language <lang>          Language: 'en' or 'zh'
+#                              语言：'en' 或 'zh'
+#   --auto-mode                Auto-install without prompts
+#                              自动安装，无提示
+#   --backup <strategy>        Backup strategy when ENV exists:
+#                              当 ENV 已存在时的备份策略：
+#                                preserve: Keep .config and local_pkgs, restore and delete backup
+#                                preserve: 保留 .config 和 local_pkgs，恢复后删除备份
+#                                delete_all: Delete everything, no restore
+#                                delete_all: 删除所有内容，不恢复
+#                                backup_all: Keep backup with hardlink restore
+#                                backup_all: 保留备份，用硬链接恢复本地包
+#   --install-pyocd            Install pyocd for debugging
+#                              安装 pyocd 调试工具
+#   --restore-config           Restore preserved configuration
+#                              恢复保留的配置
+#   --repo-env <url>           Custom env repository URL, e.g.:
+#                              自定义 env 仓库 URL,例如：
+#                                  https://github.com/user/env.git#branch1  <--- branch is optional
+#                                  https://github.com/user/env.git          <--- 分支是可选的
+#   --repo-packages <url>      Custom packages repository URL
+#                              自定义 packages 仓库 URL
+#   --repo-sdk <url>           Custom sdk repository URL
+#                              自定义 sdk 仓库 URL
 #
 # Examples:
+# 示例:
 #   python touch_env.py
 #   python touch_env.py --backup preserve
 #   python touch_env.py --env-root /path/to/env
-#   python touch_env.py --env-root /path/to/env --repo-env https://github.com/user/env.git
-#   python touch_env.py --backup delete_all --repo-packages https://github.com/user/packages.git --branch-packages my-branch
+#   python touch_env.py --repo-env https://github.com/user/env.git#branch1
+#   python touch_env.py --backup delete_all --repo-packages https://github.com/user/packages.git#my-branch
 #
 
 import os
@@ -1413,6 +1434,27 @@ def show_next_steps(config):
 # ============================================================================
 
 
+def parse_repo_url(url):
+    """
+    Parse repository URL and extract branch from fragment (#branch)
+    
+    Args:
+        url: Repository URL with optional branch fragment (e.g., https://github.com/user/repo.git#branch1)
+    
+    Returns:
+        dict: {'url': 'https://github.com/user/repo.git', 'branch': 'branch1'}
+              or {'url': 'https://github.com/user/repo.git'} if no branch specified
+    """
+    from urllib.parse import urlparse, urlunparse
+    
+    parsed = urlparse(url)
+    repo_info = {'url': urlunparse(parsed._replace(fragment=''))}
+    
+    if parsed.fragment:
+        repo_info['branch'] = parsed.fragment
+    
+    return repo_info
+
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -1472,24 +1514,6 @@ def parse_arguments():
         help='Custom sdk repository URL'
     )
     parser.add_argument(
-        '--branch-env',
-        type=str,
-        default='',
-        help='Branch for custom env repository'
-    )
-    parser.add_argument(
-        '--branch-packages',
-        type=str,
-        default='',
-        help='Branch for custom packages repository'
-    )
-    parser.add_argument(
-        '--branch-sdk',
-        type=str,
-        default='',
-        help='Branch for custom sdk repository'
-    )
-    parser.add_argument(
         '--backup',
         choices=['preserve', 'delete_all', 'backup_all'],
         help='Backup strategy: preserve (keep config and local_pkgs), delete_all (delete all), backup_all (hardlink restore)'
@@ -1500,17 +1524,11 @@ def parse_arguments():
     # Build custom_repos dictionary from individual arguments
     args.custom_repos = {}
     if args.repo_env:
-        args.custom_repos['env'] = {'url': args.repo_env}
-        if args.branch_env:
-            args.custom_repos['env']['branch'] = args.branch_env
+        args.custom_repos['env'] = parse_repo_url(args.repo_env)
     if args.repo_packages:
-        args.custom_repos['packages'] = {'url': args.repo_packages}
-        if args.branch_packages:
-            args.custom_repos['packages']['branch'] = args.branch_packages
+        args.custom_repos['packages'] = parse_repo_url(args.repo_packages)
     if args.repo_sdk:
-        args.custom_repos['sdk'] = {'url': args.repo_sdk}
-        if args.branch_sdk:
-            args.custom_repos['sdk']['branch'] = args.branch_sdk
+        args.custom_repos['sdk'] = parse_repo_url(args.repo_sdk)
 
     return args
 
