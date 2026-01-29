@@ -891,8 +891,6 @@ def show_deletion_options(config):
     Returns:
         str: User response (y/a/b/n)
     """
-    print(get_message('env_root_prompt'))
-
     # Define options
     options = [
         {'key': 'Y', 'desc': get_message('env_root_confirm_help'), 'default': True},
