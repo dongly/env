@@ -31,11 +31,11 @@
 #   --backup <strategy>        Backup strategy when ENV exists:
 #                              当 ENV 已存在时的备份策略：
 #                                preserve: Keep .config and local_pkgs, restore and delete backup
-#                                preserve: 保留 .config 和 local_pkgs，恢复后删除备份
+#                                            保留 .config 和 local_pkgs，恢复后删除备份
 #                                delete_all: Delete everything, no restore
-#                                delete_all: 删除所有内容，不恢复
+#                                            删除所有内容，不恢复
 #                                backup_all: Keep backup with hardlink restore
-#                                backup_all: 保留备份，用硬链接恢复本地包
+#                                            保留备份，用硬链接恢复本地包
 #   --install-pyocd            Install pyocd for debugging
 #                              安装 pyocd 调试工具
 #   --restore-config           Restore preserved configuration
