@@ -137,6 +137,13 @@ class TouchEnvConfig:
     """Configuration management class for touch_env"""
 
     def __init__(self, args):
+        # Check if using default env-root
+        default_env_root = os.path.expanduser('~/.rt-env')
+        if args.env_root == default_env_root:
+            # Temporarily set language for log_info
+            set_language(args.language)
+            log_info('using_default_env_root', default_env_root)
+
         # Set language in runtime config
         set_language(args.language)
 
@@ -147,6 +154,7 @@ class TouchEnvConfig:
         self.install_pyocd = args.install_pyocd
         self.restore_config = args.restore_config
         self.custom_repos = args.custom_repos
+        self.backup_strategy = args.backup
 
         # Backup-related attributes
         self.backup_path = None
@@ -274,6 +282,7 @@ MESSAGES = {
         'auto_restoring_backup': 'Automatically restoring backup...',
         'keeping_current_state': 'Keeping current state as is...',
         'start': 'Starting RT-Thread ENV installation...',
+        'using_default_env_root': 'Using default env-root: {0}',
     },
     'zh': {
         'info': '信息',
@@ -363,6 +372,7 @@ MESSAGES = {
         'auto_restoring_backup': '自动恢复备份中...',
         'keeping_current_state': '保持当前状态不变...',
         'start': '开始 RT-Thread ENV 安装...',
+        'using_default_env_root': '使用默认 env-root: {0}',
     }
         }
 
@@ -794,9 +804,21 @@ def check_existing_env(config):
     log_raw(get_message('env_root_exists').format(config.env_root))
     print()
 
-    if config.auto_mode:
-        # Auto mode: use 'preserve' strategy by default
-        config.strategy = 'preserve'
+    # Check if backup strategy is specified via command line
+    if config.backup_strategy:
+        # Use specified strategy directly, skip interactive menu
+        config.strategy = config.backup_strategy
+        try:
+            config.backup_path = create_backup_directory(config)
+        except (OSError, RuntimeError) as e:
+            log_error('backup_create_failed', str(e))
+            sys.exit(1)
+    elif config.auto_mode:
+        # Auto mode: use specified strategy or default to 'preserve'
+        if config.backup_strategy:
+            config.strategy = config.backup_strategy
+        else:
+            config.strategy = 'preserve'
         try:
             config.backup_path = create_backup_directory(config)
         except (OSError, RuntimeError) as e:
@@ -1301,72 +1323,6 @@ def _safe_remove(path, name):
         return False
 
 
-def remove_env_directory(config, preserve=True):
-    """
-    Remove ENV directory with optional preservation
-
-    .. deprecated::
-        This function is deprecated and will be removed in a future version.
-        Use backup mechanism instead: create_backup_directory() + restore_backup()
-
-    Args:
-        config: TouchEnvConfig instance
-        preserve: If True, preserve config, local_pkgs, and always preserve portable python
-
-    Returns:
-        bool: True if all deletions succeeded, False if any deletions failed
-    """
-    # Disable config restore flag since we're doing a fresh backup
-    config.restore_config = False
-
-    # Backup config file if it exists
-    config_path = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
-    if os.path.exists(config_path):
-        try:
-            shutil.copy2(config_path, config.temp_config_path)
-            config.restore_config = True
-        except (OSError, PermissionError) as e:
-            log_error('file_delete_failed', '.config', str(e))
-
-    # Build exclude list
-    # PORTABLE_PYTHON_DIR is always preserved
-    exclude_list = {PORTABLE_PYTHON_DIR}
-    
-    # When preserving, also skip local_pkgs
-    if preserve:    
-        exclude_list.add('local_pkgs')
-
-    # Log the deletion mode
-    if preserve:
-        log_info('removing_env_preserving', config.env_root)
-    else:
-        log_info('removing_env_all', config.env_root)
-
-    # Remove items in the directory
-    deletion_failed = False
-    try:
-        for item in os.listdir(config.env_root):
-            if item in exclude_list:
-                log_info('skipping_item', item)
-                continue
-
-            item_path = os.path.join(config.env_root, item)
-            log_info('deleting_item', item)
-            if not _safe_remove(item_path, item):
-                deletion_failed = True
-
-    except (OSError, PermissionError) as e:
-        log_error('dir_delete_failed', config.env_root, str(e))
-        return False
-
-    # Report completion status
-    if deletion_failed:
-        log_warning('env_root_not_fully_removed')
-        return False
-    else:
-        log_success('env_root_removed', config.env_root)
-        return True
-
 # ============================================================================
 # User Interaction Functions
 # ============================================================================
@@ -1450,6 +1406,7 @@ def show_next_steps(config):
 # ============================================================================
 
 
+
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
@@ -1459,8 +1416,9 @@ def parse_arguments():
 
     parser.add_argument(
         '--env-root',
-        required=True,
-        help='Installation root directory'
+        required=False,
+        default=os.path.expanduser('~/.rt-env'),
+        help='Installation root directory (default: ~/.rt-env)'
     )
     parser.add_argument(
         '--use-cn',
@@ -1523,6 +1481,11 @@ def parse_arguments():
         type=str,
         default='',
         help='Branch for custom sdk repository'
+    )
+    parser.add_argument(
+        '--backup',
+        choices=['preserve', 'delete_all', 'backup_all'],
+        help='Backup strategy: preserve (keep config and local_pkgs), delete_all (delete all), backup_all (hardlink restore)'
     )
 
     args = parser.parse_args()
