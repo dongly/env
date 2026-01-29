@@ -1108,38 +1108,49 @@ def restore_backup(config, backup_path, preserve_items=True):
         log_error('backup_restore_failed', f'env_root does not exist: {config.env_root}')
         return False
 
-    items_to_restore = {
-        '.config': os.path.join('tools', 'scripts', 'cmds', '.config'),
-        'local_pkgs': 'local_pkgs'
-    }
+    # 1. Restore .config with hardlink
+    config_src = os.path.join(backup_path, 'tools', 'scripts', 'cmds', '.config')
+    config_dst = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
 
-    failed_items = []
-
-    for item_name, rel_path in items_to_restore.items():
-        src = os.path.join(backup_path, rel_path)
-        dst = os.path.join(config.env_root, rel_path)
-
-        if not os.path.exists(src):
-            log_info('skipping_item', item_name)
-            continue
-
-        log_info('restore_from_backup', item_name)
-
+    if os.path.exists(config_src):
+        log_info('restoring_config')
         try:
-            # Create destination directory if needed
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            os.makedirs(os.path.dirname(config_dst), exist_ok=True)
+            # Use hardlink for config file
+            if os.path.exists(config_dst):
+                os.remove(config_dst)
+            os.link(config_src, config_dst)
+            log_success('config_restored')
+        except OSError:
+            # Fallback to copy if hardlink fails (e.g., cross-device)
+            shutil.copy2(config_src, config_dst)
+            log_success('config_restored')
+    else:
+        log_info('skipping_item', '.config')
 
-            if os.path.isfile(src):
-                shutil.copy2(src, dst)
-            elif os.path.isdir(src):
-                shutil.copytree(src, dst, dirs_exist_ok=True)
+    # 2. Restore local_pkgs with hardlinks
+    local_pkgs_src = os.path.join(backup_path, 'local_pkgs')
+    local_pkgs_dst = os.path.join(config.env_root, 'local_pkgs')
 
-            log_success('backup_restored', item_name)
+    if os.path.exists(local_pkgs_src):
+        log_info('restore_from_backup', 'local_pkgs')
+        try:
+            # Remove existing local_pkgs if any
+            if os.path.exists(local_pkgs_dst):
+                _safe_remove_tree(local_pkgs_dst)
+
+            os.makedirs(local_pkgs_dst, exist_ok=True)
+
+            # Create hardlinks for all files in local_pkgs
+            _hardlink_directory(local_pkgs_src, local_pkgs_dst)
+            log_success('backup_restored', 'local_pkgs')
         except (OSError, PermissionError) as e:
-            log_error('backup_restore_failed', f'{item_name}: {e}')
-            failed_items.append(item_name)
+            log_error('backup_restore_failed', f'local_pkgs: {e}')
+            failed_items.append('local_pkgs')
+    else:
+        log_info('skipping_item', 'local_pkgs')
 
-    # Delete backup after restoration
+    # 3. Delete backup directory
     log_info('backup_cleaned', backup_path)
     _safe_remove_tree(backup_path)
 
