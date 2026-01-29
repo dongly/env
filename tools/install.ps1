@@ -773,7 +773,8 @@ function Prompt-PythonPath {
     while (-not $isValid) {
         # Display prompt with default value
         $promptMsg = Get-Message "python_path_prompt"
-        $defaultMsg = Get-Message "python_path_default" -Arg1 $DEFAULT_PYTHON_PATH
+        $defaultMsgRaw = Get-Message "python_path_default"
+        $defaultMsg = $defaultMsgRaw -f $DEFAULT_PYTHON_PATH
         Write-Host "$promptMsg $defaultMsg" -NoNewline -ForegroundColor Yellow
         $input = Read-Host
 
@@ -890,7 +891,8 @@ function Extract-PortablePython {
     Write-LogInfo "installing_portable_python" $PYTHON_VERSION
 
     $archivePath = Join-Path $env:TEMP $PYTHON_ARCHIVE
-    $pythonTargetDir = $script:Config.PythonPath
+    # Extract directory from PythonConfig.PythonPath (which includes python.exe)
+    $pythonTargetDir = Split-Path -Parent $script:Config.PythonConfig.PythonPath
 
     if (Test-Path $pythonTargetDir) {
         Remove-Item -Path $pythonTargetDir -Recurse -Force
