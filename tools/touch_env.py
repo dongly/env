@@ -356,7 +356,7 @@ MESSAGES = {
         'env_root_confirm': '确定要删除吗？[Y/a/b/n]: ',
         'env_root_confirm_help': '  Y/y: 保留配置和本地包，删除其他（默认）',
         'env_root_confirm_all': '  A/a: 删除整个目录（包括配置和本地包）',
-        'env_root_confirm_backup': '  B/b: 备份整个目录后删除',
+        'env_root_confirm_backup': '  B/b: 备份整个目录并保留',
         'env_root_confirm_no': '  N/n: 取消安装',
         'use_arrow_keys': '使用 ↑/↓ 方向键选择，回车确认',
         'press_enter_confirm': '或直接按 Y/A/B/N 键',
