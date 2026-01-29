@@ -300,6 +300,7 @@ MESSAGES = {
         'restore_from_backup': 'Restoring from backup: {0}...',
         'backup_restored': 'Backup restored successfully',
         'backup_deleted': 'Backup deleted: {0}',
+        'backup_cleaned': 'Backup cleaned up: {0}',
         'no_space_for_backup': 'Insufficient disk space for backup. Required: {0}, Available: {1}',
         'checking_disk_space': 'Checking disk space...',
         'auto_restoring_backup': 'Automatically restoring backup...',
@@ -390,6 +391,7 @@ MESSAGES = {
         'restore_from_backup': '正在从备份恢复: {0}...',
         'backup_restored': '备份恢复成功',
         'backup_deleted': '备份已删除: {0}',
+        'backup_cleaned': '备份已清理: {0}',
         'no_space_for_backup': '磁盘空间不足以创建备份。需要: {0}, 可用: {1}',
         'checking_disk_space': '正在检查磁盘空间...',
         'auto_restoring_backup': '自动恢复备份中...',
@@ -1096,13 +1098,9 @@ def restore_backup(config, backup_path, preserve_items=True):
     """
     if not preserve_items:
         # Strategy A: Delete backup without restoring
-        log_info('backup_deleted', backup_path)
-        try:
-            shutil.rmtree(backup_path, ignore_errors=True)
-            return True
-        except Exception as e:
-            log_error('backup_restore_failed', str(e))
-            return False
+        log_info('backup_cleaned', backup_path)
+        _safe_remove_tree(backup_path)
+        return True
 
     # Strategy Y: Restore preserved items
     # Check if env_root exists
@@ -1142,12 +1140,8 @@ def restore_backup(config, backup_path, preserve_items=True):
             failed_items.append(item_name)
 
     # Delete backup after restoration
-    try:
-        shutil.rmtree(backup_path, ignore_errors=True)
-        log_info('backup_deleted', backup_path)
-    except Exception as e:
-        log_warning('backup_kept_for_manual_recovery', backup_path)
-        return False
+    log_info('backup_cleaned', backup_path)
+    _safe_remove_tree(backup_path)
 
     # Report result
     if failed_items:
@@ -1165,10 +1159,8 @@ def cleanup_backup_directory(backup_path):
         backup_path: Path to backup directory
     """
     if os.path.exists(backup_path):
-        try:
-            shutil.rmtree(backup_path, ignore_errors=True)
-        except Exception as e:
-            log_warning('backup_delete_failed', str(e))
+        log_info('backup_cleaned', backup_path)
+        _safe_remove_tree(backup_path)
 
 
 def restore_with_hardlink(config, backup_path):
@@ -1354,6 +1346,54 @@ def _safe_remove(path, name):
         else:
             log_error('dir_delete_failed', name, str(e))
         return False
+
+
+def _safe_remove_tree(path):
+    """
+    Safely remove a directory tree, trying multiple methods
+
+    Args:
+        path: Path to directory to remove
+    """
+    if not os.path.exists(path):
+        return
+
+    # Method 1: Try rmtree with ignore_errors first
+    shutil.rmtree(path, ignore_errors=True)
+
+    # Method 2: If still exists, retry with onerror handler
+    if os.path.exists(path):
+        def onerror(func, path, exc_info):
+            # Try to change permissions and retry
+            try:
+                os.chmod(path, 0o700)
+                if os.path.isdir(path):
+                    shutil.rmtree(path, ignore_errors=True)
+                else:
+                    os.remove(path)
+            except Exception:
+                pass  # Ignore if still fails
+
+        shutil.rmtree(path, onerror=onerror)
+
+    # Method 3: If still exists, list and delete individually
+    if os.path.exists(path):
+        for item in os.listdir(path):
+            item_path = os.path.join(path, item)
+            try:
+                if os.path.isfile(item_path) or os.path.islink(item_path):
+                    os.chmod(item_path, 0o700)
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):
+                    _safe_remove_tree(item_path)
+            except Exception:
+                pass  # Ignore if fails
+
+        # Finally try to remove the directory itself
+        try:
+            os.rmdir(path)
+        except Exception:
+            pass  # Ignore if fails
 
 
 # ============================================================================
