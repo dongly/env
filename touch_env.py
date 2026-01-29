@@ -43,6 +43,15 @@ import json
 from pathlib import Path
 from datetime import datetime
 
+# Platform-specific imports
+if platform.system() == 'Windows':
+    try:
+        import msvcrt
+    except ImportError:
+        msvcrt = None
+else:
+    msvcrt = None
+
 # ============================================================================
 # Python Version Check
 # ============================================================================
@@ -141,7 +150,7 @@ class TouchEnvConfig:
 
         # Backup-related attributes
         self.backup_path = None
-        self.strategy = None  # 'preserve' or 'delete_all' or None
+        self.strategy = None  # 'preserve' or 'delete_all' or 'backup_all' or None
 
         # Compute internal paths
         self._compute_paths()
@@ -223,10 +232,13 @@ MESSAGES = {
         'no_config_to_restore': 'No configuration to restore',
         'env_root_exists': 'Existing RT-Thread ENV detected at: {0}',
         'env_root_prompt': 'Existing RT-Thread ENV detected. Do you want to delete and reinstall?',
-        'env_root_confirm': 'Are you sure you want to delete? [Y/a/n]: ',
+        'env_root_confirm': 'Are you sure you want to delete? [Y/a/b/n]: ',
         'env_root_confirm_help': '  Y/y: Preserve config and local_pkgs, delete others (default)',
         'env_root_confirm_all': '  A/a: Delete entire directory (including config and local_pkgs)',
+        'env_root_confirm_backup': '  B/b: Backup entire directory, then delete',
         'env_root_confirm_no': '  N/n: Cancel installation',
+        'use_arrow_keys': 'Use ↑/↓ arrows to select, Enter to confirm',
+        'press_enter_confirm': 'Or press Y/A/B/N directly',
         'removing_env_preserving': 'Removing (preserving config and local_pkgs): {0}...',
         'removing_env_all': 'Removing entire directory: {0}...',
         'env_root_removed': 'Existing RT-Thread ENV removed: {0}',
@@ -238,6 +250,11 @@ MESSAGES = {
         'item_deleted': 'Deleted: {0}',
         'file_delete_failed': 'Failed to delete file: {0} - {1}',
         'dir_delete_failed': 'Failed to delete directory: {0} - {1}',
+        'file_copy_failed': 'Failed to copy file: {0} - {1}',
+        'dir_hardlink_failed': 'Failed to hardlink directory: {0} - {1}',
+        'restoring_local_pkgs_with_hardlink': 'Restoring local_pkgs with hardlinks...',
+        'local_pkgs_restored': 'Local packages restored with hardlinks',
+        'backup_delete_failed': 'Failed to delete backup: {0}',
         'env_root_not_fully_removed': 'Some items could not be deleted. Please check the error messages above.',
         'backup_creating': 'Creating backup: {0}...',
         'backup_created': 'Backup created: {0}',
@@ -304,10 +321,13 @@ MESSAGES = {
         'no_config_to_restore': '没有需要恢复的配置',
         'env_root_exists': '检测到已存在的 RT-Thread ENV: {0}',
         'env_root_prompt': '检测到已存在的RT-Thread ENV。是否要删除并重新安装？',
-        'env_root_confirm': '确定要删除吗？[Y/a/n]: ',
+        'env_root_confirm': '确定要删除吗？[Y/a/b/n]: ',
         'env_root_confirm_help': '  Y/y: 保留配置和本地包，删除其他（默认）',
         'env_root_confirm_all': '  A/a: 删除整个目录（包括配置和本地包）',
+        'env_root_confirm_backup': '  B/b: 备份整个目录后删除',
         'env_root_confirm_no': '  N/n: 取消安装',
+        'use_arrow_keys': '使用 ↑/↓ 方向键选择，回车确认',
+        'press_enter_confirm': '或直接按 Y/A/B/N 键',
         'removing_env_preserving': '正在删除（保留配置和本地包）: {0}...',
         'removing_env_all': '正在删除整个目录: {0}...',
         'env_root_removed': '已删除 RT-Thread ENV: {0}',
@@ -319,7 +339,11 @@ MESSAGES = {
         'item_deleted': '已删除: {0}',
         'file_delete_failed': '删除文件失败: {0} - {1}',
                 'dir_delete_failed': '删除目录失败: {0} - {1}',
-                'env_root_not_fully_removed': '部分项目删除失败，请检查上面的错误信息。',
+                'file_copy_failed': '复制文件失败: {0} - {1}',
+                'dir_hardlink_failed': '硬链接目录失败: {0} - {1}',
+                'restoring_local_pkgs_with_hardlink': '正在使用硬链接恢复本地包...',
+                'local_pkgs_restored': '本地包已使用硬链接恢复',
+                'backup_delete_failed': '删除备份失败: {0}',                'env_root_not_fully_removed': '部分项目删除失败，请检查上面的错误信息。',
                 'backup_creating': '正在创建备份: {0}...',
                 'backup_created': '备份已创建: {0}',
                         'backup_restore_failed': '从备份恢复失败: {0}',
@@ -797,6 +821,14 @@ def check_existing_env(config):
             except (OSError, RuntimeError) as e:
                 log_error('backup_create_failed', str(e))
                 sys.exit(1)
+        elif response.lower() == 'b':
+            # Backup entire directory, then delete everything
+            config.strategy = 'backup_all'
+            try:
+                config.backup_path = create_backup_directory(config)
+            except (OSError, RuntimeError) as e:
+                log_error('backup_create_failed', str(e))
+                sys.exit(1)
         else:
             # Cancel installation
             log_info('installation_cancelled')
@@ -805,25 +837,41 @@ def check_existing_env(config):
 
 def show_deletion_options(config):
     """
-    Show deletion options to user
+    Show deletion options to user with interactive menu selection
 
     Args:
         config: TouchEnvConfig instance
 
     Returns:
-        str: User response
+        str: User response (y/a/b/n)
     """
     print(get_message('env_root_prompt'))
+
+    # Define options
+    options = [
+        {'key': 'Y', 'desc': get_message('env_root_confirm_help'), 'default': True},
+        {'key': 'A', 'desc': get_message('env_root_confirm_all'), 'default': False},
+        {'key': 'B', 'desc': get_message('env_root_confirm_backup'), 'default': False},
+        {'key': 'N', 'desc': get_message('env_root_confirm_no'), 'default': False},
+    ]
+
+    # Try interactive menu if msvcrt is available (Windows)
+    if msvcrt is not None:
+        try:
+            return _interactive_menu(options)
+        except Exception:
+            # Fall back to simple input if interactive menu fails
+            pass
+
+    # Fallback to simple input
     print(get_message('env_root_confirm'), end='', flush=True)
     print()
-    print(get_message('env_root_confirm_help'))
-    print(get_message('env_root_confirm_all'))
-    print(get_message('env_root_confirm_no'))
+    for opt in options:
+        print(opt['desc'])
     print('> ', end='', flush=True)
 
     try:
-        response = input()
-
+        response = input().strip().lower()
         if not response:
             return 'y'  # Default is y (preserve)
         return response
@@ -831,6 +879,61 @@ def show_deletion_options(config):
         print()
         log_info('installation_cancelled')
         sys.exit(0)
+
+
+def _interactive_menu(options):
+    """
+    Interactive menu with arrow key navigation
+
+    Args:
+        options: List of option dictionaries with 'key', 'desc', 'default'
+
+    Returns:
+        str: Selected option key (lowercase)
+    """
+    selected_index = 0
+
+    # Find default option
+    for i, opt in enumerate(options):
+        if opt.get('default', False):
+            selected_index = i
+            break
+
+    while True:
+        # Clear screen and show menu
+        print('\033[2J\033[H', end='')  # Clear screen (ANSI escape)
+        print(get_message('env_root_prompt'))
+        print()
+
+        for i, opt in enumerate(options):
+            if i == selected_index:
+                # Highlight selected option
+                print(f"\033[7m > {opt['desc']}\033[0m")
+            else:
+                print(f"   {opt['desc']}")
+
+        print()
+        print(get_message('use_arrow_keys'))
+        print(get_message('press_enter_confirm'))
+
+        # Read key
+        if msvcrt:
+            key = msvcrt.getch()
+            if key == b'\xe0':  # Special key prefix
+                key = msvcrt.getch()
+                if key == b'H':  # Up arrow
+                    selected_index = (selected_index - 1) % len(options)
+                elif key == b'P':  # Down arrow
+                    selected_index = (selected_index + 1) % len(options)
+            elif key == b'\r' or key == b'\n':  # Enter key
+                return options[selected_index]['key'].lower()
+            elif key == b'\x03':  # Ctrl+C
+                print()
+                log_info('installation_cancelled')
+                sys.exit(0)
+            elif key in [b'y', b'Y', b'a', b'A', b'b', b'B', b'n', b'N']:
+                # Direct key press
+                return key.decode('ascii').lower()
 
 def log_warning(key, *args):
     """Log warning message to stderr"""
@@ -1004,20 +1107,110 @@ def cleanup_backup_directory(backup_path):
 
     Args:
         backup_path: Path to backup directory
+    """
+    if os.path.exists(backup_path):
+        try:
+            shutil.rmtree(backup_path, ignore_errors=True)
+        except Exception as e:
+            log_warning('backup_delete_failed', str(e))
+
+
+def restore_with_hardlink(config, backup_path):
+    """
+    Restore config and local_pkgs using hardlink for backup_all strategy
+
+    This function:
+    - Copies .config file
+    - Creates hardlinks for local_pkgs
+    - Keeps backup directory
+
+    Args:
+        config: TouchEnvConfig instance with env_root path
+        backup_path: Path to backup directory
 
     Returns:
-        bool: True if deletion succeeded, False otherwise
+        bool: True if operation succeeded, False otherwise
     """
-    if not os.path.exists(backup_path):
-        return True
-
-    try:
-        shutil.rmtree(backup_path, ignore_errors=True)
-        log_info('backup_deleted', backup_path)
-        return True
-    except (OSError, PermissionError) as e:
-        log_error('dir_delete_failed', backup_path, str(e))
+    if not os.path.exists(config.env_root):
+        log_error('backup_restore_failed', f'env_root does not exist: {config.env_root}')
         return False
+
+    if not os.path.exists(backup_path):
+        log_warning('no_config_to_restore')
+        return False
+
+    # 1. Copy .config file
+    config_src = os.path.join(backup_path, 'tools', 'scripts', 'cmds', '.config')
+    config_dst = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
+
+    if os.path.exists(config_src):
+        log_info('restoring_config')
+        try:
+            os.makedirs(os.path.dirname(config_dst), exist_ok=True)
+            shutil.copy2(config_src, config_dst)
+            log_success('config_restored')
+        except (OSError, PermissionError) as e:
+            log_error('file_copy_failed', '.config', str(e))
+    else:
+        log_info('skipping_item', '.config')
+
+    # 2. Hardlink local_pkgs
+    local_pkgs_src = os.path.join(backup_path, 'local_pkgs')
+    local_pkgs_dst = os.path.join(config.env_root, 'local_pkgs')
+
+    if os.path.exists(local_pkgs_src):
+        log_info('restoring_local_pkgs_with_hardlink')
+        try:
+            # Remove existing local_pkgs if any
+            if os.path.exists(local_pkgs_dst):
+                shutil.rmtree(local_pkgs_dst, ignore_errors=True)
+
+            os.makedirs(local_pkgs_dst, exist_ok=True)
+
+            # Create hardlinks for all files in local_pkgs
+            _hardlink_directory(local_pkgs_src, local_pkgs_dst)
+            log_success('local_pkgs_restored')
+        except (OSError, PermissionError) as e:
+            log_error('dir_hardlink_failed', 'local_pkgs', str(e))
+            return False
+    else:
+        log_info('skipping_item', 'local_pkgs')
+
+    log_info('backup_kept_for_manual_recovery', backup_path)
+    return True
+
+
+def _hardlink_directory(src_dir, dst_dir):
+    """
+    Recursively create hardlinks from src_dir to dst_dir
+
+    Args:
+        src_dir: Source directory path
+        dst_dir: Destination directory path
+
+    Raises:
+        OSError: If hardlink creation fails
+    """
+    if not os.path.exists(src_dir):
+        return
+
+    for item in os.listdir(src_dir):
+        src_path = os.path.join(src_dir, item)
+        dst_path = os.path.join(dst_dir, item)
+
+        if os.path.isdir(src_path):
+            os.makedirs(dst_path, exist_ok=True)
+            _hardlink_directory(src_path, dst_path)
+        elif os.path.isfile(src_path):
+            try:
+                # Remove destination if it exists
+                if os.path.exists(dst_path):
+                    os.remove(dst_path)
+                # Create hardlink
+                os.link(src_path, dst_path)
+            except OSError as e:
+                # Fallback to copy if hardlink fails (e.g., cross-device)
+                shutil.copy2(src_path, dst_path)
 
 
 def handle_installation_failure(config, backup_path, strategy):
@@ -1027,7 +1220,7 @@ def handle_installation_failure(config, backup_path, strategy):
     Args:
         config: TouchEnvConfig instance
         backup_path: Path to backup directory
-        strategy: User's original strategy ('preserve' or 'delete_all')
+        strategy: User's original strategy ('preserve' or 'delete_all' or 'backup_all')
 
     Returns:
         int: Exit code (0 for continue, 1 for exit)
@@ -1401,6 +1594,9 @@ def run_touch_env(args):
             elif config.strategy == 'delete_all':
                 # Delete backup without restoring
                 cleanup_backup_directory(config.backup_path)
+            elif config.strategy == 'backup_all':
+                # Copy config and hardlink local_pkgs, keep backup
+                restore_with_hardlink(config, config.backup_path)
 
         # Step 9: Show next steps
         show_next_steps(config)
