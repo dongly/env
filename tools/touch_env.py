@@ -266,7 +266,7 @@ MESSAGES = {
         'env_root_confirm': 'Are you sure you want to delete? [Y/a/b/n]: ',
         'env_root_confirm_help': '  Y/y: Preserve config and local_pkgs, delete others (default)',
         'env_root_confirm_all': '  A/a: Delete entire directory (including config and local_pkgs)',
-        'env_root_confirm_backup': '  B/b: Backup entire directory, then delete',
+        'env_root_confirm_backup': '  B/b: Backup entire directory and keep',
         'env_root_confirm_no': '  N/n: Cancel installation',
         'use_arrow_keys': 'Use ↑/↓ arrows to select, Enter to confirm',
         'press_enter_confirm': 'Or press Y/A/B/N directly',
