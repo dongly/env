@@ -12,13 +12,14 @@
 # 5. Show next steps
 #
 # Usage:
-#   python touch_env.py --env-root <path> [OPTIONS]
+#   python touch_env.py [OPTIONS]
 #
 # Options:
-#   --env-root <path>           Installation root directory (required)
+#   --env-root <path>           Installation root directory (default: ~/.rt-env)
 #   --use-cn                     Use China mirror (Gitee, TUNA PyPI)
 #   --language <lang>            Language: 'en' or 'zh'
 #   --auto-mode                  Auto-install without prompts
+#   --backup <strategy>          Backup strategy: preserve, delete_all, backup_all
 #   --install-pyocd              Install pyocd for debugging
 #   --restore-config             Restore preserved configuration
 #   --repo-env <url>             Custom env repository URL
@@ -29,8 +30,11 @@
 #   --branch-sdk <branch>        Branch for custom sdk repository
 #
 # Examples:
+#   python touch_env.py
+#   python touch_env.py --backup preserve
+#   python touch_env.py --env-root /path/to/env
 #   python touch_env.py --env-root /path/to/env --repo-env https://github.com/user/env.git
-#   python touch_env.py --env-root /path/to/env --repo-packages https://github.com/user/packages.git --branch-packages my-branch
+#   python touch_env.py --backup delete_all --repo-packages https://github.com/user/packages.git --branch-packages my-branch
 #
 
 import os
@@ -91,6 +95,9 @@ VENV_DIR_RELATIVE = "venv/rt-env"
 SCRIPTS_DIR_RELATIVE = "tools/scripts"
 TEMP_CONFIG_FILE = ".config.backup"
 
+# Default installation root directory
+DEFAULT_ENV_ROOT = "~/.rt-env"
+
 # Portable Python directory name
 PORTABLE_PYTHON_DIR = "python"
 
@@ -138,7 +145,7 @@ class TouchEnvConfig:
 
     def __init__(self, args):
         # Check if using default env-root
-        default_env_root = os.path.expanduser('~/.rt-env')
+        default_env_root = os.path.expanduser(DEFAULT_ENV_ROOT)
         if args.env_root == default_env_root:
             # Temporarily set language for log_info
             set_language(args.language)
@@ -1417,7 +1424,7 @@ def parse_arguments():
     parser.add_argument(
         '--env-root',
         required=False,
-        default=os.path.expanduser('~/.rt-env'),
+        default=os.path.expanduser(DEFAULT_ENV_ROOT),
         help='Installation root directory (default: ~/.rt-env)'
     )
     parser.add_argument(
