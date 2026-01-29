@@ -70,6 +70,7 @@ $PYTHON_VERSION = "3.13.11"
 $PYTHON_ARCHIVE = "python-${PYTHON_VERSION}-amd64.zip"
 $PYTHON_URL_DEFAULT = "https://www.python.org/ftp/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
 $PYTHON_URL_CN = "https://registry.npmmirror.com/-/binary/python/$PYTHON_VERSION/$PYTHON_ARCHIVE"
+$DEFAULT_PYTHON_PATH = "D:\Tools\Python"
 
 # Git Configuration
 $GIT_FALLBACK_VERSION = "v2.52.0.windows.1"
@@ -158,8 +159,22 @@ function Parse-Arguments {
             "--official" { $result.OfficialMode = $true }
             "-d" { $result.PyocdMode = $true }
             "--pyocd" { $result.PyocdMode = $true }
-            "-p" { $result.PythonPath = $Arguments[++$i] }
-            "--python" { $result.PythonPath = $Arguments[++$i] }
+            "-p" {
+                if ($i + 1 -lt $Arguments.Count -and $Arguments[$i + 1] -notmatch "^-") {
+                    $result.PythonPath = $Arguments[++$i]
+                }
+                else {
+                    $result.PythonPath = ""
+                }
+            }
+            "--python" {
+                if ($i + 1 -lt $Arguments.Count -and $Arguments[$i + 1] -notmatch "^-") {
+                    $result.PythonPath = $Arguments[++$i]
+                }
+                else {
+                    $result.PythonPath = ""
+                }
+            }
             "-E" {
                 $result.CustomEnv = Parse-RepoArg -RepoArg $Arguments[++$i]
             }
@@ -375,6 +390,11 @@ $script:Messages = @{
         select_python                    = "Found {0} Python installation(s). Default is option {1} (latest). Select [1-{0}], or {2} to install portable Python: "
         auto_selected                    = "Auto-selected Python: {0}"
         python_not_found                 = "Python not found. Please install Python first."
+        python_path_prompt              = "Enter portable Python installation path"
+        python_path_default             = "[default: {0}]"
+        python_path_invalid             = "Error: Path cannot contain {0}"
+        python_path_no_permission       = "Error: No write permission for directory: {0}"
+        python_path_creating_dir        = "Creating directory: {0}"
         removing_portable_python         = "Removing portable Python: {0}..."
         removing_old_portable_python     = "Removing old portable Python: {0}..."
         removing_invalid_portable_python = "Removing invalid portable Python: {0}..."
@@ -436,6 +456,11 @@ $script:Messages = @{
         select_python                    = "找到 {0} 个 Python 安装。默认选项为 {1}（最新）。选择 [1-{0}]，或输入 {2} 安装便携式 Python: "
         auto_selected                    = "自动选择 Python: {0}"
         python_not_found                 = "未找到 Python。请先安装 Python。"
+        python_path_prompt              = "请输入便携式 Python 安装路径"
+        python_path_default             = "[默认: {0}]"
+        python_path_invalid             = "错误: 路径不能包含 {0}"
+        python_path_no_permission       = "错误: 没有目录的写入权限: {0}"
+        python_path_creating_dir        = "正在创建目录: {0}"
         removing_portable_python         = "正在删除便携式 Python: {0}..."
         removing_old_portable_python     = "正在删除旧的便携式 Python: {0}..."
         removing_invalid_portable_python = "正在删除无效的便携式 Python: {0}..."
@@ -748,12 +773,102 @@ function New-PythonConfig {
 }
 
 function New-PortingPythonConfig {
+    $pythonPath = $script:Config.PythonConfig.PythonPath
+
+    # Check if PythonPath is empty, prompt user if needed
+    if ([string]::IsNullOrEmpty($pythonPath)) {
+        if (-not $script:Config.AutoMode) {
+            $promptedPath = Prompt-PythonPath
+            if ($promptedPath) {
+                $pythonPath = $promptedPath
+                $script:Config.PythonConfig.PythonPath = $promptedPath
+            }
+            else {
+                # Use default if prompt failed
+                $pythonPath = Join-Path $DEFAULT_PYTHON_PATH "python.exe"
+                $script:Config.PythonConfig.PythonPath = $pythonPath
+            }
+        }
+        else {
+            # Auto mode: use default
+            $pythonPath = Join-Path $DEFAULT_PYTHON_PATH "python.exe"
+            $script:Config.PythonConfig.PythonPath = $pythonPath
+        }
+    }
+
     return [PythonConfig] @{
         InstallPortablePython = $true
-        PythonPath            = Join-Path $script:Config.PythonPath "python.exe"
+        PythonPath            = $pythonPath
         Version               = $PYTHON_VERSION
         Result                = 0
     }
+}
+
+function Prompt-PythonPath {
+    # Prompt user to enter portable Python installation path
+    # Returns full path with python.exe suffix
+    param()
+
+    # Only work in non-auto mode
+    if ($script:Config.AutoMode) {
+        return ""
+    }
+
+    $pythonPath = ""
+    $isValid = $false
+
+    while (-not $isValid) {
+        # Display prompt with default value
+        $promptMsg = Get-Message "python_path_prompt"
+        $defaultMsg = Get-Message "python_path_default" -Arg1 $DEFAULT_PYTHON_PATH
+        Write-Host "$promptMsg $defaultMsg" -NoNewline -ForegroundColor Yellow
+        $input = Read-Host
+
+        # Use default if input is empty
+        if ([string]::IsNullOrWhiteSpace($input)) {
+            $input = $DEFAULT_PYTHON_PATH
+        }
+
+        # Check path format (spaces, non-ASCII characters)
+        if ($input -match "\s") {
+            Write-LogError "python_path_invalid" "spaces"
+            continue
+        }
+        if ($input -match "[^\x00-\x7F]") {
+            Write-LogError "python_path_invalid" "non-ASCII characters"
+            continue
+        }
+
+        # Check parent directory and create if needed
+        $parentDir = Split-Path -Parent $input
+        if (-not (Test-Path $parentDir)) {
+            Write-LogInfo "python_path_creating_dir" $parentDir
+            try {
+                New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+            }
+            catch {
+                Write-LogError "python_path_no_permission" $parentDir
+                continue
+            }
+        }
+
+        # Check write permission
+        $testFile = Join-Path $parentDir ".__write_test__"
+        try {
+            [System.IO.File]::WriteAllText($testFile, "test")
+            Remove-Item $testFile -Force -ErrorAction SilentlyContinue
+        }
+        catch {
+            Write-LogError "python_path_no_permission" $parentDir
+            continue
+        }
+
+        # Path is valid
+        $isValid = $true
+        $pythonPath = Join-Path $input "python.exe"
+    }
+
+    return $pythonPath
 }
 
 function Check-Python {
@@ -1194,7 +1309,15 @@ function Handle-PythonSelection {
             $result.PythonPath = $PythonPaths[$choiceInt - 1]
         }
         elseif ($choiceInt -eq ($PythonPaths.Count + 1)) {
-            $result = New-PortingPythonConfig # Install portable Python
+            # Install portable Python
+            # Check if PythonPath is empty, prompt user if in non-auto mode
+            if ([string]::IsNullOrEmpty($script:Config.PythonConfig.PythonPath)) {
+                $promptedPath = Prompt-PythonPath
+                if ($promptedPath) {
+                    $script:Config.PythonConfig.PythonPath = $promptedPath
+                }
+            }
+            $result = New-PortingPythonConfig
         }
         else {
             # Invalid choice, use default
@@ -1292,6 +1415,28 @@ function Show-Banner {
 
 function Ensure-Python {
     $result = $script:Config.PythonConfig
+
+    # 步骤 0: 检查便携 Python 路径是否为空
+    if ($result.InstallPortablePython -and [string]::IsNullOrEmpty($result.PythonPath)) {
+        if ($script:Config.AutoMode) {
+            # Auto mode: use default path
+            $result.PythonPath = Join-Path $DEFAULT_PYTHON_PATH "python.exe"
+        }
+        else {
+            # Interactive mode: prompt user for path
+            $promptedPath = Prompt-PythonPath
+            if ($promptedPath) {
+                $result.PythonPath = $promptedPath
+                $script:Config.PythonConfig.PythonPath = $promptedPath
+            }
+            else {
+                # User cancelled or invalid input, use default
+                $result.PythonPath = Join-Path $DEFAULT_PYTHON_PATH "python.exe"
+                $script:Config.PythonConfig.PythonPath = $result.PythonPath
+            }
+        }
+    }
+
     # 步骤 1: 查找选择系统 Python
     if (-not $result.InstallPortablePython) {
         $result = Select-Python -PythonPaths (Find-SystemPython)
@@ -1486,7 +1631,6 @@ function Init-Config {
         CustomEnv      = New-Repo
         CustomSdk      = New-Repo
         PythonConfig   = New-PythonConfig
-        PythonPath     = ""
         EnvRoot        = ""
         TempFiles      = @()
     }
@@ -1503,8 +1647,12 @@ function Init-Config {
     $script:Config.CustomEnv = $ParsedArgs.CustomEnv
     $script:Config.CustomSdk = $ParsedArgs.CustomSdk
 
-    # Set PythonPath (default: D:\Tools\Python)
-    $script:Config.PythonPath = if ($ParsedArgs.PythonPath) { $ParsedArgs.PythonPath } else { "D:\Tools\Python" }
+    # Set PythonConfig.PythonPath based on command line arguments
+    if ($ParsedArgs.PythonPath) {
+        # User specified path via -p parameter
+        $script:Config.PythonConfig.PythonPath = Join-Path $ParsedArgs.PythonPath "python.exe"
+    }
+    # else: PythonConfig.PythonPath remains empty (will be prompted later)
 
     # Set EnvRoot for passing to touch_env.py
     $script:Config.EnvRoot = $ParsedArgs.EnvRoot
