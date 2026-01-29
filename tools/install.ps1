@@ -1016,7 +1016,8 @@ catch {
 
 function Configure-PythonPth {
     # Modify python3xx._pth to enable site-packages and ensurepip
-    $pythonTargetDir = $script:Config.PythonPath
+    # Extract directory from PythonConfig.PythonPath (which includes python.exe)
+    $pythonTargetDir = Split-Path -Parent $script:Config.PythonConfig.PythonPath
     try {
         $pthFile = Get-ChildItem -Path $pythonTargetDir -Filter "*._pth" -ErrorAction Stop
         if ($pthFile) {
@@ -1046,7 +1047,7 @@ function Install-PortablePython {
         }
         Configure-PythonPth
         # Save portable Python path to global variable
-        $portablePython = Join-Path $script:Config.PythonPath "python.exe"
+        $portablePython = $script:Config.PythonConfig.PythonPath
         Write-LogSuccess "python_installed"
 
         # Get Python version
