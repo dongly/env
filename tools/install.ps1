@@ -1095,6 +1095,7 @@ function Find-SystemPython {
     # Add drive-specific paths
     foreach ($drive in (Get-PSDrive -PSProvider FileSystem | Select-Object -ExpandProperty Root)) {
         $searchPaths += "$drive\Python*\python.exe"
+        $searchPaths += "$drive\Tools\Python*\python.exe"
         $searchPaths += "$drive\Anaconda3\python.exe"
         $searchPaths += "$drive\Miniconda3\python.exe"
     }
