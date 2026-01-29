@@ -726,32 +726,40 @@ function New-PythonConfig {
 }
 
 function New-PortingPythonConfig {
-    $pythonPath = $script:Config.PythonConfig.PythonPath
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$PythonPath = $null
+    )
+
+    # Use provided PythonPath if available, otherwise fallback to config
+    if ([string]::IsNullOrEmpty($PythonPath)) {
+        $PythonPath = $script:Config.PythonConfig.PythonPath
+    }
 
     # Check if PythonPath is empty, prompt user if needed
-    if ([string]::IsNullOrEmpty($pythonPath)) {
+    if ([string]::IsNullOrEmpty($PythonPath)) {
         if (-not $script:Config.AutoMode) {
             $promptedPath = Prompt-PythonPath
             if ($promptedPath) {
-                $pythonPath = $promptedPath
+                $PythonPath = $promptedPath
                 $script:Config.PythonConfig.PythonPath = $promptedPath
             }
             else {
                 # Use default if prompt failed
-                $pythonPath = Join-Path $DEFAULT_PYTHON_PATH "python.exe"
-                $script:Config.PythonConfig.PythonPath = $pythonPath
+                $PythonPath = Join-Path $DEFAULT_PYTHON_PATH "python.exe"
+                $script:Config.PythonConfig.PythonPath = $PythonPath
             }
         }
         else {
             # Auto mode: use default
-            $pythonPath = Join-Path $DEFAULT_PYTHON_PATH "python.exe"
-            $script:Config.PythonConfig.PythonPath = $pythonPath
+            $PythonPath = Join-Path $DEFAULT_PYTHON_PATH "python.exe"
+            $script:Config.PythonConfig.PythonPath = $PythonPath
         }
     }
 
     return [PythonConfig] @{
         InstallPortablePython = $true
-        PythonPath            = $pythonPath
+        PythonPath            = $PythonPath
         Version               = $PYTHON_VERSION
         Result                = 0
     }
@@ -831,7 +839,7 @@ function Check-Python {
         [PythonConfig]$PythonConfig
     )
 
-    $result = New-PortingPythonConfig
+    $result = New-PortingPythonConfig -PythonPath $PythonConfig.PythonPath
     # Check if Python.exe exists
     if (-not (Test-Path $PythonConfig.PythonPath)) {
         Write-LogError "python_not_found" $PythonConfig.PythonPath
@@ -1316,7 +1324,7 @@ function Select-Python {
             $result.Result = 0
         }
         else {
-            $result = New-PortingPythonConfig
+            $result = New-PortingPythonConfig -PythonPath $latestPython
         }
     }
     else {

@@ -904,7 +904,7 @@ def show_deletion_options(config):
     # Try interactive menu if msvcrt is available (Windows)
     if msvcrt is not None:
         try:
-            return _interactive_menu(options, clear_screen=False)
+            return _interactive_menu(options)
         except Exception:
             # Fall back to simple input if interactive menu fails
             pass
@@ -927,13 +927,12 @@ def show_deletion_options(config):
         sys.exit(0)
 
 
-def _interactive_menu(options, clear_screen=True):
+def _interactive_menu(options):
     """
     Interactive menu with arrow key navigation
 
     Args:
         options: List of option dictionaries with 'key', 'desc', 'default'
-        clear_screen: Whether to clear screen before showing menu (default: True)
 
     Returns:
         str: Selected option key (lowercase)
@@ -946,10 +945,12 @@ def _interactive_menu(options, clear_screen=True):
             selected_index = i
             break
 
+    # Calculate lines to clear (prompt + blank + options + blank + 2 help lines = 7 + len(options))
+    lines_to_clear = 7 + len(options)
+
     while True:
-        # Clear screen and show menu
-        if clear_screen:
-            print('\033[2J\033[H', end='')  # Clear screen (ANSI escape)
+        # Clear only the menu area
+        print(f'\033[{lines_to_clear}M\033[{lines_to_clear}A', end='')
         print(get_message('env_root_prompt'))
         print()
 
