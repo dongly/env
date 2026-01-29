@@ -257,7 +257,6 @@ MESSAGES = {
         'auto_restoring_backup': 'Automatically restoring backup...',
         'keeping_current_state': 'Keeping current state as is...',
         'start': 'Starting RT-Thread ENV installation...',
-        'end': 'RT-Thread ENV installation process ended',
     },
     'zh': {
         'info': '信息',
@@ -339,7 +338,6 @@ MESSAGES = {
                         'auto_restoring_backup': '自动恢复备份中...',
                         'keeping_current_state': '保持当前状态不变...',
                         'start': '开始 RT-Thread ENV 安装...',
-                        'end': 'RT-Thread ENV 安装流程结束',
                     }
         }
 
@@ -1430,17 +1428,14 @@ def main():
         log_info('start')
         args = parse_arguments()
         result = run_touch_env(args)
-        log_info('end')
         sys.exit(result)
     except KeyboardInterrupt:
         print()
         log_info('installation_cancelled')
-        log_info('end')
         sys.exit(1)
     except Exception as e:
         print()
         log_error('installation_failed', str(e))
-        log_info('end')
         sys.exit(1)
 
 # ============================================================================
