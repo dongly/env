@@ -2,7 +2,7 @@
 #
 # DEPRECATED / 已废弃
 #
-# 此脚本已废弃，推荐直接使用 install.sh
+# 此脚本已废弃，推荐直接使用 tools/install.sh
 #
 # Ubuntu Quick Install Script (Deprecated)
 # Usage:
@@ -10,9 +10,9 @@
 #   ./install_ubuntu.sh --cn        # Auto-install (China mirror)
 #   ./install_ubuntu.sh --gitee     # Auto-install (Gitee)
 #
-# Deprecated: Please use install.sh directly
-#   curl https://raw.githubusercontent.com/RT-Thread/env/master/install.sh | bash -s -- -y
-#   curl https://gitee.com/RT-Thread-Mirror/env/raw/master/install.sh | bash -s -- -y --cn
+# Deprecated: Please use tools/install.sh directly
+#   curl https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.sh | bash -s -- -y
+#   curl https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.sh | bash -s -- -y --cn
 #
 # This script maintains backward compatibility with old versions while
 # delegating to the new unified install.sh script
@@ -25,8 +25,8 @@ set -e
 # ============================================================================
 
 # URL configurations
-URL_GITHUB="https://raw.githubusercontent.com/RT-Thread/env/master/install.sh"
-URL_GITEE="https://gitee.com/RT-Thread-Mirror/env/raw/master/install.sh"
+URL_GITHUB="https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.sh"
+URL_GITEE="https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.sh"
 
 # IP detection service
 IPINFO_URL="https://ipinfo.io/json"
@@ -59,8 +59,8 @@ echo "============================================================"
 echo "   DEPRECATED / 已废弃"
 echo "============================================================"
 echo ""
-echo "此脚本已废弃，推荐直接使用 install.sh"
-echo "This script is deprecated, please use install.sh directly"
+echo "此脚本已废弃，推荐直接使用 tools/install.sh"
+echo "This script is deprecated, please use tools/install.sh directly"
 echo ""
 echo "使用 GitHub / Using GitHub:"
 echo "  curl $URL_GITHUB | bash -s -- -y"

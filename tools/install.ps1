@@ -1,4 +1,4 @@
-﻿# RT-Thread ENV Installation Script (Windows)
+# RT-Thread ENV Installation Script (Windows)
 # Unified installation script for Windows
 # Supports: English / 中文
 #
@@ -30,8 +30,8 @@
 $ENV_DEFAULT_DIR = "$env:USERPROFILE\.rtenv"
 
 # touch_env.py download URLs
-$TOUCH_ENV_URL_GITHUB = "https://raw.githubusercontent.com/RT-Thread/env/master/touch_env.py"
-$TOUCH_ENV_URL_GITEE = "https://gitee.com/RT-Thread-Mirror/env/raw/master/touch_env.py"
+$TOUCH_ENV_URL_GITHUB = "https://raw.githubusercontent.com/RT-Thread/env/master/tools/touch_env.py"
+$TOUCH_ENV_URL_GITEE = "https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/touch_env.py"
 
 # Python Configuration
 $PYTHON_VERSION = "3.13.11"
@@ -1538,11 +1538,11 @@ function Download-TouchEnv {
             # if (-not $branch.StartsWith("refs/heads/")) {
             #     $branch = "refs/heads/$branch"
             # }
-            $TOUCH_ENV_URL = "https://raw.githubusercontent.com/$owner/$repoName/$branch/touch_env.py"
+            $TOUCH_ENV_URL = "https://raw.githubusercontent.com/$owner/$repoName/$branch/tools/touch_env.py"
         }
         else {
             # Non-GitHub repository: use /raw/ format
-            $TOUCH_ENV_URL = "$repo/raw/$branch/touch_env.py"
+            $TOUCH_ENV_URL = "$repo/raw/$branch/tools/touch_env.py"
         }
     }
     elseif ($script:Config.UseCN) {
