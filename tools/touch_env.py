@@ -1605,8 +1605,10 @@ def run_touch_env(args):
 def main():
     """Main entry point"""
     try:
-        log_info('start')
         args = parse_arguments()
+        # Set language before logging
+        set_language(args.language)
+        log_info('start')
         result = run_touch_env(args)
         sys.exit(result)
     except KeyboardInterrupt:
