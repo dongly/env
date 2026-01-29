@@ -1,25 +1,60 @@
 # RT-Thread ENV Installation Script (Windows)
+# RT-Thread ENV 安装脚本 (Windows)
 # Unified installation script for Windows
+# Windows 统一安装脚本
 # Supports: English / 中文
 #
+# This script handles the initial setup of RT-Thread ENV on Windows.
+# 此脚本处理 Windows 上 RT-Thread ENV 的初始设置。
+# It performs steps 1-3 of the installation process:
+# 执行安装过程的步骤 1-3：
+# 1. Check and install Python and Git - 检查并安装 Python 和 Git
+# 2. Enable Windows long path support (requires admin) - 启用 Windows 长路径支持（需要管理员权限）
+# 3. Download and execute touch_env.py for steps 4-9 - 下载并执行 touch_env.py 完成步骤 4-9
+#
 # Usage:
-#   .\install.ps1 [-y] [-c] [-o] [-d] [-p] [-r <path>] [-e|-z] [-P <repo>[#<branch>]] [-E <repo>[#<branch>]] [-S <repo>[#<branch>]] [-l] [-t <url>] [-h]
+# 用法:
+#   .\install.ps1 [-y] [-c] [-o] [-d] [-p] [-r <path>] [-e|-z] [-P <repo>[#<branch>]] [-E <repo>[#<branch>]] [-S <repo>[#<branch>]] [-b <strategy>] [-t <url>] [-h]
 #
 # Options:
+# 选项:
 #   -y, --yes, --auto    Auto-install without prompts
+#                        自动安装，无提示
 #   -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)
+#                        使用中国镜像（Gitee, PyPI TUNA）
 #   -o, --official       Force use official source
+#                        强制使用官方源
 #   -d, --pyocd          Install pyocd for debugging
+#                        安装 pyocd（用于调试）
 #   -r, --env-root <path> Set custom install directory
+#                        设置自定义安装目录
 #   -e, --en, --english  Force English messages
+#                        强制显示英文信息
 #   -z, --zh, --chinese  Force Chinese messages
+#                        强制显示中文信息
 #   -p, --python         Force install portable Python (ignore system Python)
+#                        强制安装便携式 Python（忽略系统 Python）
 #   -P, --packages <repo>[#<branch>]  Specify custom packages repository and branch
+#                        指定 packages 仓库地址和分支
+#                        格式: url[#branch]
 #   -E, --env <repo>[#<branch>]  Specify custom env repository and branch
+#                        指定 env 仓库地址和分支
+#                        格式: url[#branch]
 #   -S, --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
-#   -l, --skip-long-path Skip enabling Windows long path support
+#                        指定 sdk 仓库地址和分支
+#                        格式: url[#branch]
+#   -b, --backup <strategy>  Backup strategy when ENV exists:
+#                        当 ENV 已存在时的备份策略：
+#                          preserve: Keep .config and local_pkgs, restore and delete backup
+#                                    保留 .config 和 local_pkgs，恢复后删除备份
+#                          delete_all: Delete everything, no restore
+#                                    删除所有内容，不恢复
+#                          backup_all: Keep backup with hardlink restore
+#                                    保留备份，用硬链接恢复本地包
 #   -t, --touch-env-url <url> Specify touch_env.py download URL
+#                        指定 touch_env.py 下载 URL
 #   -h, --help           Show this help message
+#                        显示此帮助信息
 #
 
 # ============================================================================
@@ -103,7 +138,7 @@ function Parse-Arguments {
         PythonMode       = $false
         EnMode           = $false
         ZhMode           = $false
-        SkipLongPath     = $false
+        BackupStrategy   = ""
         EnvRootValue     = ""
         CustomPackages   = New-Repo
         CustomEnv        = New-Repo
@@ -154,8 +189,8 @@ function Parse-Arguments {
             "--sdk" {
                 $result.CustomSdk = Parse-RepoArg -RepoArg $Arguments[++$i]
             }
-            "-l" { $result.SkipLongPath = $true }
-            "--skip-long-path" { $result.SkipLongPath = $true }
+            "-b" { $result.BackupStrategy = $Arguments[++$i] }
+            "--backup" { $result.BackupStrategy = $Arguments[++$i] }
             "-t" { $result.TouchEnvUrlValue = $Arguments[++$i] }
             "--touch-env-url" { $result.TouchEnvUrlValue = $Arguments[++$i] }
         }
@@ -233,7 +268,7 @@ function Print-Help {
         Write-Host "                        格式: url[#branch]"
         Write-Host "  -S, --sdk [repo]     指定 sdk 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
-        Write-Host "  -l, --skip-long-path 跳过启用 Windows 长路径支持"
+        Write-Host "  -b, --backup [strategy] 备份策略 (preserve/delete_all/backup_all)"
         Write-Host "  -t, --touch-env-url [url] 指定 touch_env.py 下载 URL"
         Write-Host "  -h, --help           显示此帮助信息"
         Write-Host ""
@@ -258,7 +293,7 @@ function Print-Help {
         Write-Host "                        Format: url[#branch]"
         Write-Host "  -S, --sdk [repo]     Specify custom sdk repository and branch"
         Write-Host "                        Format: url[#branch]"
-        Write-Host "  -l, --skip-long-path Skip enabling Windows long path support"
+        Write-Host "  -b, --backup [strategy] Backup strategy (preserve/delete_all/backup_all)"
         Write-Host "  -t, --touch-env-url [url] Specify touch_env.py download URL"
         Write-Host "  -h, --help           Show this help message"
         Write-Host ""
@@ -330,6 +365,8 @@ $script:Messages = @{
         using_fixed_git_version          = "Using fixed Git version: {0}"
         restart_required                 = "Please restart terminal and run this script again to continue."
         git_not_found                    = "Git is not installed. Please install Git first."
+        git_not_found_no_admin          = "Git is not installed. Please install Git or run as administrator."
+        admin_required_for_git_install  = "Git installation requires administrator privileges. Please run as administrator."
         git_found                        = "Git found: {0}"
         enabling_long_paths              = "Enabling Windows long path support..."
         long_paths_enabled               = "Windows long path support enabled"
@@ -390,6 +427,8 @@ $script:Messages = @{
         using_fixed_git_version          = "使用固定 Git 版本: {0}"
         restart_required                 = "请重新启动终端并再次运行此脚本以继续。"
         git_not_found                    = "未安装 Git。请先安装 Git。"
+        git_not_found_no_admin          = "未安装 Git。请安装 Git 或以管理员身份运行。"
+        admin_required_for_git_install  = "Git 安装需要管理员权限。请以管理员身份运行。"
         git_found                        = "找到 Git: {0}"
         enabling_long_paths              = "正在启用 Windows 长路径支持..."
         long_paths_enabled               = "Windows 长路径支持已启用"
@@ -929,8 +968,7 @@ function Configure-PythonPth {
 
 function Install-PortablePython {
     param(
-        [bool]$UseCNMirror,
-        [bool]$SkipLongPath
+        [bool]$UseCNMirror
     )
 
     $result = New-PythonConfig
@@ -938,7 +976,7 @@ function Install-PortablePython {
     try {
         Download-PortablePython -UseCNMirror $UseCNMirror
         Extract-PortablePython
-        if (-not $SkipLongPath) {
+        if ($script:Config.IsAdmin) {
             Enable-LongPathSupport
         }
         Configure-PythonPth
@@ -1286,7 +1324,7 @@ function Ensure-Python {
 
     # 步骤 4: 安装便携式 Python（如果需要）
     if ($result.InstallPortablePython) {
-        $result = Install-PortablePython -UseCNMirror $script:Config.UseCN -SkipLongPath $parsedArgs.SkipLongPath
+        $result = Install-PortablePython -UseCNMirror $script:Config.UseCN
     }
 
     # 步骤 5: 检查结果
@@ -1302,6 +1340,11 @@ function Ensure-Git {
     # Check and install Git if missing
     if (-not (Test-Command "git")) {
         Write-LogInfo "git_not_found"
+        if (-not $script:Config.IsAdmin) {
+            Write-LogError "git_not_found_no_admin"
+            Write-LogWarning "admin_required_for_git_install"
+            exit 1
+        }
         # When -y is used, install Git silently; otherwise show interactive installer
         Install-Git -UseCNMirror $script:Config.UseCN -Interactive (-not $script:Config.AutoMode)
         Write-Host ""
@@ -1343,26 +1386,34 @@ function Build-TouchEnvArgs {
     if ($script:Config.AutoMode) { $pythonArgs += "--auto-mode" }
     if ($script:Config.InstallPyocd) { $pythonArgs += "--install-pyocd" }
 
-    # Pass custom repositories as individual parameters
+    # Pass custom repositories with branch info in URL fragment
     if ($script:Config.CustomEnv.Repo) {
-        $pythonArgs += "--repo-env", $script:Config.CustomEnv.Repo
+        $repoUrl = $script:Config.CustomEnv.Repo
         if ($script:Config.CustomEnv.Branch) {
-            $pythonArgs += "--branch-env", $script:Config.CustomEnv.Branch
+            $repoUrl = "$repoUrl#$($script:Config.CustomEnv.Branch)"
         }
+        $pythonArgs += "--repo-env", $repoUrl
     }
 
     if ($script:Config.CustomPackages.Repo) {
-        $pythonArgs += "--repo-packages", $script:Config.CustomPackages.Repo
+        $repoUrl = $script:Config.CustomPackages.Repo
         if ($script:Config.CustomPackages.Branch) {
-            $pythonArgs += "--branch-packages", $script:Config.CustomPackages.Branch
+            $repoUrl = "$repoUrl#$($script:Config.CustomPackages.Branch)"
         }
+        $pythonArgs += "--repo-packages", $repoUrl
     }
 
     if ($script:Config.CustomSdk.Repo) {
-        $pythonArgs += "--repo-sdk", $script:Config.CustomSdk.Repo
+        $repoUrl = $script:Config.CustomSdk.Repo
         if ($script:Config.CustomSdk.Branch) {
-            $pythonArgs += "--branch-sdk", $script:Config.CustomSdk.Branch
+            $repoUrl = "$repoUrl#$($script:Config.CustomSdk.Branch)"
         }
+        $pythonArgs += "--repo-sdk", $repoUrl
+    }
+
+    # Pass backup strategy
+    if ($script:Config.BackupStrategy) {
+        $pythonArgs += "--backup", $script:Config.BackupStrategy
     }
 
     return $pythonArgs
@@ -1438,6 +1489,8 @@ function Init-Config {
         InstallPyocd   = $false
         AutoMode       = $false
         NeedHelp       = $false
+        BackupStrategy = ""
+        IsAdmin        = $false
         CustomPackages = New-Repo
         CustomEnv      = New-Repo
         CustomSdk      = New-Repo
@@ -1452,6 +1505,7 @@ function Init-Config {
     $script:Config.InstallPyocd = $ParsedArgs.PyocdMode
     $script:Config.AutoMode = $ParsedArgs.AutoMode
     $script:Config.NeedHelp = $ParsedArgs.HelpMode
+    $script:Config.BackupStrategy = $ParsedArgs.BackupStrategy
     $script:Config.CustomPackages = $ParsedArgs.CustomPackages
     $script:Config.CustomEnv = $ParsedArgs.CustomEnv
     $script:Config.CustomSdk = $ParsedArgs.CustomSdk
@@ -1472,13 +1526,9 @@ function Init-Config {
         exit 1
     }
 
-    # Check administrator privileges for auto mode
+    # Check administrator privileges
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if ($ParsedArgs.AutoMode -and -not $isAdmin -and -not $ParsedArgs.SkipLongPath) {
-        Write-LogError "admin_required"
-        Write-LogWarning "run_as_admin"
-        exit 1
-    }
+    $script:Config.IsAdmin = $isAdmin
 
     # Handle help request
     if ($script:Config.NeedHelp) {
