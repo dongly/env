@@ -1096,6 +1096,8 @@ def restore_backup(config, backup_path, preserve_items=True):
     Returns:
         bool: True if operation succeeded, False otherwise
     """
+    failed_items = []
+
     if not preserve_items:
         # Strategy A: Delete backup without restoring
         log_info('backup_cleaned', backup_path)
@@ -1434,7 +1436,7 @@ def prompt_pyocd(config):
     print(get_message('pyocd_install_prompt'))
     response = input(get_message('pyocd_install_confirm'))
 
-    return response.lower() != 'n'
+    return response.lower() == 'y'
 
 
 def show_next_steps(config):
