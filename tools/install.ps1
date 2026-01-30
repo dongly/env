@@ -355,7 +355,6 @@ $script:Messages = @{
         git_not_found                    = "Git is not installed. Please install Git first."
         admin_required_for_git_install  = "Git installation requires administrator privileges. Please run as administrator."
         elevation_failed                 = "Failed to elevate privileges. Please run as administrator."
-        execution_policy_too_low         = "Execution policy is too low. Please run as administrator."
         long_path_support_required       = "Long path support is required. Please run as administrator."
         windows_env_adequate             = "Windows environment configuration is adequate."
         windows_env_set_failed           = "Failed to configure Windows environment."
@@ -416,7 +415,6 @@ $script:Messages = @{
         git_not_found                    = "未安装 Git。请先安装 Git。"
         admin_required_for_git_install  = "Git 安装需要管理员权限。请以管理员身份运行。"
         elevation_failed                 = "提升权限失败。请以管理员身份运行。"
-        execution_policy_too_low         = "执行策略过低。请以管理员身份运行。"
         long_path_support_required       = "需要启用长路径支持。请以管理员身份运行。"
         windows_env_adequate             = "Windows 环境配置已满足要求。"
         windows_env_set_failed           = "Windows 环境配置失败。"
@@ -1571,10 +1569,8 @@ function Request-Elevation {
 function Init-WindowsEnv {
     Write-LogInfo "initializing_windows_env"
 
-    # Skip execution policy check (user has Process scope set to Bypass)
-    $needPolicy = $false
-
     # Check long path support
+    $needLongPath = $false
     try {
         $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
         $longPathEnabled = (Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).LongPathsEnabled
@@ -1585,15 +1581,12 @@ function Init-WindowsEnv {
     }
 
     # If everything is OK, return
-    if (-not $needPolicy -and -not $needLongPath) {
+    if (-not $needLongPath) {
         Write-LogSuccess "windows_env_adequate"
         return
     }
 
     # Debug: show what needs to be changed
-    if ($needPolicy) {
-        Write-LogWarning "execution_policy_too_low"
-    }
     if ($needLongPath) {
         Write-LogWarning "long_path_support_required"
     }
@@ -1601,9 +1594,6 @@ function Init-WindowsEnv {
     # Auto mode: check if admin
     if ($script:Config.AutoMode) {
         if (-not $script:Config.IsAdmin) {
-            if ($needPolicy) {
-                Write-LogError "execution_policy_too_low"
-            }
             if ($needLongPath) {
                 Write-LogError "long_path_support_required"
             }
@@ -1613,9 +1603,6 @@ function Init-WindowsEnv {
 
     # Build script block for elevation
     $actions = @()
-    if ($needPolicy) {
-        $actions += 'Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force'
-    }
     if ($needLongPath) {
         $actions += 'Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force'
     }
