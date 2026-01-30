@@ -370,6 +370,7 @@ $script:Messages = @{
         verified_policy_set            = "Verified: {0} is now {1}"
         verified_policy_set_exception  = "Success (verified despite exception: {0})"
         warning_policy_not_set         = "Warning: {0} is {1} (expected RemoteSigned)"
+        effective_scope                = "Effective scope: {0}"
         long_path_support_required       = "Long path support is required. Please run as administrator."
         windows_env_adequate             = "Windows environment configuration is adequate."
         windows_env_set_failed           = "Failed to configure Windows environment."
@@ -445,6 +446,7 @@ $script:Messages = @{
         verified_policy_set            = "已验证: {0} 现在是 {1}"
         verified_policy_set_exception  = "成功（尽管有异常已验证: {0}）"
         warning_policy_not_set         = "警告: {0} 是 {1}（期望为 RemoteSigned）"
+        effective_scope                = "生效作用域: {0}"
         long_path_support_required       = "需要启用长路径支持。请以管理员身份运行。"
         windows_env_adequate             = "Windows 环境配置已满足要求。"
         windows_env_set_failed           = "Windows 环境配置失败。"
@@ -1594,6 +1596,7 @@ function Request-Elevation {
 }
 
 # Get-EffectiveExecutionPolicy: Get the effective execution policy (excluding Process scope)
+# Returns a hashtable with Policy and EffectiveScope
 function Get-EffectiveExecutionPolicy {
     $policyLevels = @{
         "Undefined"     = 0
@@ -1615,16 +1618,25 @@ function Get-EffectiveExecutionPolicy {
         foreach ($scope in $scopePriority) {
             $policy = $policies | Where-Object { $_.Scope -eq $scope }
             if ($policy -and $policy.ExecutionPolicy -ne "Undefined") {
-                return $policy.ExecutionPolicy
+                return @{
+                    Policy = $policy.ExecutionPolicy
+                    EffectiveScope = $scope
+                }
             }
         }
 
         # If all are Undefined, return Restricted (default)
-        return "Restricted"
+        return @{
+            Policy = "Restricted"
+            EffectiveScope = "LocalMachine (default)"
+        }
     }
     catch {
         # If Get-ExecutionPolicy fails, assume Restricted
-        return "Restricted"
+        return @{
+            Policy = "Restricted"
+            EffectiveScope = "Unknown"
+        }
     }
 }
 
@@ -1633,8 +1645,12 @@ function Init-WindowsEnv {
     Write-LogInfo "initializing_windows_env"
 
     # Check execution policy
-    $currentPolicy = Get-EffectiveExecutionPolicy
+    $currentPolicyInfo = Get-EffectiveExecutionPolicy
+    $currentPolicy = $currentPolicyInfo.Policy
+    $effectiveScope = $currentPolicyInfo.EffectiveScope
+
     Write-LogRaw "status_current_policy" -Color Cyan -Arg1 $currentPolicy
+    Write-LogRaw "effective_scope" -Color Cyan -Arg1 $effectiveScope
 
     $policyLevels = @{
         "Undefined"     = 0
@@ -1737,8 +1753,11 @@ function Init-WindowsEnv {
                     }
 
                     # Show new effective policy
-                    $newEffectivePolicy = Get-EffectiveExecutionPolicy
+                    $newPolicyInfo = Get-EffectiveExecutionPolicy
+                    $newEffectivePolicy = $newPolicyInfo.Policy
+                    $newEffectiveScope = $newPolicyInfo.EffectiveScope
                     Write-LogRaw "status_new_policy" -Color Green -Arg1 $newEffectivePolicy
+                    Write-LogRaw "effective_scope" -Color Green -Arg1 $newEffectiveScope
                 }
 
                 # For long path support, verify and show new status
@@ -1768,8 +1787,11 @@ function Init-WindowsEnv {
                         Write-LogRaw "verified_policy_set" -Color Green -Arg1 $scope -Arg2 $actualPolicy
 
                         # Show new effective policy
-                        $newEffectivePolicy = Get-EffectiveExecutionPolicy
+                        $newPolicyInfo = Get-EffectiveExecutionPolicy
+                        $newEffectivePolicy = $newPolicyInfo.Policy
+                        $newEffectiveScope = $newPolicyInfo.EffectiveScope
                         Write-LogRaw "status_new_policy" -Color Green -Arg1 $newEffectivePolicy
+                        Write-LogRaw "effective_scope" -Color Green -Arg1 $newEffectiveScope
                     } else {
                         Write-LogWarning "windows_env_set_failed"
                         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
