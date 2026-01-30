@@ -361,16 +361,15 @@ $script:Messages = @{
         admin_step_1                   = "  1. Right-click PowerShell"
         admin_step_2                   = "  2. Select 'Run as administrator'"
         admin_step_3                   = "  3. Run the script again"
-        status_current_policy          = "Current effective execution policy: {0}"
+        status_current_policy          = "Current effective execution policy: {0} (scope: {1})"
         status_current_longpath        = "Current long path support: {0}"
-        status_new_policy              = "New effective execution policy: {0}"
+        status_new_policy              = "New effective execution policy: {0} (scope: {1})"
         status_new_longpath            = "New long path support: {0}"
         status_enabled                 = "Enabled"
         status_disabled                = "Disabled"
         verified_policy_set            = "Verified: {0} is now {1}"
         verified_policy_set_exception  = "Success (verified despite exception: {0})"
         warning_policy_not_set         = "Warning: {0} is {1} (expected RemoteSigned)"
-        effective_scope                = "Effective scope: {0}"
         long_path_support_required       = "Long path support is required. Please run as administrator."
         windows_env_adequate             = "Windows environment configuration is adequate."
         windows_env_set_failed           = "Failed to configure Windows environment."
@@ -437,16 +436,15 @@ $script:Messages = @{
         admin_step_1                   = "  1. 右键点击 PowerShell"
         admin_step_2                   = "  2. 选择 '以管理员身份运行'"
         admin_step_3                   = "  3. 再次运行脚本"
-        status_current_policy          = "当前生效的执行策略: {0}"
+        status_current_policy          = "当前生效的执行策略: {0}（作用域: {1}）"
         status_current_longpath        = "当前长路径支持: {0}"
-        status_new_policy              = "新的生效执行策略: {0}"
+        status_new_policy              = "新的生效执行策略: {0}（作用域: {1}）"
         status_new_longpath            = "新的长路径支持: {0}"
         status_enabled                 = "已启用"
         status_disabled                = "已禁用"
         verified_policy_set            = "已验证: {0} 现在是 {1}"
         verified_policy_set_exception  = "成功（尽管有异常已验证: {0}）"
         warning_policy_not_set         = "警告: {0} 是 {1}（期望为 RemoteSigned）"
-        effective_scope                = "生效作用域: {0}"
         long_path_support_required       = "需要启用长路径支持。请以管理员身份运行。"
         windows_env_adequate             = "Windows 环境配置已满足要求。"
         windows_env_set_failed           = "Windows 环境配置失败。"
@@ -1647,10 +1645,13 @@ function Init-WindowsEnv {
     # Check execution policy
     $currentPolicyInfo = Get-EffectiveExecutionPolicy
     $currentPolicy = $currentPolicyInfo.Policy
-    $effectiveScope = $currentPolicyInfo.EffectiveScope
+    $currentScope = $currentPolicyInfo.EffectiveScope
 
-    Write-LogRaw "status_current_policy" -Color Cyan -Arg1 $currentPolicy
-    Write-LogRaw "effective_scope" -Color Cyan -Arg1 $effectiveScope
+    if ($currentScope) {
+        Write-LogRaw "status_current_policy" -Color Cyan -Arg1 $currentPolicy, $currentScope
+    } else {
+        Write-LogRaw "status_current_policy" -Color Cyan -Arg1 $currentPolicy, "N/A"
+    }
 
     $policyLevels = @{
         "Undefined"     = 0
@@ -1790,8 +1791,11 @@ function Init-WindowsEnv {
                         $newPolicyInfo = Get-EffectiveExecutionPolicy
                         $newEffectivePolicy = $newPolicyInfo.Policy
                         $newEffectiveScope = $newPolicyInfo.EffectiveScope
-                        Write-LogRaw "status_new_policy" -Color Green -Arg1 $newEffectivePolicy
-                        Write-LogRaw "effective_scope" -Color Green -Arg1 $newEffectiveScope
+                        if ($newEffectiveScope) {
+                            Write-LogRaw "status_new_policy" -Color Green -Arg1 $newEffectivePolicy, $newEffectiveScope
+                        } else {
+                            Write-LogRaw "status_new_policy" -Color Green -Arg1 $newEffectivePolicy, "N/A"
+                        }
                     } else {
                         Write-LogWarning "windows_env_set_failed"
                         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
