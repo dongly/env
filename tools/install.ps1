@@ -1647,10 +1647,15 @@ function Init-WindowsEnv {
     $currentPolicy = $currentPolicyInfo.Policy
     $currentScope = $currentPolicyInfo.EffectiveScope
 
+# Display current status
     if ($currentScope) {
-        Write-LogRaw "status_current_policy" -Color Cyan -Arg1 $currentPolicy, $currentScope
+        $statusMsg = Get-Message "status_current_policy"
+        $formatted = $statusMsg -f $currentPolicy, $currentScope
+        Write-Host $formatted -ForegroundColor Cyan
     } else {
-        Write-LogRaw "status_current_policy" -Color Cyan -Arg1 $currentPolicy, "N/A"
+        $statusMsg = Get-Message "status_current_policy"
+        $formatted = $statusMsg -f $currentPolicy, "N/A"
+        Write-Host $formatted -ForegroundColor Cyan
     }
 
     $policyLevels = @{
@@ -1792,9 +1797,13 @@ function Init-WindowsEnv {
                         $newEffectivePolicy = $newPolicyInfo.Policy
                         $newEffectiveScope = $newPolicyInfo.EffectiveScope
                         if ($newEffectiveScope) {
-                            Write-LogRaw "status_new_policy" -Color Green -Arg1 $newEffectivePolicy, $newEffectiveScope
+                            $statusMsg = Get-Message "status_new_policy"
+                            $formatted = $statusMsg -f $newEffectivePolicy, $newEffectiveScope
+                            Write-Host $formatted -ForegroundColor Green
                         } else {
-                            Write-LogRaw "status_new_policy" -Color Green -Arg1 $newEffectivePolicy, "N/A"
+                            $statusMsg = Get-Message "status_new_policy"
+                            $formatted = $statusMsg -f $newEffectivePolicy, "N/A"
+                            Write-Host $formatted -ForegroundColor Green
                         }
                     } else {
                         Write-LogWarning "windows_env_set_failed"
