@@ -1637,9 +1637,12 @@ function Init-WindowsEnv {
         $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
         $longPathEnabled = (Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).LongPathsEnabled
         $needLongPath = ($longPathEnabled -ne 1)
+        $longPathStatus = if ($longPathEnabled -eq 1) { "Enabled" } else { "Disabled" }
+        Write-Host "Current long path support: $longPathStatus" -ForegroundColor Cyan
     }
     catch {
         $needLongPath = $true
+        Write-Host "Current long path support: Unknown (assuming Disabled)" -ForegroundColor Yellow
     }
 
     # If everything is OK, return
@@ -1671,10 +1674,17 @@ function Init-WindowsEnv {
             $actions += 'Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force'
         }
         if ($needLongPath) {
-            $actions += 'Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force'
+            $actions += @{
+                command = 'Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force'
+                type = "longpath"
+            }
         }
 
-        foreach ($action in $actions) {
+        foreach ($actionItem in $actions) {
+            # Handle both string commands and hashtable actions
+            $action = if ($actionItem -is [hashtable]) { $actionItem.command } else { $actionItem }
+            $actionType = if ($actionItem -is [hashtable]) { $actionItem.type } else { "default" }
+
             try {
                 Write-Host "Executing: $action" -ForegroundColor Yellow
                 $output = Invoke-Expression $action 2>&1
@@ -1706,6 +1716,21 @@ function Init-WindowsEnv {
                         Write-LogWarning "windows_env_set_failed"
                         Write-Host "Warning: $scope is $actualPolicy (expected RemoteSigned)" -ForegroundColor Yellow
                     }
+
+                    # Show new effective policy
+                    $newEffectivePolicy = Get-EffectiveExecutionPolicy
+                    Write-Host "New effective execution policy: $newEffectivePolicy" -ForegroundColor Green
+                }
+
+                # For long path support, verify and show new status
+                if ($actionType -eq "longpath" -and $actualSuccess) {
+                    $newLongPathEnabled = try {
+                        (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -ErrorAction SilentlyContinue).LongPathsEnabled
+                    } catch {
+                        0
+                    }
+                    $newLongPathStatus = if ($newLongPathEnabled -eq 1) { "Enabled" } else { "Disabled" }
+                    Write-Host "New long path support: $newLongPathStatus" -ForegroundColor Green
                 }
             }
             catch {
@@ -1720,6 +1745,10 @@ function Init-WindowsEnv {
                     if ($actualPolicy -eq "RemoteSigned") {
                         Write-Host "Success (verified despite exception: $($_.Exception.Message))" -ForegroundColor Green
                         Write-Host "Verified: $scope is now $actualPolicy" -ForegroundColor Green
+
+                        # Show new effective policy
+                        $newEffectivePolicy = Get-EffectiveExecutionPolicy
+                        Write-Host "New effective execution policy: $newEffectivePolicy" -ForegroundColor Green
                     } else {
                         Write-LogWarning "windows_env_set_failed"
                         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
