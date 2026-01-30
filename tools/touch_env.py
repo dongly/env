@@ -130,6 +130,12 @@ if platform.system() == 'Windows':
         msvcrt = None
 else:
     msvcrt = None
+    try:
+        import tty
+        import termios
+        HAS_TTY = True
+    except ImportError:
+        HAS_TTY = False
 
 # ============================================================================
 # Python Version Check
@@ -270,7 +276,7 @@ MESSAGES = {
         'activate_env': '1. Activate environment:',
         'add_to_profile': '2. Add to profile:',
         'install_toolchain': '3. Install toolchains:',
-        'install_toolchain_cmd': '   Run sdk command to install required toolchains',
+        'install_toolchain_cmd': '   Run `sdk` command to install required toolchains',
         'after_activation': '4. After activation, you can use:',
         'menuconfig': '     - menuconfig    : Configure project',
         'menuconfig_s': '     - menuconfig -s : Configure RT-Thread ENV',
@@ -324,7 +330,7 @@ MESSAGES = {
         'checking_disk_space': 'Checking disk space...',
         'auto_restoring_backup': 'Automatically restoring backup...',
         'keeping_current_state': 'Keeping current state as is...',
-        'start': 'Starting RT-Thread ENV installation...',
+        'start': '[PY]Starting RT-Thread ENV installation...',
         'using_default_env_root': 'Using default ENV_ROOT: {0}',
         'env_root_prompt': 'Enter installation root directory (ENV_ROOT)',
         'env_root_default': '[default: {0}]',
@@ -363,7 +369,7 @@ MESSAGES = {
         'activate_env': '1. 激活环境:',
         'add_to_profile': '2. 添加到配置文件:',
         'install_toolchain': '3. 安装工具链:',
-        'install_toolchain_cmd': '   运行 sdk 命令安装所需的工具链',
+        'install_toolchain_cmd': '   运行 `sdk` 命令安装所需的工具链',
         'after_activation': '4. 激活后可用命令:',
         'menuconfig': '     - menuconfig    : 配置项目',
         'menuconfig_s': '     - menuconfig -s : 配置 RT-Thread ENV',
@@ -417,7 +423,7 @@ MESSAGES = {
         'checking_disk_space': '正在检查磁盘空间...',
         'auto_restoring_backup': '自动恢复备份中...',
         'keeping_current_state': '保持当前状态不变...',
-        'start': '开始 RT-Thread ENV 安装...',
+        'start': '[PY]开始 RT-Thread ENV 安装...',
         'using_default_env_root': '使用默认 ENV_ROOT: {0}',
         'env_root_prompt': '请选择怎样处理现存目录(ENV_ROOT)',
         'env_root_default': '[默认: {0}]',
@@ -529,11 +535,12 @@ def clone_repository(config, repo_name, url, dest_rel, branch='', depth=1):
     clone_args.extend([url, dest_path])
 
     try:
-        subprocess.run(clone_args, check=True, capture_output=True, text=True)
+        # Run without capture to show verbose git output
+        subprocess.run(clone_args, check=True)
         log_success('cloned', dest_path)
     except subprocess.CalledProcessError as e:
         # Clone failed, clean up partial clone
-        log_error('clone_failed', e.stderr)
+        log_error('clone_failed', str(e))
         shutil.rmtree(dest_path, ignore_errors=True)
         raise RuntimeError(f"Failed to clone {url}") from e
 
@@ -947,8 +954,8 @@ def show_deletion_options(config):
         {'key': 'N', 'desc': get_message('env_root_confirm_no'), 'default': False},
     ]
 
-    # Try interactive menu if msvcrt is available (Windows)
-    if msvcrt is not None:
+    # Try interactive menu if msvcrt (Windows) or tty (Linux) is available
+    if msvcrt is not None or HAS_TTY:
         try:
             return _interactive_menu(options)
         except Exception:
@@ -971,6 +978,20 @@ def show_deletion_options(config):
         print()
         log_info('installation_cancelled')
         sys.exit(0)
+
+
+def _get_key_linux():
+    """Get single key press on Linux"""
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        key = sys.stdin.read(1)
+        if key == '\x1b':  # Escape sequence
+            key += sys.stdin.read(2)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return key
 
 
 def _interactive_menu(options):
@@ -1020,7 +1041,7 @@ def _interactive_menu(options):
         log_raw('use_arrow_keys')
         log_raw('press_enter_confirm')
 
-        # Read key
+        # Read key - Windows (msvcrt)
         if msvcrt:
             key = msvcrt.getch()
             if key == b'\xe0':  # Special key prefix
@@ -1038,6 +1059,22 @@ def _interactive_menu(options):
             elif key in [b'y', b'Y', b'a', b'A', b'b', b'B', b'c', b'C', b'n', b'N']:
                 # Direct key press
                 return key.decode('ascii').lower()
+        # Read key - Linux
+        elif HAS_TTY:
+            key = _get_key_linux()
+            if key == '\x1b[A':  # Up arrow
+                selected_index = (selected_index - 1) % len(options)
+            elif key == '\x1b[B':  # Down arrow
+                selected_index = (selected_index + 1) % len(options)
+            elif key == '\r' or key == '\n':  # Enter key
+                return options[selected_index]['key'].lower()
+            elif key == '\x03':  # Ctrl+C
+                print()
+                log_info('installation_cancelled')
+                sys.exit(0)
+            elif key.lower() in ['y', 'a', 'b', 'c', 'n']:
+                # Direct key press
+                return key.lower()
 
 
 def get_backup_timestamp():
