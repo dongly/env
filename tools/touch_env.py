@@ -130,6 +130,12 @@ if platform.system() == 'Windows':
         msvcrt = None
 else:
     msvcrt = None
+    try:
+        import tty
+        import termios
+        HAS_TTY = True
+    except ImportError:
+        HAS_TTY = False
 
 # ============================================================================
 # Python Version Check
@@ -948,8 +954,8 @@ def show_deletion_options(config):
         {'key': 'N', 'desc': get_message('env_root_confirm_no'), 'default': False},
     ]
 
-    # Try interactive menu if msvcrt is available (Windows)
-    if msvcrt is not None:
+    # Try interactive menu if msvcrt (Windows) or tty (Linux) is available
+    if msvcrt is not None or HAS_TTY:
         try:
             return _interactive_menu(options)
         except Exception:
@@ -972,6 +978,20 @@ def show_deletion_options(config):
         print()
         log_info('installation_cancelled')
         sys.exit(0)
+
+
+def _get_key_linux():
+    """Get single key press on Linux"""
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        key = sys.stdin.read(1)
+        if key == '\x1b':  # Escape sequence
+            key += sys.stdin.read(2)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return key
 
 
 def _interactive_menu(options):
@@ -1021,7 +1041,7 @@ def _interactive_menu(options):
         log_raw('use_arrow_keys')
         log_raw('press_enter_confirm')
 
-        # Read key
+        # Read key - Windows (msvcrt)
         if msvcrt:
             key = msvcrt.getch()
             if key == b'\xe0':  # Special key prefix
@@ -1039,6 +1059,22 @@ def _interactive_menu(options):
             elif key in [b'y', b'Y', b'a', b'A', b'b', b'B', b'c', b'C', b'n', b'N']:
                 # Direct key press
                 return key.decode('ascii').lower()
+        # Read key - Linux
+        elif HAS_TTY:
+            key = _get_key_linux()
+            if key == '\x1b[A':  # Up arrow
+                selected_index = (selected_index - 1) % len(options)
+            elif key == '\x1b[B':  # Down arrow
+                selected_index = (selected_index + 1) % len(options)
+            elif key == '\r' or key == '\n':  # Enter key
+                return options[selected_index]['key'].lower()
+            elif key == '\x03':  # Ctrl+C
+                print()
+                log_info('installation_cancelled')
+                sys.exit(0)
+            elif key.lower() in ['y', 'a', 'b', 'c', 'n']:
+                # Direct key press
+                return key.lower()
 
 
 def get_backup_timestamp():
