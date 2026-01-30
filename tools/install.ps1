@@ -1,4 +1,4 @@
-# RT-Thread ENV Installation Script (Windows)
+﻿# RT-Thread ENV Installation Script (Windows)
 # RT-Thread ENV 安装脚本 (Windows)
 # Unified installation script for Windows
 # Windows 统一安装脚本
@@ -338,7 +338,13 @@ $script:Messages = @{
         long_paths_enable_failed         = "Failed to enable long path support (may require admin privileges)"
         need_admin_privilege             = "Enabling long paths requires administrator privileges"
         elevating_to_enable_long_paths   = "Attempting to enable long paths (UAC prompt may appear)"
+        execution_policy_too_low         = "Execution policy is too low. Please run as administrator."
+        long_path_support_required       = "Long path support is required. Please run as administrator."
+        windows_env_adequate             = "Windows environment configuration is adequate."
+        windows_env_set_failed           = "Failed to configure Windows environment."
         install_portable_python          = "Install portable Python - Python {0}"
+        initializing_windows_env         = "Initializing Windows environment..."
+        requesting_elevation             = "Requesting administrator privileges: {0}"
         multiple_python_found            = "Multiple Python installations found:"
         select_python                    = "Found {0} Python installation(s). Default is option {1} (latest). Select [1-{0}], or {2} to install portable Python: "
         auto_selected                    = "Auto-selected Python: {0}"
@@ -404,7 +410,13 @@ $script:Messages = @{
         long_paths_enable_failed         = "启用长路径支持失败（可能需要管理员权限）"
         need_admin_privilege             = "启用长路径需要管理员权限"
         elevating_to_enable_long_paths   = "正在尝试启用长路径（可能会弹出 UAC 提示）"
+        execution_policy_too_low         = "执行策略过低。请以管理员身份运行。"
+        long_path_support_required       = "需要启用长路径支持。请以管理员身份运行。"
+        windows_env_adequate             = "Windows 环境配置已满足要求。"
+        windows_env_set_failed           = "Windows 环境配置失败。"
         install_portable_python          = "安装便携式 Python - Python {0}"
+        initializing_windows_env         = "正在初始化 Windows 环境..."
+        requesting_elevation             = "正在请求管理员权限: {0}"
         multiple_python_found            = "找到多个 Python 安装："
         select_python                    = "找到 {0} 个 Python 安装。默认选项为 {1}（最新）。选择 [1-{0}]，或输入 {2} 安装便携式 Python: "
         auto_selected                    = "自动选择 Python: {0}"
@@ -949,78 +961,7 @@ function Extract-PortablePython {
     Remove-Item $archivePath -ErrorAction SilentlyContinue
 }
 
-function Enable-LongPathSupport {
-    # Enable Windows long path support (260 character limit)
-    # This requires administrator privileges
-    try {
-        $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
-        $registryKey = "LongPathsEnabled"
-        $currentValue = (Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).$registryKey
 
-        if ($currentValue -eq 1) {
-            # Long paths already enabled
-            Write-LogSuccess "long_paths_enabled"
-            return
-        }
-
-        # Check if running as administrator
-        $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-
-        if (-not $isAdmin) {
-            Write-LogWarning "need_admin_privilege"
-            # Create a temporary script to enable long paths
-            $tempScript = [System.IO.Path]::GetTempFileName() + ".ps1"
-
-            # Track temporary file for cleanup
-            Add-TempFile -FilePath $tempScript
-
-            @"
-# Enable long paths in registry
-try {
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force
-    exit 0
-}
-catch {
-    exit 1
-}
-"@ | Out-File -FilePath $tempScript -Encoding UTF8
-
-            # Start new process with administrator privileges to run the temp script
-            $psi = New-Object System.Diagnostics.ProcessStartInfo
-            $psi.FileName = "powershell.exe"
-            $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$tempScript`""
-            $psi.Verb = "RunAs"
-            $psi.UseShellExecute = $true
-            try {
-                $process = [System.Diagnostics.Process]::Start($psi)
-                Write-LogInfo "elevating_to_enable_long_paths"
-
-                # Wait for the process to complete
-                $process.WaitForExit()
-                $exitCode = $process.ExitCode
-
-                # Check if long paths were enabled based on exit code
-                if ($exitCode -eq 0) {
-                    Write-LogSuccess "long_paths_enabled"
-                }
-                else {
-                    Write-LogWarning "long_paths_enable_failed"
-                }
-            }
-            catch {
-                Write-LogWarning "long_paths_enable_failed"
-            }
-        }
-        else {
-            Write-LogInfo "enabling_long_paths"
-            Set-ItemProperty -Path $registryPath -Name $registryKey -Value 1 -Type DWord -Force
-            Write-LogSuccess "long_paths_enabled"
-        }
-    }
-    catch {
-        Write-LogWarning "long_paths_enable_failed"
-    }
-}
 
 function Configure-PythonPth {
     # Modify python3xx._pth to enable site-packages and ensurepip
@@ -1553,6 +1494,161 @@ function Invoke-TouchEnv {
     }
 }
 
+
+
+# ============================================================================
+# Windows Environment Initialization Functions
+# ============================================================================
+
+
+
+# Request-Elevation: Request administrator privileges for a task
+function Request-Elevation {
+    param(
+        [string]$TaskDescription,
+        [string]$ScriptBlock
+    )
+    
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    
+    if ($isAdmin) {
+        return $true
+    }
+    
+    # Create temporary script
+    $tempScript = [System.IO.Path]::GetTempFileName() + ".ps1"
+    Add-TempFile -FilePath $tempScript
+    
+    if ($ScriptBlock) {
+        $ScriptBlock | Out-File -FilePath $tempScript -Encoding UTF8
+    }
+    else {
+        "" | Out-File -FilePath $tempScript -Encoding UTF8
+    }
+    
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = "powershell.exe"
+    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$tempScript`""
+    $psi.Verb = "RunAs"
+    $psi.UseShellExecute = $true
+    
+    try {
+        Write-LogInfo "requesting_elevation" $TaskDescription
+        $process = [System.Diagnostics.Process]::Start($psi)
+        $process.WaitForExit()
+        return $process.ExitCode -eq 0
+    }
+    catch {
+        Write-LogWarning "elevation_failed" $TaskDescription
+        return $false
+    }
+}
+
+
+
+# Init-WindowsEnv: Initialize Windows environment settings
+function Init-WindowsEnv {
+    Write-LogInfo "initializing_windows_env"
+    
+    # Check execution policy
+    try {
+        $currentPolicy = Get-ExecutionPolicy -Scope LocalMachine -ErrorAction SilentlyContinue
+    }
+    catch {
+        $currentPolicy = "Restricted"
+    }
+    
+    $policyLevels = @{
+        "Undefined"     = 0
+        "Restricted"    = 1
+        "AllSigned"     = 2
+        "RemoteSigned"  = 3
+        "Unrestricted"  = 4
+        "Bypass"        = 5
+    }
+    
+    $currentLevel = $policyLevels[$currentPolicy.ToString()]
+    $targetLevel = $policyLevels["RemoteSigned"]
+    $needPolicy = ($null -eq $currentLevel -or $currentLevel -lt $targetLevel)
+    
+    # Check long path support
+    try {
+        $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
+        $longPathEnabled = (Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).LongPathsEnabled
+        $needLongPath = ($longPathEnabled -ne 1)
+    }
+    catch {
+        $needLongPath = $true
+    }
+    
+    # If everything is OK, return
+    if (-not $needPolicy -and -not $needLongPath) {
+        Write-LogSuccess "windows_env_adequate"
+        return
+    }
+    
+    # Auto mode: check if admin
+    if ($script:Config.AutoMode) {
+        if (-not $script:Config.IsAdmin) {
+            if ($needPolicy) {
+                Write-LogError "execution_policy_too_low"
+            }
+            if ($needLongPath) {
+                Write-LogError "long_path_support_required"
+            }
+            exit 1
+        }
+    }
+    
+    # Build script block for elevation
+    $actions = @()
+    if ($needPolicy) {
+        $actions += 'Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force'
+    }
+    if ($needLongPath) {
+        $actions += 'Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force'
+    }
+    
+    # If admin, execute directly
+    if ($script:Config.IsAdmin) {
+        foreach ($action in $actions) {
+            try {
+                Invoke-Expression $action
+            }
+            catch {
+                Write-LogWarning "windows_env_set_failed"
+            }
+        }
+        Write-LogSuccess "windows_env_initialized"
+        return
+    }
+    
+    # Interactive mode: request elevation
+    $scriptBlockText = @"
+try {
+$actions = @('$($actions -join "','")')
+foreach (`$action in `$actions) {
+    Invoke-Expression `$action
+}
+exit 0
+}
+catch {
+    exit 1
+}
+"@
+    
+    $success = Request-Elevation -TaskDescription "Configure Windows environment" -ScriptBlock $scriptBlockText
+    
+    if ($success) {
+        Write-LogSuccess "windows_env_initialized"
+    }
+    else {
+        Write-LogError "windows_env_set_failed"
+        exit 1
+    }
+}
+
+
 # Init-Config function
 # Initialize installation environment and validate settings
 function Init-Config {
@@ -1566,9 +1662,6 @@ function Init-Config {
 
     # Register cleanup handler
     Register-CleanupHandler
-
-    # Set ENV_ROOT
-    $env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else { $ENV_DEFAULT_DIR }
 
     # Initialize global config
     $script:Config = [PSCustomObject]@{
@@ -1733,6 +1826,9 @@ function Main {
 
     # Initialize configuration
     Init-Config -ParsedArgs $parsedArgs
+
+    # Initialize Windows environment
+    Init-WindowsEnv
 
     # Step 1: Print installation banner
     Show-Banner
