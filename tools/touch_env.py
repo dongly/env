@@ -288,7 +288,7 @@ MESSAGES = {
         'backup_config': 'Backing up configuration file...',
         'no_config_to_restore': 'No configuration to restore',
         'env_root_exists': 'Existing RT-Thread ENV detected at: {0}',
-        'env_root_prompt': 'Please select how to handle existing directory (ENV_ROOT)',
+        'env_root_exists_prompt': 'Please select how to handle existing directory (ENV_ROOT)',
         'env_root_confirm': 'Are you sure you want to delete? [Y/a/b/C/n]: ',
         'env_root_confirm_help': '  Y/y: Preserve config and toolchains(local_pkgs), delete others (default)',
         'env_root_confirm_all': '  A/a: Delete entire directory (including config and toolchains)',
@@ -297,14 +297,9 @@ MESSAGES = {
         'env_root_confirm_no': '  N/n: Cancel installation',
         'use_arrow_keys': 'Use ↑/↓ arrows to select, Enter to confirm',
         'press_enter_confirm': 'Or press Y/A/B/C/N directly',
-        'removing_env_preserving': 'Removing (preserving config and toolchains): {0}...',
-        'removing_env_all': 'Removing entire directory: {0}...',
-        'env_root_removed': 'Existing RT-Thread ENV removed: {0}',
         'installation_cancelled': 'Installation cancelled',
         'installation_failed': 'Installation failed: {0}',
-        'removing_portable_python': 'Removing portable Python: {0}...',
         'skipping_item': 'Skipping: {0}',
-        'deleting_item': 'Deleting: {0}...',
         'item_deleted': 'Deleted: {0}',
         'file_delete_failed': 'Failed to delete file: {0} - {1}',
         'dir_delete_failed': 'Failed to delete directory: {0} - {1}',
@@ -312,8 +307,6 @@ MESSAGES = {
         'dir_hardlink_failed': 'Failed to hardlink directory: {0} - {1}',
         'restoring_local_pkgs_with_hardlink': 'Restoring local_pkgs with hardlinks...',
         'local_pkgs_restored': 'Toolchains restored with hardlinks',
-        'backup_delete_failed': 'Failed to delete backup: {0}',
-        'env_root_not_fully_removed': 'Some items could not be deleted. Please check the error messages above.',
         'backup_creating': 'Creating backup: {0}...',
         'backup_created': 'Backup created: {0}',
         'backup_restore_failed': 'Failed to restore from backup: {0}',
@@ -326,7 +319,6 @@ MESSAGES = {
         'install_failed_prompt': 'Your choice [R/k/d]: ',
         'restore_from_backup': 'Restoring from backup: {0}...',
         'backup_restored': 'Backup restored successfully',
-        'backup_deleted': 'Backup deleted: {0}',
         'backup_cleaned': 'Backup cleaned up: {0}',
         'no_space_for_backup': 'Insufficient disk space for backup. Required: {0}, Available: {1}',
         'checking_disk_space': 'Checking disk space...',
@@ -336,6 +328,9 @@ MESSAGES = {
         'using_default_env_root': 'Using default ENV_ROOT: {0}',
         'env_root_prompt': 'Enter installation root directory (ENV_ROOT)',
         'env_root_default': '[default: {0}]',
+        'python_path_invalid': 'Path contains {0} (not allowed in Python paths)',
+        'python_path_creating_dir': 'Creating directory: {0}',
+        'python_path_no_permission': 'No write permission for directory: {0}',
     },
     'zh': {
         'info': '信息',
@@ -386,7 +381,7 @@ MESSAGES = {
         'backup_config': '正在备份配置文件...',
         'no_config_to_restore': '没有需要恢复的配置',
         'env_root_exists': '检测到已存在的 RT-Thread ENV: {0}',
-        'env_root_prompt': '检测到已存在的RT-Thread ENV。是否要删除并重新安装？',
+        'env_root_exists_prompt': '检测到已存在的RT-Thread ENV。是否要删除并重新安装？',
         'env_root_confirm': '确定要删除吗？[Y/a/b/C/n]: ',
         'env_root_confirm_help': '  Y/y: 保留配置和工具链(local_pkgs)，删除其他（默认）',
         'env_root_confirm_all': '  A/a: 删除整个目录（包括配置和工具链）',
@@ -395,14 +390,9 @@ MESSAGES = {
         'env_root_confirm_no': '  N/n: 取消安装',
         'use_arrow_keys': '使用 ↑/↓ 方向键选择，回车确认',
         'press_enter_confirm': '或直接按 Y/A/B/C/N 键',
-        'removing_env_preserving': '正在删除（保留配置和工具链）: {0}...',
-        'removing_env_all': '正在删除整个目录: {0}...',
-        'env_root_removed': '已删除 RT-Thread ENV: {0}',
         'installation_cancelled': '安装已取消',
         'installation_failed': '安装失败: {0}',
-        'removing_portable_python': '正在删除便携式 Python: {0}...',
         'skipping_item': '跳过: {0}',
-        'deleting_item': '正在删除: {0}...',
         'item_deleted': '已删除: {0}',
         'file_delete_failed': '删除文件失败: {0} - {1}',
         'dir_delete_failed': '删除目录失败: {0} - {1}',
@@ -410,8 +400,6 @@ MESSAGES = {
         'dir_hardlink_failed': '硬链接目录失败: {0} - {1}',
         'restoring_local_pkgs_with_hardlink': '正在使用硬链接恢复工具链...',
         'local_pkgs_restored': '工具链已使用硬链接恢复',
-        'backup_delete_failed': '删除备份失败: {0}',
-        'env_root_not_fully_removed': '部分项目删除失败，请检查上面的错误信息。',
         'backup_creating': '正在创建备份: {0}...',
         'backup_created': '备份已创建: {0}',
         'backup_restore_failed': '从备份恢复失败: {0}',
@@ -424,7 +412,6 @@ MESSAGES = {
         'install_failed_prompt': '您的选择 [R/k/d]: ',
         'restore_from_backup': '正在从备份恢复: {0}...',
         'backup_restored': '备份恢复成功',
-        'backup_deleted': '备份已删除: {0}',
         'backup_cleaned': '备份已清理: {0}',
         'no_space_for_backup': '磁盘空间不足以创建备份。需要: {0}, 可用: {1}',
         'checking_disk_space': '正在检查磁盘空间...',
@@ -434,6 +421,9 @@ MESSAGES = {
         'using_default_env_root': '使用默认 ENV_ROOT: {0}',
         'env_root_prompt': '请选择怎样处理现存目录(ENV_ROOT)',
         'env_root_default': '[默认: {0}]',
+        'python_path_invalid': '路径包含 {0}（Python 路径中不允许）',
+        'python_path_creating_dir': '正在创建目录: {0}',
+        'python_path_no_permission': '没有目录的写入权限: {0}',
     }
         }
 
@@ -1016,7 +1006,7 @@ def _interactive_menu(options):
             print(f'\033[{lines_to_clear}M\033[{lines_to_clear}A', end='')
         first_run = False
 
-        log_raw('env_root_prompt')
+        log_raw('env_root_exists_prompt')
         print()
 
         for i, opt in enumerate(options):
