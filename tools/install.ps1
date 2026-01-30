@@ -1571,59 +1571,9 @@ function Request-Elevation {
 function Init-WindowsEnv {
     Write-LogInfo "initializing_windows_env"
 
-    # Check execution policy
-    $currentPolicy = "Unknown"
+    # Skip execution policy check (user has Process scope set to Bypass)
     $needPolicy = $false
 
-    # Save current error action preference
-    $oldErrorAction = $ErrorActionPreference
-
-    try {
-        # Temporarily set error action to SilentlyContinue for registry read
-        $ErrorActionPreference = "SilentlyContinue"
-
-        # Read execution policy directly from registry to avoid process scope interference
-        $regPath = "HKLM:\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell"
-        $regItem = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
-
-        if ($regItem -and $regItem.ExecutionPolicy) {
-            $currentPolicy = $regItem.ExecutionPolicy
-            Write-Host "Current LocalMachine execution policy: $currentPolicy" -ForegroundColor Cyan
-        } else {
-            # Fallback to default value if registry key doesn't exist
-            $currentPolicy = "Restricted"
-            Write-Host "Execution policy registry key not found, assuming: $currentPolicy" -ForegroundColor Yellow
-        }
-    }
-    catch {
-        Write-Host "Error checking execution policy from registry: $($_.Exception.Message)" -ForegroundColor Yellow
-        # Default to Restricted if we can't read the registry
-        $currentPolicy = "Restricted"
-    }
-    finally {
-        # Restore original error action preference
-        $ErrorActionPreference = $oldErrorAction
-    }
-
-    # Only check policy if we could determine it
-    if ($currentPolicy -ne "Unknown") {
-        $policyLevels = @{
-            "Undefined"     = 0
-            "Restricted"    = 1
-            "AllSigned"     = 2
-            "RemoteSigned"  = 3
-            "Unrestricted"  = 4
-            "Bypass"        = 5
-        }
-
-        $currentLevel = $policyLevels[$currentPolicy.ToString()]
-        $targetLevel = $policyLevels["RemoteSigned"]
-        $needPolicy = ($null -eq $currentLevel -or $currentLevel -lt $targetLevel)
-    } else {
-        # If we can't determine the policy, skip this check
-        $needPolicy = $false
-    }
-    
     # Check long path support
     try {
         $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
@@ -1633,13 +1583,13 @@ function Init-WindowsEnv {
     catch {
         $needLongPath = $true
     }
-    
+
     # If everything is OK, return
     if (-not $needPolicy -and -not $needLongPath) {
         Write-LogSuccess "windows_env_adequate"
         return
     }
-    
+
     # Debug: show what needs to be changed
     if ($needPolicy) {
         Write-LogWarning "execution_policy_too_low"
@@ -1647,7 +1597,7 @@ function Init-WindowsEnv {
     if ($needLongPath) {
         Write-LogWarning "long_path_support_required"
     }
-    
+
     # Auto mode: check if admin
     if ($script:Config.AutoMode) {
         if (-not $script:Config.IsAdmin) {
@@ -1660,7 +1610,7 @@ function Init-WindowsEnv {
             exit 1
         }
     }
-    
+
     # Build script block for elevation
     $actions = @()
     if ($needPolicy) {
@@ -1669,7 +1619,7 @@ function Init-WindowsEnv {
     if ($needLongPath) {
         $actions += 'Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force'
     }
-    
+
     # If admin, execute directly
     if ($script:Config.IsAdmin) {
         foreach ($action in $actions) {
@@ -1683,7 +1633,7 @@ function Init-WindowsEnv {
         Write-LogSuccess "windows_env_initialized"
         return
     }
-    
+
     # Interactive mode: request elevation
     $actionsString = $actions | ForEach-Object { "'$_'" }
     $actionsArray = $actionsString -join ', '
@@ -1715,9 +1665,9 @@ catch {
     exit 1
 }
 "@
-    
+
     $success = Request-Elevation -TaskDescription "Configure Windows environment" -ScriptBlock $scriptBlockText
-    
+
     if ($success) {
         Write-LogSuccess "windows_env_initialized"
     }
