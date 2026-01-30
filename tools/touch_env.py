@@ -68,27 +68,6 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-# Platform-specific imports
-if platform.system() == 'Windows':
-    try:
-        import msvcrt
-    except ImportError:
-        msvcrt = None
-else:
-    msvcrt = None
-
-# ============================================================================
-# Python Version Check
-# ============================================================================
-
-MIN_PYTHON_VERSION = (3, 6)
-
-if sys.version_info < MIN_PYTHON_VERSION:
-    print(
-        f"Error: Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or higher is required.", file=sys.stderr)
-    print(f"Current Python version: {sys.version}", file=sys.stderr)
-    sys.exit(1)
-
 # ============================================================================
 # Configuration Constants
 # ============================================================================
@@ -120,6 +99,27 @@ PORTABLE_PYTHON_DIR = "python"
 # Backup configuration constants
 BACKUP_MIN_SPACE_GB = 1  # Minimum space required if size calculation fails (GB)
 BACKUP_SAFETY_MARGIN = 1.2  # Safety margin for backup space (20%)
+
+# Platform-specific imports
+if platform.system() == 'Windows':
+    try:
+        import msvcrt
+    except ImportError:
+        msvcrt = None
+else:
+    msvcrt = None
+
+# ============================================================================
+# Python Version Check
+# ============================================================================
+
+MIN_PYTHON_VERSION = (3, 6)
+
+if sys.version_info < MIN_PYTHON_VERSION:
+    print(
+        f"Error: Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or higher is required.", file=sys.stderr)
+    print(f"Current Python version: {sys.version}", file=sys.stderr)
+    sys.exit(1)
 
 # ============================================================================
 # Runtime Configuration
