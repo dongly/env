@@ -267,13 +267,14 @@ MESSAGES = {
         'no_config_to_restore': 'No configuration to restore',
         'env_root_exists': 'Existing RT-Thread ENV detected at: {0}',
         'env_root_prompt': 'Existing RT-Thread ENV detected. Do you want to delete and reinstall?',
-        'env_root_confirm': 'Are you sure you want to delete? [Y/a/b/n]: ',
+        'env_root_confirm': 'Are you sure you want to delete? [Y/a/b/C/n]: ',
         'env_root_confirm_help': '  Y/y: Preserve config and toolchains(local_pkgs), delete others (default)',
         'env_root_confirm_all': '  A/a: Delete entire directory (including config and toolchains)',
         'env_root_confirm_backup': '  B/b: Backup entire directory and keep',
+        'env_root_confirm_new': '  C/c: Specify a new installation directory',
         'env_root_confirm_no': '  N/n: Cancel installation',
         'use_arrow_keys': 'Use ↑/↓ arrows to select, Enter to confirm',
-        'press_enter_confirm': 'Or press Y/A/B/N directly',
+        'press_enter_confirm': 'Or press Y/A/B/C/N directly',
         'removing_env_preserving': 'Removing (preserving config and toolchains): {0}...',
         'removing_env_all': 'Removing entire directory: {0}...',
         'env_root_removed': 'Existing RT-Thread ENV removed: {0}',
@@ -364,13 +365,14 @@ MESSAGES = {
         'no_config_to_restore': '没有需要恢复的配置',
         'env_root_exists': '检测到已存在的 RT-Thread ENV: {0}',
         'env_root_prompt': '检测到已存在的RT-Thread ENV。是否要删除并重新安装？',
-        'env_root_confirm': '确定要删除吗？[Y/a/b/n]: ',
+        'env_root_confirm': '确定要删除吗？[Y/a/b/C/n]: ',
         'env_root_confirm_help': '  Y/y: 保留配置和工具链(local_pkgs)，删除其他（默认）',
         'env_root_confirm_all': '  A/a: 删除整个目录（包括配置和工具链）',
         'env_root_confirm_backup': '  B/b: 备份整个目录并保留',
+        'env_root_confirm_new': '  C/c: 指定新的安装目录',
         'env_root_confirm_no': '  N/n: 取消安装',
         'use_arrow_keys': '使用 ↑/↓ 方向键选择，回车确认',
-        'press_enter_confirm': '或直接按 Y/A/B/N 键',
+        'press_enter_confirm': '或直接按 Y/A/B/C/N 键',
         'removing_env_preserving': '正在删除（保留配置和工具链）: {0}...',
         'removing_env_all': '正在删除整个目录: {0}...',
         'env_root_removed': '已删除 RT-Thread ENV: {0}',
@@ -900,6 +902,14 @@ def check_existing_env(config):
             except (OSError, RuntimeError) as e:
                 log_error('backup_create_failed', str(e))
                 sys.exit(1)
+        elif response.lower() == 'c':
+            # Specify new installation directory
+            default_env_root = os.path.expanduser(DEFAULT_ENV_ROOT)
+            config.env_root = prompt_env_root(default_env_root, config.language)
+            config._compute_paths()
+            # Re-check existing ENV with new path
+            check_existing_env(config)  # 递归调用以检查新路径
+            return  # 退出当前函数
         else:
             # Cancel installation
             log_info('installation_cancelled')
@@ -921,6 +931,7 @@ def show_deletion_options(config):
         {'key': 'Y', 'desc': get_message('env_root_confirm_help'), 'default': True},
         {'key': 'A', 'desc': get_message('env_root_confirm_all'), 'default': False},
         {'key': 'B', 'desc': get_message('env_root_confirm_backup'), 'default': False},
+        {'key': 'C', 'desc': get_message('env_root_confirm_new'), 'default': False},
         {'key': 'N', 'desc': get_message('env_root_confirm_no'), 'default': False},
     ]
 
@@ -1012,7 +1023,7 @@ def _interactive_menu(options):
                 print()
                 log_info('installation_cancelled')
                 sys.exit(0)
-            elif key in [b'y', b'Y', b'a', b'A', b'b', b'B', b'n', b'N']:
+            elif key in [b'y', b'Y', b'a', b'A', b'b', b'B', b'c', b'C', b'n', b'N']:
                 # Direct key press
                 return key.decode('ascii').lower()
 
