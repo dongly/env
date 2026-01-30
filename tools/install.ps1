@@ -1670,23 +1670,56 @@ function Init-WindowsEnv {
             try {
                 Write-Host "Executing: $action" -ForegroundColor Yellow
                 $output = Invoke-Expression $action 2>&1
-                $success = $true
+                $actualSuccess = $true
 
                 # Check if the output contains the "overridden by a policy" warning
                 if ($output -match "overridden by a policy" -and $processPolicy -eq "Bypass") {
                     # Only ignore if Process scope is currently effective (Bypass)
                     Write-Host "Success (policy overridden by Process scope: $processPolicy)" -ForegroundColor Green
                 } elseif ($LASTEXITCODE -ne 0) {
-                    $success = $false
+                    $actualSuccess = $false
                     Write-LogWarning "windows_env_set_failed"
                     Write-Host "Error: $output" -ForegroundColor Red
                 } else {
                     Write-Host "Success" -ForegroundColor Green
                 }
+
+                # For Set-ExecutionPolicy, verify the actual policy was set
+                if ($action -match "Set-ExecutionPolicy" -and $actualSuccess) {
+                    $scope = "LocalMachine"
+                    $actualPolicy = try {
+                        Get-ExecutionPolicy -Scope $scope -ErrorAction SilentlyContinue
+                    } catch {
+                        $null
+                    }
+                    if ($actualPolicy -eq "RemoteSigned") {
+                        Write-Host "Verified: $scope is now $actualPolicy" -ForegroundColor Green
+                    } else {
+                        Write-LogWarning "windows_env_set_failed"
+                        Write-Host "Warning: $scope is $actualPolicy (expected RemoteSigned)" -ForegroundColor Yellow
+                    }
+                }
             }
             catch {
-                Write-LogWarning "windows_env_set_failed"
-                Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+                # Even if exception occurs, check if the policy was actually set
+                if ($action -match "Set-ExecutionPolicy") {
+                    $scope = "LocalMachine"
+                    $actualPolicy = try {
+                        Get-ExecutionPolicy -Scope $scope -ErrorAction SilentlyContinue
+                    } catch {
+                        $null
+                    }
+                    if ($actualPolicy -eq "RemoteSigned") {
+                        Write-Host "Success (verified despite exception: $($_.Exception.Message))" -ForegroundColor Green
+                        Write-Host "Verified: $scope is now $actualPolicy" -ForegroundColor Green
+                    } else {
+                        Write-LogWarning "windows_env_set_failed"
+                        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+                    }
+                } else {
+                    Write-LogWarning "windows_env_set_failed"
+                    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+                }
             }
         }
         Write-LogSuccess "windows_env_initialized"
