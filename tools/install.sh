@@ -127,7 +127,7 @@ declare -A MESSAGES_ZH=(
     ["error"]="错误"
     ["git_not_found"]="未安装 Git。请先安装 Git。"
     ["git_found"]="Git 版本: %s"
-    ["start"]="开始 RT-Thread ENV 安装..."
+    ["start"]="开始启动 RT-Thread ENV 安装..."
     ["please_install_git"]="请先安装 Git"
     ["install_git_macos"]="macOS: brew install git"
     ["install_git_linux"]="Linux: sudo apt-get install git (Ubuntu/Debian) 或 sudo dnf install git (Fedora/RHEL)"
@@ -693,7 +693,6 @@ check_python() {
     fi
 
     # Show Python version first
-    log_info "python_version_check"
     local version
     version=$(python3 --version 2>&1)
     version=$(echo "$version" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
