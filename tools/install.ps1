@@ -2090,16 +2090,16 @@ function Download-TouchEnv {
     if ($ParsedArgs.TouchEnvUrlValue) {
         $TOUCH_ENV_URL = $ParsedArgs.TouchEnvUrlValue
     }
-    elseif ($script:Config.CustomEnv) {
+    elseif ($ParsedArgs.CustomEnv) {
         # Use custom env repo for touch_env.py download
         # Parse URL and branch from string (format: url[#branch])
-        if ($script:Config.CustomEnv -match "#") {
-            $parts = $script:Config.CustomEnv -split "#", 2
+        if ($ParsedArgs.CustomEnv -match "#") {
+            $parts = $ParsedArgs.CustomEnv -split "#", 2
             $repo = $parts[0]
             $branch = $parts[1]
         }
         else {
-            $repo = $script:Config.CustomEnv
+            $repo = $ParsedArgs.CustomEnv
             $branch = "master"
         }
 
