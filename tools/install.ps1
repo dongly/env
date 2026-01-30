@@ -1698,10 +1698,24 @@ function Init-WindowsEnv {
         $formatted = $statusMsg -f $currentPolicy, "N/A"
         Write-Host $formatted -ForegroundColor Cyan
     }
+
+    $policyLevels = @{
+        "Undefined"     = 0
+        "Restricted"    = 1
+        "AllSigned"     = 2
+        "RemoteSigned"  = 3
+        "Unrestricted"  = 4
+        "Bypass"        = 5
+    }
+
+    $currentLevel = $policyLevels[$currentPolicy.ToString()]
+    $targetLevel = $policyLevels["RemoteSigned"]
+    $needPolicy = ($null -eq $currentLevel -or $currentLevel -lt $targetLevel)
     
+    Write-Host "Debug: needPolicy = $needPolicy" -ForegroundColor Yellow
+
     # Determine which scope to set based on effective scope
     # Priority: Set the effective scope if it's not Process, otherwise set LocalMachine
-    Write-Host "Debug: needPolicy = $needPolicy" -ForegroundColor Yellow
     if ($needPolicy) {
         # Extract scope name from "Scope (description)" format if needed
         if ($currentScope -match "^(.*?)\s*\(") {
@@ -1717,19 +1731,6 @@ function Init-WindowsEnv {
     } else {
         Write-Host "Debug: needPolicy is false, not setting ScopeToSet" -ForegroundColor Yellow
     }
-
-    $policyLevels = @{
-        "Undefined"     = 0
-        "Restricted"    = 1
-        "AllSigned"     = 2
-        "RemoteSigned"  = 3
-        "Unrestricted"  = 4
-        "Bypass"        = 5
-    }
-
-    $currentLevel = $policyLevels[$currentPolicy.ToString()]
-    $targetLevel = $policyLevels["RemoteSigned"]
-    $needPolicy = ($null -eq $currentLevel -or $currentLevel -lt $targetLevel)
 
     # Check long path support
     $needLongPath = $false
