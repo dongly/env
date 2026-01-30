@@ -1661,7 +1661,13 @@ function Init-WindowsEnv {
     # Determine which scope to set based on effective scope
     # Priority: Set the effective scope if it's not Process, otherwise set LocalMachine
     if ($needPolicy) {
-        $scopeToSet = if ($currentScope -and $currentScope -ne "Process") { $currentScope } else { "LocalMachine" }
+        # Extract scope name from "Scope (description)" format if needed
+        if ($currentScope -match "^(.*?)\s*\(") {
+            $scopeName = $Matches[1].Trim()
+        } else {
+            $scopeName = $currentScope
+        }
+        $scopeToSet = if ($scopeName -and $scopeName -ne "Process" -and $scopeName -ne "Unknown" -and $scopeName -ne "N/A") { $scopeName } else { "LocalMachine" }
         $script:Config.ScopeToSet = $scopeToSet
     }
 
@@ -1718,6 +1724,7 @@ function Init-WindowsEnv {
 
         # Directly execute changes if admin
         $actions = @()
+        $allSuccess = $true  # Track if all operations succeed
         if ($needPolicy) {
             $scope = $script:Config.ScopeToSet
             $actions += "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope $scope -Force"
@@ -1816,14 +1823,20 @@ function Init-WindowsEnv {
                     } else {
                         Write-LogWarning "windows_env_set_failed"
                         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+                        $allSuccess = $false
                     }
                 } else {
                     Write-LogWarning "windows_env_set_failed"
                     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+                    $allSuccess = $false
                 }
             }
         }
-        Write-LogSuccess "windows_env_initialized"
+        
+        # Only show success message if all operations succeeded
+        if ($allSuccess) {
+            Write-LogSuccess "windows_env_initialized"
+        }
         return
     } else {
         # Not admin, show error and exit
