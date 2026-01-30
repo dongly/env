@@ -1657,6 +1657,13 @@ function Init-WindowsEnv {
         $formatted = $statusMsg -f $currentPolicy, "N/A"
         Write-Host $formatted -ForegroundColor Cyan
     }
+    
+    # Determine which scope to set based on effective scope
+    # Priority: Set the effective scope if it's not Process, otherwise set LocalMachine
+    if ($needPolicy) {
+        $scopeToSet = if ($currentScope -and $currentScope -ne "Process") { $currentScope } else { "LocalMachine" }
+        $script:Config.ScopeToSet = $scopeToSet
+    }
 
     $policyLevels = @{
         "Undefined"     = 0
@@ -1712,7 +1719,8 @@ function Init-WindowsEnv {
         # Directly execute changes if admin
         $actions = @()
         if ($needPolicy) {
-            $actions += 'Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force'
+            $scope = $script:Config.ScopeToSet
+            $actions += "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope $scope -Force"
         }
         if ($needLongPath) {
             $actions += @{
@@ -1781,7 +1789,7 @@ function Init-WindowsEnv {
             catch {
                 # Even if exception occurs, check if the policy was actually set
                 if ($action -match "Set-ExecutionPolicy") {
-                    $scope = "LocalMachine"
+                    $scope = $script:Config.ScopeToSet
                     $actualPolicy = try {
                         Get-ExecutionPolicy -Scope $scope -ErrorAction SilentlyContinue
                     } catch {
@@ -1860,6 +1868,7 @@ function Init-Config {
         PythonConfig   = New-PythonConfig
         EnvRoot        = ""
         TempFiles      = @()
+        ScopeToSet     = ""
     }
 
     # Set config from parsed arguments
