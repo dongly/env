@@ -1607,6 +1607,33 @@ def prompt_env_root(default_env_root, language='en'):
     return env_root
 
 
+def prompt_env_root_if_needed(config, args):
+    """
+    Prompt for env-root if needed (interactive mode, directory doesn't exist, not explicitly specified)
+    
+    Args:
+        config: TouchEnvConfig instance
+        args: Parsed command line arguments
+    """
+    if not config.auto_mode and not os.path.exists(config.env_root):
+        # Check if --env-root was explicitly provided
+        import sys
+        has_explicit_env_root = False
+        for i in range(len(sys.argv)):
+            if sys.argv[i] == '--env-root' and i + 1 < len(sys.argv):
+                has_explicit_env_root = True
+                break
+            elif sys.argv[i].startswith('--env-root='):
+                has_explicit_env_root = True
+                break
+        
+        if not has_explicit_env_root:
+            default_env_root = os.path.expanduser(DEFAULT_ENV_ROOT)
+            config.env_root = prompt_env_root(default_env_root, config.language)
+            # Recompute paths with new env_root
+            config._compute_paths()
+
+
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
@@ -1672,24 +1699,6 @@ def parse_arguments():
 
     args = parser.parse_args()
 
-    # Interactive mode: prompt for env-root if using default and not auto mode
-    default_env_root = os.path.expanduser(DEFAULT_ENV_ROOT)
-    if args.env_root == default_env_root and not args.auto_mode:
-        # Check if --env-root was explicitly provided
-        import sys
-        # If sys.argv contains --env-root with a different value, we should not prompt
-        has_explicit_env_root = False
-        for i in range(len(sys.argv)):
-            if sys.argv[i] == '--env-root' and i + 1 < len(sys.argv):
-                has_explicit_env_root = True
-                break
-            elif sys.argv[i].startswith('--env-root='):
-                has_explicit_env_root = True
-                break
-        
-        if not has_explicit_env_root:
-            args.env_root = prompt_env_root(default_env_root, args.language)
-
     # Build custom_repos dictionary from individual arguments
     args.custom_repos = {}
     if args.repo_env:
@@ -1721,6 +1730,9 @@ def run_touch_env(args):
     try:
         # Initialize configuration
         config = TouchEnvConfig(args)
+
+        # Interactive mode: prompt for env-root if needed
+        prompt_env_root_if_needed(config, args)
 
         # Step 1: Check existing ENV and create backup
         check_existing_env(config)
