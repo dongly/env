@@ -1701,6 +1701,7 @@ function Init-WindowsEnv {
     
     # Determine which scope to set based on effective scope
     # Priority: Set the effective scope if it's not Process, otherwise set LocalMachine
+    Write-Host "Debug: needPolicy = $needPolicy" -ForegroundColor Yellow
     if ($needPolicy) {
         # Extract scope name from "Scope (description)" format if needed
         if ($currentScope -match "^(.*?)\s*\(") {
@@ -1713,6 +1714,8 @@ function Init-WindowsEnv {
         Write-Host "Debug: scopeName = $scopeName" -ForegroundColor Yellow
         Write-Host "Debug: scopeToSet = $scopeToSet" -ForegroundColor Yellow
         $script:Config.ScopeToSet = $scopeToSet
+    } else {
+        Write-Host "Debug: needPolicy is false, not setting ScopeToSet" -ForegroundColor Yellow
     }
 
     $policyLevels = @{
