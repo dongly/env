@@ -1574,12 +1574,20 @@ function Init-WindowsEnv {
     # Check execution policy
     $currentPolicy = "Unknown"
     $needPolicy = $false
+
+    # Save current error action preference
+    $oldErrorAction = $ErrorActionPreference
+
     try {
+        # Temporarily set error action to SilentlyContinue for registry read
+        $ErrorActionPreference = "SilentlyContinue"
+
         # Read execution policy directly from registry to avoid process scope interference
         $regPath = "HKLM:\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell"
-        $policyValue = (Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue).ExecutionPolicy
-        if ($policyValue) {
-            $currentPolicy = $policyValue
+        $regItem = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
+
+        if ($regItem -and $regItem.ExecutionPolicy) {
+            $currentPolicy = $regItem.ExecutionPolicy
             Write-Host "Current LocalMachine execution policy: $currentPolicy" -ForegroundColor Cyan
         } else {
             # Fallback to default value if registry key doesn't exist
@@ -1591,6 +1599,10 @@ function Init-WindowsEnv {
         Write-Host "Error checking execution policy from registry: $($_.Exception.Message)" -ForegroundColor Yellow
         # Default to Restricted if we can't read the registry
         $currentPolicy = "Restricted"
+    }
+    finally {
+        # Restore original error action preference
+        $ErrorActionPreference = $oldErrorAction
     }
 
     # Only check policy if we could determine it
