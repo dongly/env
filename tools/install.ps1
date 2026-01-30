@@ -354,6 +354,7 @@ $script:Messages = @{
         python_path_invalid             = "Error: Path cannot contain {0}"
         python_path_no_permission       = "Error: No write permission for directory: {0}"
         python_path_creating_dir        = "Creating directory: {0}"
+        python_path_directory_exists    = "Error: Directory already exists: {0}. Please specify a different path."
         removing_portable_python         = "Removing portable Python: {0}..."
         removing_old_portable_python     = "Removing old portable Python: {0}..."
         removing_invalid_portable_python = "Removing invalid portable Python: {0}..."
@@ -426,6 +427,7 @@ $script:Messages = @{
         python_path_invalid             = "错误: 路径不能包含 {0}"
         python_path_no_permission       = "错误: 没有目录的写入权限: {0}"
         python_path_creating_dir        = "正在创建目录: {0}"
+        python_path_directory_exists    = "错误: 目录已存在: {0}。请指定其他路径。"
         removing_portable_python         = "正在删除便携式 Python: {0}..."
         removing_old_portable_python     = "正在删除旧的便携式 Python: {0}..."
         removing_invalid_portable_python = "正在删除无效的便携式 Python: {0}..."
@@ -766,6 +768,18 @@ function New-PortingPythonConfig {
             # Auto mode: use default
             $PythonPath = Join-Path $DEFAULT_PYTHON_PATH "python.exe"
             $script:Config.PythonConfig.PythonPath = $PythonPath
+            
+            # Check if directory already exists
+            $pythonTargetDir = Split-Path -Parent $PythonPath
+            if (Test-Path $pythonTargetDir) {
+                Write-LogError "python_path_directory_exists" $pythonTargetDir
+                return [PythonConfig] @{
+                    InstallPortablePython = $false
+                    PythonPath            = ""
+                    Version               = ""
+                    Result                = 1
+                }
+            }
         }
     }
 
@@ -801,6 +815,12 @@ function Prompt-PythonPath {
         # Use default if input is empty
         if ([string]::IsNullOrWhiteSpace($input)) {
             $input = $DEFAULT_PYTHON_PATH
+        }
+
+        # Check if directory already exists
+        if (Test-Path $input) {
+            Write-LogError "python_path_directory_exists" $input
+            continue
         }
 
         # Check path format (spaces, non-ASCII characters)
@@ -914,9 +934,13 @@ function Extract-PortablePython {
     # Extract directory from PythonConfig.PythonPath (which includes python.exe)
     $pythonTargetDir = Split-Path -Parent $script:Config.PythonConfig.PythonPath
 
+    # Check if directory already exists
     if (Test-Path $pythonTargetDir) {
-        Remove-Item -Path $pythonTargetDir -Recurse -Force
+        Write-LogError "python_path_directory_exists" $pythonTargetDir
+        exit 1
     }
+
+    # Create directory
     New-Item -ItemType Directory -Path $pythonTargetDir -Force | Out-Null
 
     # Extract zip file, excluding Doc directory

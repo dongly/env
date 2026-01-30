@@ -241,6 +241,7 @@ MESSAGES = {
         'pyocd_install_confirm': 'Install pyocd? [y/N]: ',
         'installing_pyocd': 'Will install pyocd',
         'skipping_pyocd': 'Skipping pyocd installation',
+        'install_pyocd_method': '   To install pyocd later, run: pip install pyocd',
         'fixed_guiconfig': 'Fixed guiconfig.py (added missing import)',
         'setup_complete': 'RT-Thread ENV installation completed!',
         'next_steps': 'Next steps:',
@@ -335,6 +336,7 @@ MESSAGES = {
         'pyocd_install_confirm': '安装 pyocd？[y/N]: ',
         'installing_pyocd': '将要安装 pyocd',
         'skipping_pyocd': '跳过 pyocd 安装',
+        'install_pyocd_method': '   如需稍后安装 pyocd，运行: pip install pyocd',
         'fixed_guiconfig': '已修复 guiconfig.py（添加缺失的导入）',
         'setup_complete': 'RT-Thread ENV 安装完成！',
         'next_steps': '后续步骤:',
@@ -1503,6 +1505,11 @@ def show_next_steps(config):
     print(f"{get_message('scons')}")
     print(f"{get_message('sdk')}")
     print()
+
+    # Install pyocd if it was skipped
+    if not config.install_pyocd:
+        log_raw('install_pyocd_method')
+        print()
 
 # ============================================================================
 # Argument Parsing
