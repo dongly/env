@@ -355,6 +355,8 @@ $script:Messages = @{
         git_not_found                    = "Git is not installed. Please install Git first."
         admin_required_for_git_install  = "Git installation requires administrator privileges. Please run as administrator."
         elevation_failed                 = "Failed to elevate privileges. Please run as administrator."
+        execution_policy_too_low         = "Execution policy is too low. Need to set to RemoteSigned or higher."
+        admin_required_for_env_config    = "Administrator privileges required to configure Windows environment. Please run as administrator."
         long_path_support_required       = "Long path support is required. Please run as administrator."
         windows_env_adequate             = "Windows environment configuration is adequate."
         windows_env_set_failed           = "Failed to configure Windows environment."
@@ -415,6 +417,8 @@ $script:Messages = @{
         git_not_found                    = "未安装 Git。请先安装 Git。"
         admin_required_for_git_install  = "Git 安装需要管理员权限。请以管理员身份运行。"
         elevation_failed                 = "提升权限失败。请以管理员身份运行。"
+        execution_policy_too_low         = "执行策略过低。需要设置为 RemoteSigned 或更高。"
+        admin_required_for_env_config    = "配置 Windows 环境需要管理员权限。请以管理员身份运行。"
         long_path_support_required       = "需要启用长路径支持。请以管理员身份运行。"
         windows_env_adequate             = "Windows 环境配置已满足要求。"
         windows_env_set_failed           = "Windows 环境配置失败。"
@@ -1563,11 +1567,61 @@ function Request-Elevation {
     }
 }
 
+# Get-EffectiveExecutionPolicy: Get the effective execution policy (excluding Process scope)
+function Get-EffectiveExecutionPolicy {
+    $policyLevels = @{
+        "Undefined"     = 0
+        "Restricted"    = 1
+        "AllSigned"     = 2
+        "RemoteSigned"  = 3
+        "Unrestricted"  = 4
+        "Bypass"        = 5
+    }
 
+    try {
+        # Get all execution policies
+        $policies = Get-ExecutionPolicy -List -ErrorAction SilentlyContinue
+
+        # Priority order: MachinePolicy > UserPolicy > Process > CurrentUser > LocalMachine
+        # We exclude Process scope as it's temporary
+        $scopePriority = @("MachinePolicy", "UserPolicy", "CurrentUser", "LocalMachine")
+
+        foreach ($scope in $scopePriority) {
+            $policy = $policies | Where-Object { $_.Scope -eq $scope }
+            if ($policy -and $policy.ExecutionPolicy -ne "Undefined") {
+                return $policy.ExecutionPolicy
+            }
+        }
+
+        # If all are Undefined, return Restricted (default)
+        return "Restricted"
+    }
+    catch {
+        # If Get-ExecutionPolicy fails, assume Restricted
+        return "Restricted"
+    }
+}
 
 # Init-WindowsEnv: Initialize Windows environment settings
 function Init-WindowsEnv {
     Write-LogInfo "initializing_windows_env"
+
+    # Check execution policy
+    $currentPolicy = Get-EffectiveExecutionPolicy
+    Write-Host "Current effective execution policy: $currentPolicy" -ForegroundColor Cyan
+
+    $policyLevels = @{
+        "Undefined"     = 0
+        "Restricted"    = 1
+        "AllSigned"     = 2
+        "RemoteSigned"  = 3
+        "Unrestricted"  = 4
+        "Bypass"        = 5
+    }
+
+    $currentLevel = $policyLevels[$currentPolicy.ToString()]
+    $targetLevel = $policyLevels["RemoteSigned"]
+    $needPolicy = ($null -eq $currentLevel -or $currentLevel -lt $targetLevel)
 
     # Check long path support
     $needLongPath = $false
@@ -1581,37 +1635,39 @@ function Init-WindowsEnv {
     }
 
     # If everything is OK, return
-    if (-not $needLongPath) {
+    if (-not $needPolicy -and -not $needLongPath) {
         Write-LogSuccess "windows_env_adequate"
         return
     }
 
     # Debug: show what needs to be changed
+    if ($needPolicy) {
+        Write-LogWarning "execution_policy_too_low"
+    }
     if ($needLongPath) {
         Write-LogWarning "long_path_support_required"
     }
 
-    # Auto mode: check if admin
-    if ($script:Config.AutoMode) {
-        if (-not $script:Config.IsAdmin) {
-            if ($needLongPath) {
-                Write-LogError "long_path_support_required"
-            }
-            exit 1
-        }
-    }
-
-    # Build script block for elevation
-    $actions = @()
-    if ($needLongPath) {
-        $actions += 'Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force'
-    }
-
-    # If admin, execute directly
+    # Check if running as administrator
     if ($script:Config.IsAdmin) {
+        # Directly execute changes if admin
+        $actions = @()
+        if ($needPolicy) {
+            $actions += 'Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force'
+        }
+        if ($needLongPath) {
+            $actions += 'Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force'
+        }
+
         foreach ($action in $actions) {
             try {
+                Write-Host "Executing: $action" -ForegroundColor Yellow
                 Invoke-Expression $action
+                if ($?) {
+                    Write-Host "Success" -ForegroundColor Green
+                } else {
+                    Write-LogWarning "windows_env_set_failed"
+                }
             }
             catch {
                 Write-LogWarning "windows_env_set_failed"
@@ -1619,47 +1675,14 @@ function Init-WindowsEnv {
         }
         Write-LogSuccess "windows_env_initialized"
         return
-    }
-
-    # Interactive mode: request elevation
-    $actionsString = $actions | ForEach-Object { "'$_'" }
-    $actionsArray = $actionsString -join ', '
-    $scriptBlockText = @"
-try {
-    Write-Host "Starting Windows environment configuration..." -ForegroundColor Cyan
-    `$actions = @($actionsArray)
-    foreach (`$action in `$actions) {
-        Write-Host "Executing: `$action" -ForegroundColor Yellow
-        Invoke-Expression `$action
-        if (`$?) {
-            Write-Host "Success" -ForegroundColor Green
-        } else {
-            Write-Host "Failed: `$action" -ForegroundColor Red
-            Write-Host "Press any key to exit..."
-            `$null = `$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-            exit 1
-        }
-    }
-    Write-Host "Windows environment configured successfully!" -ForegroundColor Green
-    Write-Host "Press any key to exit..."
-    `$null = `$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-    exit 0
-}
-catch {
-    Write-Host "Error: `$(`$_.Exception.Message)" -ForegroundColor Red
-    Write-Host "Press any key to exit..."
-    `$null = `$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-    exit 1
-}
-"@
-
-    $success = Request-Elevation -TaskDescription "Configure Windows environment" -ScriptBlock $scriptBlockText
-
-    if ($success) {
-        Write-LogSuccess "windows_env_initialized"
-    }
-    else {
-        Write-LogError "windows_env_set_failed"
+    } else {
+        # Not admin, show error and exit
+        Write-LogError "admin_required_for_env_config"
+        Write-Host ""
+        Write-Host "Please run the script as administrator to configure Windows environment:" -ForegroundColor Yellow
+        Write-Host "  1. Right-click PowerShell" -ForegroundColor White
+        Write-Host "  2. Select 'Run as administrator'" -ForegroundColor White
+        Write-Host "  3. Run the script again" -ForegroundColor White
         exit 1
     }
 }
