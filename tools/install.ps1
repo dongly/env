@@ -361,6 +361,12 @@ $script:Messages = @{
         admin_step_1                   = "  1. Right-click PowerShell"
         admin_step_2                   = "  2. Select 'Run as administrator'"
         admin_step_3                   = "  3. Run the script again"
+        status_current_policy          = "Current effective execution policy: {0}"
+        status_current_longpath        = "Current long path support: {0}"
+        status_new_policy              = "New effective execution policy: {0}"
+        status_new_longpath            = "New long path support: {0}"
+        status_enabled                 = "Enabled"
+        status_disabled                = "Disabled"
         long_path_support_required       = "Long path support is required. Please run as administrator."
         windows_env_adequate             = "Windows environment configuration is adequate."
         windows_env_set_failed           = "Failed to configure Windows environment."
@@ -427,6 +433,12 @@ $script:Messages = @{
         admin_step_1                   = "  1. 右键点击 PowerShell"
         admin_step_2                   = "  2. 选择 '以管理员身份运行'"
         admin_step_3                   = "  3. 再次运行脚本"
+        status_current_policy          = "当前生效的执行策略: {0}"
+        status_current_longpath        = "当前长路径支持: {0}"
+        status_new_policy              = "新的生效执行策略: {0}"
+        status_new_longpath            = "新的长路径支持: {0}"
+        status_enabled                 = "已启用"
+        status_disabled                = "已禁用"
         long_path_support_required       = "需要启用长路径支持。请以管理员身份运行。"
         windows_env_adequate             = "Windows 环境配置已满足要求。"
         windows_env_set_failed           = "Windows 环境配置失败。"
@@ -1616,7 +1628,7 @@ function Init-WindowsEnv {
 
     # Check execution policy
     $currentPolicy = Get-EffectiveExecutionPolicy
-    Write-Host "Current effective execution policy: $currentPolicy" -ForegroundColor Cyan
+    Write-LogRaw "status_current_policy" -Color Cyan -Arg1 $currentPolicy
 
     $policyLevels = @{
         "Undefined"     = 0
@@ -1637,8 +1649,9 @@ function Init-WindowsEnv {
         $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
         $longPathEnabled = (Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).LongPathsEnabled
         $needLongPath = ($longPathEnabled -ne 1)
-        $longPathStatus = if ($longPathEnabled -eq 1) { "Enabled" } else { "Disabled" }
-        Write-Host "Current long path support: $longPathStatus" -ForegroundColor Cyan
+        $longPathStatusKey = if ($longPathEnabled -eq 1) { "status_enabled" } else { "status_disabled" }
+        $longPathStatus = Get-Message $longPathStatusKey
+        Write-LogRaw "status_current_longpath" -Color Cyan -Arg1 $longPathStatus
     }
     catch {
         $needLongPath = $true
@@ -1719,7 +1732,7 @@ function Init-WindowsEnv {
 
                     # Show new effective policy
                     $newEffectivePolicy = Get-EffectiveExecutionPolicy
-                    Write-Host "New effective execution policy: $newEffectivePolicy" -ForegroundColor Green
+                    Write-LogRaw "status_new_policy" -Color Green -Arg1 $newEffectivePolicy
                 }
 
                 # For long path support, verify and show new status
@@ -1729,8 +1742,9 @@ function Init-WindowsEnv {
                     } catch {
                         0
                     }
-                    $newLongPathStatus = if ($newLongPathEnabled -eq 1) { "Enabled" } else { "Disabled" }
-                    Write-Host "New long path support: $newLongPathStatus" -ForegroundColor Green
+                    $newLongPathStatusKey = if ($newLongPathEnabled -eq 1) { "status_enabled" } else { "status_disabled" }
+                    $newLongPathStatus = Get-Message $newLongPathStatusKey
+                    Write-LogRaw "status_new_longpath" -Color Green -Arg1 $newLongPathStatus
                 }
             }
             catch {
@@ -1748,7 +1762,7 @@ function Init-WindowsEnv {
 
                         # Show new effective policy
                         $newEffectivePolicy = Get-EffectiveExecutionPolicy
-                        Write-Host "New effective execution policy: $newEffectivePolicy" -ForegroundColor Green
+                        Write-LogRaw "status_new_policy" -Color Green -Arg1 $newEffectivePolicy
                     } else {
                         Write-LogWarning "windows_env_set_failed"
                         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
