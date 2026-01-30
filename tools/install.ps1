@@ -367,6 +367,9 @@ $script:Messages = @{
         status_new_longpath            = "New long path support: {0}"
         status_enabled                 = "Enabled"
         status_disabled                = "Disabled"
+        verified_policy_set            = "Verified: {0} is now {1}"
+        verified_policy_set_exception  = "Success (verified despite exception: {0})"
+        warning_policy_not_set         = "Warning: {0} is {1} (expected RemoteSigned)"
         long_path_support_required       = "Long path support is required. Please run as administrator."
         windows_env_adequate             = "Windows environment configuration is adequate."
         windows_env_set_failed           = "Failed to configure Windows environment."
@@ -439,6 +442,9 @@ $script:Messages = @{
         status_new_longpath            = "新的长路径支持: {0}"
         status_enabled                 = "已启用"
         status_disabled                = "已禁用"
+        verified_policy_set            = "已验证: {0} 现在是 {1}"
+        verified_policy_set_exception  = "成功（尽管有异常已验证: {0}）"
+        warning_policy_not_set         = "警告: {0} 是 {1}（期望为 RemoteSigned）"
         long_path_support_required       = "需要启用长路径支持。请以管理员身份运行。"
         windows_env_adequate             = "Windows 环境配置已满足要求。"
         windows_env_set_failed           = "Windows 环境配置失败。"
@@ -1724,10 +1730,10 @@ function Init-WindowsEnv {
                         $null
                     }
                     if ($actualPolicy -eq "RemoteSigned") {
-                        Write-Host "Verified: $scope is now $actualPolicy" -ForegroundColor Green
+                        Write-LogRaw "verified_policy_set" -Color Green -Arg1 $scope -Arg2 $actualPolicy
                     } else {
                         Write-LogWarning "windows_env_set_failed"
-                        Write-Host "Warning: $scope is $actualPolicy (expected RemoteSigned)" -ForegroundColor Yellow
+                        Write-LogRaw "warning_policy_not_set" -Color Yellow -Arg1 $scope -Arg2 $actualPolicy
                     }
 
                     # Show new effective policy
@@ -1757,8 +1763,9 @@ function Init-WindowsEnv {
                         $null
                     }
                     if ($actualPolicy -eq "RemoteSigned") {
-                        Write-Host "Success (verified despite exception: $($_.Exception.Message))" -ForegroundColor Green
-                        Write-Host "Verified: $scope is now $actualPolicy" -ForegroundColor Green
+                        $exceptionMsg = $_.Exception.Message
+                        Write-LogRaw "verified_policy_set_exception" -Color Green -Arg1 $exceptionMsg
+                        Write-LogRaw "verified_policy_set" -Color Green -Arg1 $scope -Arg2 $actualPolicy
 
                         # Show new effective policy
                         $newEffectivePolicy = Get-EffectiveExecutionPolicy
