@@ -1662,15 +1662,24 @@ function Init-WindowsEnv {
         foreach ($action in $actions) {
             try {
                 Write-Host "Executing: $action" -ForegroundColor Yellow
-                Invoke-Expression $action
-                if ($?) {
-                    Write-Host "Success" -ForegroundColor Green
-                } else {
+                $output = Invoke-Expression $action 2>&1
+                $success = $true
+
+                # Check if the output contains the "overridden by a policy" warning
+                if ($output -match "overridden by a policy") {
+                    # This is not a real failure, just an override warning
+                    Write-Host "Success (policy overridden by Process scope)" -ForegroundColor Green
+                } elseif ($LASTEXITCODE -ne 0) {
+                    $success = $false
                     Write-LogWarning "windows_env_set_failed"
+                    Write-Host "Error: $output" -ForegroundColor Red
+                } else {
+                    Write-Host "Success" -ForegroundColor Green
                 }
             }
             catch {
                 Write-LogWarning "windows_env_set_failed"
+                Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
             }
         }
         Write-LogSuccess "windows_env_initialized"
