@@ -1609,17 +1609,8 @@ function Get-EffectiveExecutionPolicy {
         # Get all execution policies
         $policies = Get-ExecutionPolicy -List -ErrorAction SilentlyContinue
 
-        # Debug: show what we got
-        Write-Host "Debug: Policies type = $($policies.GetType().Name)" -ForegroundColor Yellow
-        Write-Host "Debug: Policies count = $($policies.Count)" -ForegroundColor Yellow
-        if ($policies.Count -gt 0) {
-            Write-Host "Debug: First policy type = $($policies[0].GetType().FullName)" -ForegroundColor Yellow
-            Write-Host "Debug: First policy = $($policies[0] | Out-String)" -ForegroundColor Yellow
-        }
-
         # If policies is empty or null, Get-ExecutionPolicy failed
         if (-not $policies -or $policies.Count -eq 0) {
-            Write-Host "Debug: Get-ExecutionPolicy returned empty, trying fallback method" -ForegroundColor Yellow
             # Fallback: try to get each scope individually
             $fallbackPolicies = @()
             foreach ($scope in @("MachinePolicy", "UserPolicy", "Process", "CurrentUser", "LocalMachine")) {
@@ -1637,7 +1628,6 @@ function Get-EffectiveExecutionPolicy {
                 }
             }
             $policies = $fallbackPolicies
-            Write-Host "Debug: Fallback policies count = $($policies.Count)" -ForegroundColor Yellow
         }
 
         # Priority order: MachinePolicy > UserPolicy > Process > CurrentUser > LocalMachine
@@ -1646,20 +1636,15 @@ function Get-EffectiveExecutionPolicy {
 
         foreach ($scope in $scopePriority) {
             $policy = $policies | Where-Object { $_.Scope -eq $scope }
-            Write-Host "Debug: Checking scope $scope, found policy: $($policy -ne $null)" -ForegroundColor Yellow
-            if ($policy) {
-                Write-Host "Debug: Policy value = $($policy.ExecutionPolicy)" -ForegroundColor Yellow
-                if ($policy.ExecutionPolicy -ne "Undefined") {
-                    return @{
-                        Policy = $policy.ExecutionPolicy
-                        EffectiveScope = $scope
-                    }
+            if ($policy -and $policy.ExecutionPolicy -ne "Undefined") {
+                return @{
+                    Policy = $policy.ExecutionPolicy
+                    EffectiveScope = $scope
                 }
             }
         }
 
         # If all are Undefined, return Restricted (default)
-        Write-Host "Debug: All policies undefined, returning default" -ForegroundColor Yellow
         return @{
             Policy = "Restricted"
             EffectiveScope = "LocalMachine (default)"
@@ -1667,8 +1652,6 @@ function Get-EffectiveExecutionPolicy {
     }
     catch {
         # If Get-ExecutionPolicy fails, assume Restricted
-        Write-Host "Debug: Exception in Get-EffectiveExecutionPolicy: $($_.Exception.Message)" -ForegroundColor Yellow
-        Write-Host "Debug: Exception Type: $($_.Exception.GetType().FullName)" -ForegroundColor Yellow
         return @{
             Policy = "Restricted"
             EffectiveScope = "Unknown"
@@ -1684,9 +1667,6 @@ function Init-WindowsEnv {
     $currentPolicyInfo = Get-EffectiveExecutionPolicy
     $currentPolicy = $currentPolicyInfo.Policy
     $currentScope = $currentPolicyInfo.EffectiveScope
-    
-    Write-Host "Debug: currentPolicy = $currentPolicy" -ForegroundColor Yellow
-    Write-Host "Debug: currentScope = $currentScope" -ForegroundColor Yellow
 
 # Display current status
     if ($currentScope) {
@@ -1711,8 +1691,6 @@ function Init-WindowsEnv {
     $currentLevel = $policyLevels[$currentPolicy.ToString()]
     $targetLevel = $policyLevels["RemoteSigned"]
     $needPolicy = ($null -eq $currentLevel -or $currentLevel -lt $targetLevel)
-    
-    Write-Host "Debug: needPolicy = $needPolicy" -ForegroundColor Yellow
 
     # Determine which scope to set based on effective scope
     # Priority: Set the effective scope if it's not Process, otherwise set LocalMachine
@@ -1724,12 +1702,7 @@ function Init-WindowsEnv {
             $scopeName = $currentScope
         }
         $scopeToSet = if ($scopeName -and $scopeName -ne "Process" -and $scopeName -ne "Unknown" -and $scopeName -ne "N/A") { $scopeName } else { "LocalMachine" }
-        Write-Host "Debug: currentScope = $currentScope" -ForegroundColor Yellow
-        Write-Host "Debug: scopeName = $scopeName" -ForegroundColor Yellow
-        Write-Host "Debug: scopeToSet = $scopeToSet" -ForegroundColor Yellow
         $script:Config.ScopeToSet = $scopeToSet
-    } else {
-        Write-Host "Debug: needPolicy is false, not setting ScopeToSet" -ForegroundColor Yellow
     }
 
     # Check long path support
