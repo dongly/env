@@ -187,7 +187,6 @@ function Parse-Arguments {
 }
 
 # Register-CleanupHandler function
-# Register-CleanupHandler function
 # Register cleanup handler for temporary files
 # This ensures temporary files are cleaned up even if the script exits unexpectedly
 function Register-CleanupHandler {
@@ -206,10 +205,6 @@ function Register-CleanupHandler {
 
     Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action $cleanupAction | Out-Null
 }
-
-# Register cleanup handler immediately when script loads
-# This ensures cleanup happens regardless of where/when the script exits
-# (before Main(), during parameter validation, or after installation)
 
 # Add-TempFile function
 # Track temporary file for cleanup
@@ -736,6 +731,10 @@ function Install-Git {
         }
 
         Write-LogSuccess "git_installed"
+    }
+    catch {
+        Write-LogError "download_failed" $_.Exception.Message
+        throw
     }
     finally {
         # Cleanup installer
@@ -1999,9 +1998,6 @@ function Init-Config {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = "Stop"
 
-    # Register cleanup handler
-    Register-CleanupHandler
-
     # Initialize global config
     $script:Config = [PSCustomObject]@{
         LangCurrent    = ""
@@ -2020,6 +2016,9 @@ function Init-Config {
         TempFiles      = @()
         ScopeToSet     = ""
     }
+
+    # Register cleanup handler (must be after Config initialization)
+    Register-CleanupHandler
 
     # Set config from parsed arguments
     $script:Config.LangCurrent = if ($ParsedArgs.ZhMode) { "zh" } elseif ($ParsedArgs.EnMode) { "en" } else { Get-SystemLanguage }
