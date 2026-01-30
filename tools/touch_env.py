@@ -238,7 +238,9 @@ MESSAGES = {
         'restoring_config': 'Restoring config...',
         'config_restored': 'Config restored',
         'pyocd_install_prompt': 'Do you want to install pyocd (for debugging Cortex-M devices)?',
-        'pyocd_install_confirm': 'Install pyocd? [Y/n]: ',
+        'pyocd_install_confirm': 'Install pyocd? [y/N]: ',
+        'installing_pyocd': 'Will install pyocd',
+        'skipping_pyocd': 'Skipping pyocd installation',
         'fixed_guiconfig': 'Fixed guiconfig.py (added missing import)',
         'setup_complete': 'RT-Thread ENV installation completed!',
         'next_steps': 'Next steps:',
@@ -329,7 +331,9 @@ MESSAGES = {
         'restoring_config': '正在恢复配置...',
         'config_restored': '配置已恢复',
         'pyocd_install_prompt': '是否要安装 pyocd (用于调试 Cortex-M 设备)？',
-        'pyocd_install_confirm': '安装 pyocd？[Y/n]: ',
+        'pyocd_install_confirm': '安装 pyocd？[y/N]: ',
+        'installing_pyocd': '将要安装 pyocd',
+        'skipping_pyocd': '跳过 pyocd 安装',
         'fixed_guiconfig': '已修复 guiconfig.py（添加缺失的导入）',
         'setup_complete': 'RT-Thread ENV 安装完成！',
         'next_steps': '后续步骤:',
@@ -1436,7 +1440,13 @@ def prompt_pyocd(config):
     print(get_message('pyocd_install_prompt'))
     response = input(get_message('pyocd_install_confirm'))
 
-    return response.lower() == 'y'
+    install_pyocd = response.lower() == 'y'
+    if install_pyocd:
+        log_info('installing_pyocd')
+    else:
+        log_info('skipping_pyocd')
+
+    return install_pyocd
 
 
 def show_next_steps(config):
