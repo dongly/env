@@ -30,12 +30,12 @@
 #                              自动安装，无提示
 #   --backup <strategy>        Backup strategy when ENV exists:
 #                              当 ENV 已存在时的备份策略：
-#                                preserve: Keep .config and local_pkgs, restore and delete backup
+#                                preserve: Keep .config and toolchains(local_pkgs), restore and delete backup
 #                                            保留 .config 和 local_pkgs，恢复后删除备份
 #                                delete_all: Delete everything, no restore
 #                                            删除所有内容，不恢复
 #                                backup_all: Keep backup with hardlink restore
-#                                            保留备份，用硬链接恢复本地包
+#                                            保留备份，用硬链接恢复工具链(local_pkgs)
 #   --install-pyocd            Install pyocd for debugging
 #                              安装 pyocd 调试工具
 #   --restore-config           Restore preserved configuration
@@ -249,9 +249,10 @@ MESSAGES = {
         'install_toolchain': '3. Install toolchains:',
         'install_toolchain_cmd': '   Run sdk command to install required toolchains',
         'after_activation': '4. After activation, you can use:',
-        'menuconfig': '     - menuconfig    : Configure RT-Thread',
+        'menuconfig': '     - menuconfig    : Configure project',
+        'menuconfig_s': '     - menuconfig -s : Configure RT-Thread ENV',
         'pkgs': '     - pkgs          : Package manager',
-        'scons': '     - scons         : Build RT-Thread',
+        'scons': '     - scons         : Build project',
         'sdk': '     - sdk           : Install toolchains',
         'clone_failed': 'Git clone failed: {0}',
         'invalid_git_repo': 'Invalid git repository: {0}',
@@ -266,13 +267,13 @@ MESSAGES = {
         'env_root_exists': 'Existing RT-Thread ENV detected at: {0}',
         'env_root_prompt': 'Existing RT-Thread ENV detected. Do you want to delete and reinstall?',
         'env_root_confirm': 'Are you sure you want to delete? [Y/a/b/n]: ',
-        'env_root_confirm_help': '  Y/y: Preserve config and local_pkgs, delete others (default)',
-        'env_root_confirm_all': '  A/a: Delete entire directory (including config and local_pkgs)',
+        'env_root_confirm_help': '  Y/y: Preserve config and toolchains(local_pkgs), delete others (default)',
+        'env_root_confirm_all': '  A/a: Delete entire directory (including config and toolchains)',
         'env_root_confirm_backup': '  B/b: Backup entire directory and keep',
         'env_root_confirm_no': '  N/n: Cancel installation',
         'use_arrow_keys': 'Use ↑/↓ arrows to select, Enter to confirm',
         'press_enter_confirm': 'Or press Y/A/B/N directly',
-        'removing_env_preserving': 'Removing (preserving config and local_pkgs): {0}...',
+        'removing_env_preserving': 'Removing (preserving config and toolchains): {0}...',
         'removing_env_all': 'Removing entire directory: {0}...',
         'env_root_removed': 'Existing RT-Thread ENV removed: {0}',
         'installation_cancelled': 'Installation cancelled',
@@ -286,7 +287,7 @@ MESSAGES = {
         'file_copy_failed': 'Failed to copy file: {0} - {1}',
         'dir_hardlink_failed': 'Failed to hardlink directory: {0} - {1}',
         'restoring_local_pkgs_with_hardlink': 'Restoring local_pkgs with hardlinks...',
-        'local_pkgs_restored': 'Local packages restored with hardlinks',
+        'local_pkgs_restored': 'Toolchains restored with hardlinks',
         'backup_delete_failed': 'Failed to delete backup: {0}',
         'env_root_not_fully_removed': 'Some items could not be deleted. Please check the error messages above.',
         'backup_creating': 'Creating backup: {0}...',
@@ -342,9 +343,10 @@ MESSAGES = {
         'install_toolchain': '3. 安装工具链:',
         'install_toolchain_cmd': '   运行 sdk 命令安装所需的工具链',
         'after_activation': '4. 激活后可用命令:',
-        'menuconfig': '     - menuconfig    : 配置 RT-Thread',
+        'menuconfig': '     - menuconfig    : 配置项目',
+        'menuconfig_s': '     - menuconfig -s : 配置 RT-Thread ENV',
         'pkgs': '     - pkgs          : 包管理器',
-        'scons': '     - scons         : 编译 RT-Thread',
+        'scons': '     - scons         : 编译项目',
         'sdk': '     - sdk           : 安装工具链',
         'clone_failed': 'Git 克隆失败: {0}',
         'invalid_git_repo': '无效的 git 仓库: {0}',
@@ -359,13 +361,13 @@ MESSAGES = {
         'env_root_exists': '检测到已存在的 RT-Thread ENV: {0}',
         'env_root_prompt': '检测到已存在的RT-Thread ENV。是否要删除并重新安装？',
         'env_root_confirm': '确定要删除吗？[Y/a/b/n]: ',
-        'env_root_confirm_help': '  Y/y: 保留配置和本地包，删除其他（默认）',
-        'env_root_confirm_all': '  A/a: 删除整个目录（包括配置和本地包）',
+        'env_root_confirm_help': '  Y/y: 保留配置和工具链(local_pkgs)，删除其他（默认）',
+        'env_root_confirm_all': '  A/a: 删除整个目录（包括配置和工具链）',
         'env_root_confirm_backup': '  B/b: 备份整个目录并保留',
         'env_root_confirm_no': '  N/n: 取消安装',
         'use_arrow_keys': '使用 ↑/↓ 方向键选择，回车确认',
         'press_enter_confirm': '或直接按 Y/A/B/N 键',
-        'removing_env_preserving': '正在删除（保留配置和本地包）: {0}...',
+        'removing_env_preserving': '正在删除（保留配置和工具链）: {0}...',
         'removing_env_all': '正在删除整个目录: {0}...',
         'env_root_removed': '已删除 RT-Thread ENV: {0}',
         'installation_cancelled': '安装已取消',
@@ -378,8 +380,8 @@ MESSAGES = {
         'dir_delete_failed': '删除目录失败: {0} - {1}',
         'file_copy_failed': '复制文件失败: {0} - {1}',
         'dir_hardlink_failed': '硬链接目录失败: {0} - {1}',
-        'restoring_local_pkgs_with_hardlink': '正在使用硬链接恢复本地包...',
-        'local_pkgs_restored': '本地包已使用硬链接恢复',
+        'restoring_local_pkgs_with_hardlink': '正在使用硬链接恢复工具链...',
+        'local_pkgs_restored': '工具链已使用硬链接恢复',
         'backup_delete_failed': '删除备份失败: {0}',
         'env_root_not_fully_removed': '部分项目删除失败，请检查上面的错误信息。',
         'backup_creating': '正在创建备份: {0}...',
@@ -444,9 +446,20 @@ def log_error(key, *args):
     print(f"\033[0;31m[{get_message('error')}]\033[0m {msg}", file=sys.stderr)
 
 
-def log_raw(text):
-    """Log raw text to stderr"""
-    print(text, file=sys.stderr)
+def log_warning(key, *args):
+    """Log warning message to stderr"""
+    msg = get_message(key)
+    if args:
+        msg = msg.format(*args)
+    print(f"\033[0;33m[{get_message('warning')}]\033[0m {msg}", file=sys.stderr)
+
+
+def log_raw(key, *args, **kwargs):
+    """Log raw message using current language"""
+    msg = get_message(key)
+    if args:
+        msg = msg.format(*args)
+    print(msg, **kwargs)
 
 # ============================================================================
 # Repository Functions
@@ -914,7 +927,7 @@ def show_deletion_options(config):
             pass
 
     # Fallback to simple input
-    print(get_message('env_root_confirm'), end='', flush=True)
+    log_raw('env_root_confirm', end='', flush=True)
     print()
     for opt in options:
         print(opt['desc'])
@@ -964,7 +977,7 @@ def _interactive_menu(options):
             print(f'\033[{lines_to_clear}M\033[{lines_to_clear}A', end='')
         first_run = False
 
-        print(get_message('env_root_prompt'))
+        log_raw('env_root_prompt')
         print()
 
         for i, opt in enumerate(options):
@@ -975,8 +988,8 @@ def _interactive_menu(options):
                 print(f"   {opt['desc']}")
 
         print()
-        print(get_message('use_arrow_keys'))
-        print(get_message('press_enter_confirm'))
+        log_raw('use_arrow_keys')
+        log_raw('press_enter_confirm')
 
         # Read key
         if msvcrt:
@@ -996,13 +1009,6 @@ def _interactive_menu(options):
             elif key in [b'y', b'Y', b'a', b'A', b'b', b'B', b'n', b'N']:
                 # Direct key press
                 return key.decode('ascii').lower()
-
-def log_warning(key, *args):
-    """Log warning message to stderr"""
-    msg = get_message(key)
-    if args:
-        msg = msg.format(*args)
-    print(f"\033[0;33m[{get_message('warning')}]\033[0m {msg}", file=sys.stderr)
 
 
 def get_backup_timestamp():
@@ -1299,11 +1305,11 @@ def handle_installation_failure(config, backup_path, strategy):
 
     # Interactive mode: ask user what to do
     print()
-    log_raw(get_message('install_failed_options'))
+    log_raw('install_failed_options')
     print()
-    print(get_message('option_restore_backup'))
-    print(get_message('option_keep_current'))
-    print(get_message('option_delete_backup'))
+    log_raw('option_restore_backup')
+    log_raw('option_keep_current')
+    log_raw('option_delete_backup')
     print()
 
     response = input(get_message('install_failed_prompt'))
@@ -1437,7 +1443,7 @@ def prompt_pyocd(config):
         return False
 
     print()
-    print(get_message('pyocd_install_prompt'))
+    log_raw('pyocd_install_prompt')
     response = input(get_message('pyocd_install_confirm'))
 
     install_pyocd = response.lower() == 'y'
@@ -1465,7 +1471,7 @@ def show_next_steps(config):
     print()
 
     # Activate environment
-    print(get_message('activate_env'))
+    log_raw('activate_env')
     if platform.system() == 'Windows':
         print(f"   . {config.env_root}\\env.ps1")
     else:
@@ -1473,7 +1479,7 @@ def show_next_steps(config):
     print()
 
     # Add to profile
-    print(get_message('add_to_profile'))
+    log_raw('add_to_profile')
     if platform.system() == 'Windows':
         print(f"   echo '. {config.env_root}\\env.ps1' >> $PROFILE")
         print(f"   . $PROFILE")
@@ -1485,16 +1491,17 @@ def show_next_steps(config):
     print()
 
     # Install toolchain
-    print(get_message('install_toolchain'))
+    log_raw('install_toolchain')
     print(f"   {get_message('install_toolchain_cmd')}")
     print()
 
     # Available commands
-    print(get_message('after_activation'))
-    print(f"   - menuconfig    : {get_message('menuconfig')}")
-    print(f"   - pkgs          : {get_message('pkgs')}")
-    print(f"   - scons         : {get_message('scons')}")
-    print(f"   - sdk           : {get_message('sdk')}")
+    log_raw('after_activation')
+    print(f"{get_message('menuconfig')}")
+    print(f"{get_message('menuconfig_s')}")
+    print(f"{get_message('pkgs')}")
+    print(f"{get_message('scons')}")
+    print(f"{get_message('sdk')}")
     print()
 
 # ============================================================================
