@@ -1,4 +1,4 @@
-﻿# File      : install.ps1
+# File      : install.ps1
 # This file is part of RT-Thread RTOS
 # COPYRIGHT (C) 2006 - 2026, RT-Thread Development Team
 #
