@@ -1709,6 +1709,9 @@ function Init-WindowsEnv {
             $scopeName = $currentScope
         }
         $scopeToSet = if ($scopeName -and $scopeName -ne "Process" -and $scopeName -ne "Unknown" -and $scopeName -ne "N/A") { $scopeName } else { "LocalMachine" }
+        Write-Host "Debug: currentScope = $currentScope" -ForegroundColor Yellow
+        Write-Host "Debug: scopeName = $scopeName" -ForegroundColor Yellow
+        Write-Host "Debug: scopeToSet = $scopeToSet" -ForegroundColor Yellow
         $script:Config.ScopeToSet = $scopeToSet
     }
 
