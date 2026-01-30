@@ -1609,6 +1609,10 @@ function Get-EffectiveExecutionPolicy {
         # Get all execution policies
         $policies = Get-ExecutionPolicy -List -ErrorAction SilentlyContinue
 
+        # Debug: show what we got
+        Write-Host "Debug: Policies type = $($policies.GetType().Name)" -ForegroundColor Yellow
+        Write-Host "Debug: Policies = $policies" -ForegroundColor Yellow
+
         # Priority order: MachinePolicy > UserPolicy > Process > CurrentUser > LocalMachine
         # We exclude Process scope as it's temporary
         $scopePriority = @("MachinePolicy", "UserPolicy", "CurrentUser", "LocalMachine")
@@ -1631,6 +1635,7 @@ function Get-EffectiveExecutionPolicy {
     }
     catch {
         # If Get-ExecutionPolicy fails, assume Restricted
+        Write-Host "Debug: Exception in Get-EffectiveExecutionPolicy: $($_.Exception.Message)" -ForegroundColor Yellow
         return @{
             Policy = "Restricted"
             EffectiveScope = "Unknown"
