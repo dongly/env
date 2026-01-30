@@ -1575,18 +1575,22 @@ function Init-WindowsEnv {
     $currentPolicy = "Unknown"
     $needPolicy = $false
     try {
-        # Try multiple methods to get execution policy
-        $currentPolicy = & powershell -NoProfile -Command "Get-ExecutionPolicy -Scope LocalMachine -ErrorAction SilentlyContinue" 2>$null
-        if ($LASTEXITCODE -eq 0 -and $currentPolicy) {
-            Write-Host "Current execution policy: $currentPolicy" -ForegroundColor Cyan
+        # Read execution policy directly from registry to avoid process scope interference
+        $regPath = "HKLM:\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell"
+        $policyValue = (Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue).ExecutionPolicy
+        if ($policyValue) {
+            $currentPolicy = $policyValue
+            Write-Host "Current LocalMachine execution policy: $currentPolicy" -ForegroundColor Cyan
         } else {
-            Write-Host "Could not determine execution policy, skipping policy check" -ForegroundColor Yellow
-            $currentPolicy = "Unknown"
+            # Fallback to default value if registry key doesn't exist
+            $currentPolicy = "Restricted"
+            Write-Host "Execution policy registry key not found, assuming: $currentPolicy" -ForegroundColor Yellow
         }
     }
     catch {
-        Write-Host "Error checking execution policy: $($_.Exception.Message)" -ForegroundColor Yellow
-        $currentPolicy = "Unknown"
+        Write-Host "Error checking execution policy from registry: $($_.Exception.Message)" -ForegroundColor Yellow
+        # Default to Restricted if we can't read the registry
+        $currentPolicy = "Restricted"
     }
 
     # Only check policy if we could determine it
