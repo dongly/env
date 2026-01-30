@@ -529,11 +529,12 @@ def clone_repository(config, repo_name, url, dest_rel, branch='', depth=1):
     clone_args.extend([url, dest_path])
 
     try:
-        subprocess.run(clone_args, check=True, capture_output=True, text=True)
+        # Run without capture to show verbose git output
+        subprocess.run(clone_args, check=True)
         log_success('cloned', dest_path)
     except subprocess.CalledProcessError as e:
         # Clone failed, clean up partial clone
-        log_error('clone_failed', e.stderr)
+        log_error('clone_failed', str(e))
         shutil.rmtree(dest_path, ignore_errors=True)
         raise RuntimeError(f"Failed to clone {url}") from e
 
