@@ -21,7 +21,7 @@
 # Options:
 # 选项:
 #   --env-root <path>          Installation root directory (default: ~/.rt-env)
-#                              安装根目录（默认：~/.rt-env）
+#                              安装 ENV_ROOT（默认：~/.rt-env）
 #   --use-cn                   Use China mirror (Gitee, TUNA PyPI)
 #                              使用中国镜像（Gitee, TUNA PyPI）
 #   --language <lang>          Language: 'en' or 'zh'
@@ -310,7 +310,9 @@ MESSAGES = {
         'auto_restoring_backup': 'Automatically restoring backup...',
         'keeping_current_state': 'Keeping current state as is...',
         'start': 'Starting RT-Thread ENV installation...',
-        'using_default_env_root': 'Using default env-root: {0}',
+        'using_default_env_root': 'Using default ENV_ROOT: {0}',
+        'env_root_prompt': 'Enter installation root directory (ENV_ROOT)',
+        'env_root_default': '[default: {0}]',
     },
     'zh': {
         'info': '信息',
@@ -405,7 +407,9 @@ MESSAGES = {
         'auto_restoring_backup': '自动恢复备份中...',
         'keeping_current_state': '保持当前状态不变...',
         'start': '开始 RT-Thread ENV 安装...',
-        'using_default_env_root': '使用默认 env-root: {0}',
+        'using_default_env_root': '使用默认 ENV_ROOT: {0}',
+        'env_root_prompt': '请输入安装根目录(ENV_ROOT)',
+        'env_root_default': '[默认: {0}]',
     }
         }
 
@@ -1538,6 +1542,71 @@ def parse_repo_url(url):
     return repo_info
 
 
+def prompt_env_root(default_env_root, language='en'):
+    """
+    Prompt user to enter env-root directory
+    
+    Args:
+        default_env_root: Default installation directory
+        language: Language code ('en' or 'zh')
+    
+    Returns:
+        str: User input env-root directory
+    """
+    # Set language for messages
+    set_language(language)
+    
+    env_root = ""
+    is_valid = False
+    
+    while not is_valid:
+        # Display prompt with default value
+        prompt_msg = get_message('env_root_prompt')
+        default_msg = get_message('env_root_default').format(default_env_root)
+        print(f"{prompt_msg} {default_msg}", end=' ')
+        env_root = input().strip()
+        
+        # Use default if input is empty
+        if not env_root:
+            env_root = default_env_root
+        
+        # Expand user home directory
+        env_root = os.path.expanduser(env_root)
+        
+        # Check path format (spaces, non-ASCII characters)
+        if ' ' in env_root:
+            log_error('python_path_invalid', 'spaces')
+            continue
+        if any(ord(c) > 127 for c in env_root):
+            log_error('python_path_invalid', 'non-ASCII characters')
+            continue
+        
+        # Check if parent directory exists or can be created
+        parent_dir = os.path.dirname(env_root)
+        if parent_dir and not os.path.exists(parent_dir):
+            log_info('python_path_creating_dir', parent_dir)
+            try:
+                os.makedirs(parent_dir, exist_ok=True)
+            except Exception:
+                log_error('python_path_no_permission', parent_dir)
+                continue
+        
+        # Check write permission
+        if parent_dir:
+            test_file = os.path.join(parent_dir, '.__write_test__')
+            try:
+                with open(test_file, 'w') as f:
+                    f.write('test')
+                os.remove(test_file)
+            except Exception:
+                log_error('python_path_no_permission', parent_dir)
+                continue
+        
+        is_valid = True
+    
+    return env_root
+
+
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
@@ -1602,6 +1671,24 @@ def parse_arguments():
     )
 
     args = parser.parse_args()
+
+    # Interactive mode: prompt for env-root if using default and not auto mode
+    default_env_root = os.path.expanduser(DEFAULT_ENV_ROOT)
+    if args.env_root == default_env_root and not args.auto_mode:
+        # Check if --env-root was explicitly provided
+        import sys
+        # If sys.argv contains --env-root with a different value, we should not prompt
+        has_explicit_env_root = False
+        for i in range(len(sys.argv)):
+            if sys.argv[i] == '--env-root' and i + 1 < len(sys.argv):
+                has_explicit_env_root = True
+                break
+            elif sys.argv[i].startswith('--env-root='):
+                has_explicit_env_root = True
+                break
+        
+        if not has_explicit_env_root:
+            args.env_root = prompt_env_root(default_env_root, args.language)
 
     # Build custom_repos dictionary from individual arguments
     args.custom_repos = {}
