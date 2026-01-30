@@ -1624,9 +1624,11 @@ function Init-WindowsEnv {
     }
     
     # Interactive mode: request elevation
+    $actionsString = $actions | ForEach-Object { "'$_'" }
+    $actionsArray = $actionsString -join ', '
     $scriptBlockText = @"
 try {
-$actions = @('$($actions -join "','")')
+`$actions = @($actionsArray)
 foreach (`$action in `$actions) {
     Invoke-Expression `$action
 }
