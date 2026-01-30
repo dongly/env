@@ -1,6 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
+# File      : touch_env.py
+# This file is part of RT-Thread RTOS
+# COPYRIGHT (C) 2006 - 2026, RT-Thread Development Team
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License along
+#  with this program; if not, write to the Free Software Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Change Logs:
+# Date           Author          Notes
+# 2026-01-30     dongly         Initial version
+#
 # RT-Thread ENV Setup Script (Python)
 # RT-Thread ENV 安装脚本 (Python)
 #
@@ -266,12 +288,12 @@ MESSAGES = {
         'backup_config': 'Backing up configuration file...',
         'no_config_to_restore': 'No configuration to restore',
         'env_root_exists': 'Existing RT-Thread ENV detected at: {0}',
-        'env_root_prompt': 'Existing RT-Thread ENV detected. Do you want to delete and reinstall?',
+        'env_root_prompt': 'Please select how to handle existing directory (ENV_ROOT)',
         'env_root_confirm': 'Are you sure you want to delete? [Y/a/b/C/n]: ',
         'env_root_confirm_help': '  Y/y: Preserve config and toolchains(local_pkgs), delete others (default)',
         'env_root_confirm_all': '  A/a: Delete entire directory (including config and toolchains)',
         'env_root_confirm_backup': '  B/b: Backup entire directory and keep',
-        'env_root_confirm_new': '  C/c: Specify a new installation directory',
+        'env_root_confirm_new': '  C/c: Specify new installation directory',
         'env_root_confirm_no': '  N/n: Cancel installation',
         'use_arrow_keys': 'Use ↑/↓ arrows to select, Enter to confirm',
         'press_enter_confirm': 'Or press Y/A/B/C/N directly',
@@ -410,7 +432,7 @@ MESSAGES = {
         'keeping_current_state': '保持当前状态不变...',
         'start': '开始 RT-Thread ENV 安装...',
         'using_default_env_root': '使用默认 ENV_ROOT: {0}',
-        'env_root_prompt': '请输入安装根目录(ENV_ROOT)',
+        'env_root_prompt': '请选择怎样处理现存目录(ENV_ROOT)',
         'env_root_default': '[默认: {0}]',
     }
         }
