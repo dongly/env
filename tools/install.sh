@@ -52,6 +52,9 @@ REAL_USER_HOME=""
 REAL_USER=""
 REAL_USER_SHELL=""
 
+# Global variable for tracking temporary files (for cleanup)
+TEMP_FILES=()
+
 # IP detection service
 IPINFO_URL="https://ipinfo.io/json"
 
@@ -145,6 +148,16 @@ init_environment() {
     detect_china
 }
 
+# Cleanup function for temporary files
+cleanup() {
+    for temp_file in "${TEMP_FILES[@]}"; do
+        rm -f "$temp_file" 2>/dev/null
+    done
+}
+
+# Register cleanup handler for exit signals
+trap cleanup EXIT INT TERM
+
 # ============================================================================
 # Message Functions
 # ============================================================================
@@ -236,20 +249,20 @@ download_and_run_touch_env() {
     local touch_env_dest
     touch_env_dest=$(mktemp --suffix=.py)
 
+    # Track temp file for cleanup
+    TEMP_FILES+=("$touch_env_dest")
+
     # Download touch_env.py (determines URL internally)
     download_touch_env "$touch_env_dest" || {
-        rm -f "$touch_env_dest"
         return 1
     }
 
     # Run touch_env.py
     run_touch_env "$touch_env_dest" || {
-        rm -f "$touch_env_dest"
         return 1
     }
 
-    # Clean up temp file
-    rm -f "$touch_env_dest"
+    # Temp file will be cleaned up by trap handler
 
     return 0
 }
@@ -369,8 +382,6 @@ run_touch_env() {
 }
 
 # ============================================================================
-# Git and Repository Functions
-# ============================================================================
 # Argument Parsing
 # ============================================================================
 
@@ -439,23 +450,12 @@ detect_china() {
 }
 
 parse_args() {
-    CONFIG_LANG="en"
+    # Local state variables for parse_args (not global config)
     CONFIG_LANG_SET="false"
-    CONFIG_USE_CN="false"
-    CONFIG_USE_CN_SET="false"
     CONFIG_OFFICIAL_MODE="false"
-    CONFIG_PYOCD_MODE="false"
-    CONFIG_AUTO_MODE="false"
-    CONFIG_HELP_MODE="false"
-    CONFIG_CUSTOM_PACKAGES_REPO=""
     CONFIG_CUSTOM_PACKAGES_BRANCH=""
-    CONFIG_CUSTOM_ENV_REPO=""
     CONFIG_CUSTOM_ENV_BRANCH=""
-    CONFIG_CUSTOM_SDK_REPO=""
     CONFIG_CUSTOM_SDK_BRANCH=""
-    CONFIG_ENV_ROOT=""
-    CONFIG_BACKUP_STRATEGY=""
-    CONFIG_TOUCH_ENV_URL_VALUE=""
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -512,10 +512,6 @@ parse_args() {
             -t|--touch-env-url)
                 shift
                 CONFIG_TOUCH_ENV_URL_VALUE="$1"
-                ;;
-            --packages)
-                shift
-                CONFIG_CUSTOM_PACKAGES_REPO="$1"
                 ;;
             *)
                 # Unknown argument, skip
