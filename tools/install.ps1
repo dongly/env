@@ -1650,6 +1650,13 @@ function Init-WindowsEnv {
 
     # Check if running as administrator
     if ($script:Config.IsAdmin) {
+        # Get current Process scope policy to check if it's the effective one
+        $processPolicy = try {
+            Get-ExecutionPolicy -Scope Process -ErrorAction SilentlyContinue
+        } catch {
+            "Undefined"
+        }
+
         # Directly execute changes if admin
         $actions = @()
         if ($needPolicy) {
@@ -1666,9 +1673,9 @@ function Init-WindowsEnv {
                 $success = $true
 
                 # Check if the output contains the "overridden by a policy" warning
-                if ($output -match "overridden by a policy") {
-                    # This is not a real failure, just an override warning
-                    Write-Host "Success (policy overridden by Process scope)" -ForegroundColor Green
+                if ($output -match "overridden by a policy" -and $processPolicy -eq "Bypass") {
+                    # Only ignore if Process scope is currently effective (Bypass)
+                    Write-Host "Success (policy overridden by Process scope: $processPolicy)" -ForegroundColor Green
                 } elseif ($LASTEXITCODE -ne 0) {
                     $success = $false
                     Write-LogWarning "windows_env_set_failed"
