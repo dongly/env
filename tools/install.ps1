@@ -1549,7 +1549,7 @@ function Request-Elevation {
     
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "powershell.exe"
-    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$tempScript`""
+    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Normal -File `"$tempScript`""
     $psi.Verb = "RunAs"
     $psi.UseShellExecute = $true
     
@@ -1570,27 +1570,43 @@ function Request-Elevation {
 # Init-WindowsEnv: Initialize Windows environment settings
 function Init-WindowsEnv {
     Write-LogInfo "initializing_windows_env"
-    
+
     # Check execution policy
+    $currentPolicy = "Unknown"
+    $needPolicy = $false
     try {
-        $currentPolicy = Get-ExecutionPolicy -Scope LocalMachine -ErrorAction SilentlyContinue
+        # Try multiple methods to get execution policy
+        $currentPolicy = & powershell -NoProfile -Command "Get-ExecutionPolicy -Scope LocalMachine -ErrorAction SilentlyContinue" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $currentPolicy) {
+            Write-Host "Current execution policy: $currentPolicy" -ForegroundColor Cyan
+        } else {
+            Write-Host "Could not determine execution policy, skipping policy check" -ForegroundColor Yellow
+            $currentPolicy = "Unknown"
+        }
     }
     catch {
-        $currentPolicy = "Restricted"
+        Write-Host "Error checking execution policy: $($_.Exception.Message)" -ForegroundColor Yellow
+        $currentPolicy = "Unknown"
     }
-    
-    $policyLevels = @{
-        "Undefined"     = 0
-        "Restricted"    = 1
-        "AllSigned"     = 2
-        "RemoteSigned"  = 3
-        "Unrestricted"  = 4
-        "Bypass"        = 5
+
+    # Only check policy if we could determine it
+    if ($currentPolicy -ne "Unknown") {
+        $policyLevels = @{
+            "Undefined"     = 0
+            "Restricted"    = 1
+            "AllSigned"     = 2
+            "RemoteSigned"  = 3
+            "Unrestricted"  = 4
+            "Bypass"        = 5
+        }
+
+        $currentLevel = $policyLevels[$currentPolicy.ToString()]
+        $targetLevel = $policyLevels["RemoteSigned"]
+        $needPolicy = ($null -eq $currentLevel -or $currentLevel -lt $targetLevel)
+    } else {
+        # If we can't determine the policy, skip this check
+        $needPolicy = $false
     }
-    
-    $currentLevel = $policyLevels[$currentPolicy.ToString()]
-    $targetLevel = $policyLevels["RemoteSigned"]
-    $needPolicy = ($null -eq $currentLevel -or $currentLevel -lt $targetLevel)
     
     # Check long path support
     try {
@@ -1606,6 +1622,14 @@ function Init-WindowsEnv {
     if (-not $needPolicy -and -not $needLongPath) {
         Write-LogSuccess "windows_env_adequate"
         return
+    }
+    
+    # Debug: show what needs to be changed
+    if ($needPolicy) {
+        Write-LogWarning "execution_policy_too_low"
+    }
+    if ($needLongPath) {
+        Write-LogWarning "long_path_support_required"
     }
     
     # Auto mode: check if admin
@@ -1649,13 +1673,23 @@ function Init-WindowsEnv {
     $actionsArray = $actionsString -join ', '
     $scriptBlockText = @"
 try {
-`$actions = @($actionsArray)
-foreach (`$action in `$actions) {
-    Invoke-Expression `$action
-}
-exit 0
+    Write-Host "Starting Windows environment configuration..." -ForegroundColor Cyan
+    `$actions = @($actionsArray)
+    foreach (`$action in `$actions) {
+        Write-Host "Executing: `$action" -ForegroundColor Yellow
+        Invoke-Expression `$action
+        if (`$?) {
+            Write-Host "Success" -ForegroundColor Green
+        } else {
+            Write-Host "Failed: `$action" -ForegroundColor Red
+            exit 1
+        }
+    }
+    Write-Host "Windows environment configured successfully!" -ForegroundColor Green
+    exit 0
 }
 catch {
+    Write-Host "Error: `$(`$_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 "@
