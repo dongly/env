@@ -1609,13 +1609,13 @@ def prompt_env_root(default_env_root, language='en'):
 
 def prompt_env_root_if_needed(config, args):
     """
-    Prompt for env-root if needed (interactive mode, directory doesn't exist, not explicitly specified)
+    Prompt for env-root if needed (interactive mode, not explicitly specified)
     
     Args:
         config: TouchEnvConfig instance
         args: Parsed command line arguments
     """
-    if not config.auto_mode and not os.path.exists(config.env_root):
+    if not config.auto_mode:
         # Check if --env-root was explicitly provided
         import sys
         has_explicit_env_root = False
@@ -1728,35 +1728,35 @@ def run_touch_env(args):
     config = None
 
     try:
-        # Initialize configuration
+        # Step 0: Initialize configuration
         config = TouchEnvConfig(args)
 
-        # Interactive mode: prompt for env-root if needed
+        # Step 1: Interactive mode: prompt for env-root if needed
         prompt_env_root_if_needed(config, args)
 
-        # Step 1: Check existing ENV and create backup
+        # Step 2: Check existing ENV and create backup
         check_existing_env(config)
 
-        # Step 2: Backup configuration file (from old installation if any)
+        # Step 3: Backup configuration file (from old installation if any)
         backup_config_file(config)
 
-        # Step 3: Setup repositories
+        # Step 4: Setup repositories
         setup_repositories(config)
 
-        # Step 4: Create virtual environment
+        # Step 5: Create virtual environment
         create_venv(config)
 
-        # Step 5: Prompt for pyocd installation
+        # Step 6: Prompt for pyocd installation
         if not config.install_pyocd:
             config.install_pyocd = prompt_pyocd(config)
 
-        # Step 6: Install packages
+        # Step 7: Install packages
         install_packages(config)
 
-        # Step 7: Restore configuration
+        # Step 8: Restore configuration
         restore_config(config)
 
-        # Step 8: Handle backup based on strategy
+        # Step 9: Handle backup based on strategy
         if config.backup_path and os.path.exists(config.backup_path):
             if config.strategy == 'preserve':
                 # Restore preserved items (.config and local_pkgs)
@@ -1768,7 +1768,7 @@ def run_touch_env(args):
                 # Copy config and hardlink local_pkgs, keep backup
                 restore_with_hardlink(config, config.backup_path)
 
-        # Step 9: Show next steps
+        # Step 10: Show next steps
         show_next_steps(config)
 
         return 0
