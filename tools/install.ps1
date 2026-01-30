@@ -1549,7 +1549,7 @@ function Request-Elevation {
     
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "powershell.exe"
-    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Normal -File `"$tempScript`""
+    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -NoExit -File `"$tempScript`""
     $psi.Verb = "RunAs"
     $psi.UseShellExecute = $true
     
@@ -1682,14 +1682,20 @@ try {
             Write-Host "Success" -ForegroundColor Green
         } else {
             Write-Host "Failed: `$action" -ForegroundColor Red
+            Write-Host "Press any key to exit..."
+            `$null = `$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
             exit 1
         }
     }
     Write-Host "Windows environment configured successfully!" -ForegroundColor Green
+    Write-Host "Press any key to exit..."
+    `$null = `$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit 0
 }
 catch {
     Write-Host "Error: `$(`$_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Press any key to exit..."
+    `$null = `$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit 1
 }
 "@
