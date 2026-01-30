@@ -1826,12 +1826,12 @@ function Init-WindowsEnv {
                             Write-Host $formatted -ForegroundColor Green
                         }
                     } else {
-                        Write-LogWarning "windows_env_set_failed"
+                        Write-LogError "windows_env_set_failed"
                         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
                         $allSuccess = $false
                     }
                 } else {
-                    Write-LogWarning "windows_env_set_failed"
+                    Write-LogError "windows_env_set_failed"
                     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
                     $allSuccess = $false
                 }
@@ -1841,6 +1841,9 @@ function Init-WindowsEnv {
         # Only show success message if all operations succeeded
         if ($allSuccess) {
             Write-LogSuccess "windows_env_initialized"
+        } else {
+            # Exit if configuration failed
+            exit 1
         }
         return
     } else {
