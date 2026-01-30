@@ -2087,11 +2087,17 @@ function Download-TouchEnv {
     )
 
     # Set touch_env.py download URL (priority: -t > --env > UseCN/Gitee > GitHub)
+    Write-Host "[DEBUG] TouchEnvUrlValue: $($ParsedArgs.TouchEnvUrlValue)" -ForegroundColor Yellow
+    Write-Host "[DEBUG] CustomEnv: $($ParsedArgs.CustomEnv)" -ForegroundColor Yellow
+    Write-Host "[DEBUG] UseCN: $($script:Config.UseCN)" -ForegroundColor Yellow
+    
     if ($ParsedArgs.TouchEnvUrlValue) {
         $TOUCH_ENV_URL = $ParsedArgs.TouchEnvUrlValue
+        Write-Host "[DEBUG] Using TouchEnvUrlValue: $TOUCH_ENV_URL" -ForegroundColor Yellow
     }
     elseif ($ParsedArgs.CustomEnv) {
         # Use custom env repo for touch_env.py download
+        Write-Host "[DEBUG] Using CustomEnv: $($ParsedArgs.CustomEnv)" -ForegroundColor Yellow
         # Parse URL and branch from string (format: url[#branch])
         if ($ParsedArgs.CustomEnv -match "#") {
             $parts = $ParsedArgs.CustomEnv -split "#", 2
@@ -2114,12 +2120,15 @@ function Download-TouchEnv {
             # Non-GitHub repository: use /raw/ format
             $TOUCH_ENV_URL = "$repo/raw/$branch/tools/touch_env.py"
         }
+        Write-Host "[DEBUG] Final URL: $TOUCH_ENV_URL" -ForegroundColor Yellow
     }
     elseif ($script:Config.UseCN) {
         $TOUCH_ENV_URL = $TOUCH_ENV_URL_GITEE
+        Write-Host "[DEBUG] Using Gitee mirror: $TOUCH_ENV_URL" -ForegroundColor Yellow
     }
     else {
         $TOUCH_ENV_URL = $TOUCH_ENV_URL_GITHUB
+        Write-Host "[DEBUG] Using GitHub: $TOUCH_ENV_URL" -ForegroundColor Yellow
     }
 
     # Download touch_env.py from network
