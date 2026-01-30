@@ -25,62 +25,62 @@
 # 2026-01-30     dongly         Refactored
 
 # RT-Thread ENV Installation Script (Windows)
-# RT-Thread ENV å®‰è£…è„šæœ¬ (Windows)
+# RT-Thread ENV °²×°½Å±¾ (Windows)
 # Unified installation script for Windows
-# Windows ç»Ÿä¸€å®‰è£…è„šæœ¬
-# Supports: English / ä¸­æ–‡
+# Windows Í³Ò»°²×°½Å±¾
+# Supports: English / ÖĞÎÄ
 #
 # This script handles the initial setup of RT-Thread ENV on Windows.
-# æ­¤è„šæœ¬å¤„ç† Windows ä¸Š RT-Thread ENV çš„åˆå§‹è®¾ç½®ã€‚
+# ´Ë½Å±¾´¦Àí Windows ÉÏ RT-Thread ENV µÄ³õÊ¼ÉèÖÃ¡£
 # It performs steps 1-3 of the installation process:
-# æ‰§è¡Œå®‰è£…è¿‡ç¨‹çš„æ­¥éª¤ 1-3ï¼š
-# 1. Check and install Python and Git - æ£€æŸ¥å¹¶å®‰è£… Python å’Œ Git
-# 2. Enable Windows long path support (requires admin) - å¯ç”¨ Windows é•¿è·¯å¾„æ”¯æŒï¼ˆéœ€è¦ç®¡ç†å‘˜æƒé™ï¼‰
-# 3. Download and execute touch_env.py for steps 4-9 - ä¸‹è½½å¹¶æ‰§è¡Œ touch_env.py å®Œæˆæ­¥éª¤ 4-9
+# Ö´ĞĞ°²×°¹ı³ÌµÄ²½Öè 1-3£º
+# 1. Check and install Python and Git - ¼ì²é²¢°²×° Python ºÍ Git
+# 2. Enable Windows long path support (requires admin) - ÆôÓÃ Windows ³¤Â·¾¶Ö§³Ö£¨ĞèÒª¹ÜÀíÔ±È¨ÏŞ£©
+# 3. Download and execute touch_env.py for steps 4-9 - ÏÂÔØ²¢Ö´ĞĞ touch_env.py Íê³É²½Öè 4-9
 #
 # Usage:
-# ç”¨æ³•:
+# ÓÃ·¨:
 #   .\install.ps1 [-y] [-c] [-o] [-d] [-p [path]] [-r <path>] [-e|-z] [-P <repo>[#<branch>]] [-E <repo>[#<branch>]] [-S <repo>[#<branch>]] [-b <strategy>] [-t <url>] [-h]
 #
 # Options:
-# é€‰é¡¹:
+# Ñ¡Ïî:
 #   -y, --yes, --auto    Auto-install without prompts
-#                        è‡ªåŠ¨å®‰è£…ï¼Œæ— æç¤º
+#                        ×Ô¶¯°²×°£¬ÎŞÌáÊ¾
 #   -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)
-#                        ä½¿ç”¨ä¸­å›½é•œåƒï¼ˆGitee, PyPI TUNAï¼‰
+#                        Ê¹ÓÃÖĞ¹ú¾µÏñ£¨Gitee, PyPI TUNA£©
 #   -o, --official       Force use official source
-#                        å¼ºåˆ¶ä½¿ç”¨å®˜æ–¹æº
+#                        Ç¿ÖÆÊ¹ÓÃ¹Ù·½Ô´
 #   -d, --pyocd          Install pyocd for debugging
-#                        å®‰è£… pyocdï¼ˆç”¨äºè°ƒè¯•ï¼‰
+#                        °²×° pyocd£¨ÓÃÓÚµ÷ÊÔ£©
 #   -r, --env-root <path> Set custom install directory
-#                        è®¾ç½®è‡ªå®šä¹‰å®‰è£…ç›®å½•
+#                        ÉèÖÃ×Ô¶¨Òå°²×°Ä¿Â¼
 #   -e, --en, --english  Force English messages
-#                        å¼ºåˆ¶æ˜¾ç¤ºè‹±æ–‡ä¿¡æ¯
+#                        Ç¿ÖÆÏÔÊ¾Ó¢ÎÄĞÅÏ¢
 #   -z, --zh, --chinese  Force Chinese messages
-#                        å¼ºåˆ¶æ˜¾ç¤ºä¸­æ–‡ä¿¡æ¯
+#                        Ç¿ÖÆÏÔÊ¾ÖĞÎÄĞÅÏ¢
 #   -p, --python [path]  Force install portable Python, install directory is path (default: D:\Tools\Python)
-#                        å®‰è£…ä¾¿æºå¼ Python, å®‰è£…ç›®å½•ä¸º pathï¼ˆé»˜è®¤ï¼šD:\Tools\Pythonï¼‰
+#                        °²×°±ãĞ¯Ê½ Python, °²×°Ä¿Â¼Îª path£¨Ä¬ÈÏ£ºD:\Tools\Python£©
 #   -P, --packages <repo>[#<branch>]  Specify custom packages repository and branch
-#                        æŒ‡å®š packages ä»“åº“åœ°å€å’Œåˆ†æ”¯
-#                        æ ¼å¼: url[#branch]
+#                        Ö¸¶¨ packages ²Ö¿âµØÖ·ºÍ·ÖÖ§
+#                        ¸ñÊ½: url[#branch]
 #   -E, --env <repo>[#<branch>]  Specify custom env repository and branch
-#                        æŒ‡å®š env ä»“åº“åœ°å€å’Œåˆ†æ”¯
-#                        æ ¼å¼: url[#branch]
+#                        Ö¸¶¨ env ²Ö¿âµØÖ·ºÍ·ÖÖ§
+#                        ¸ñÊ½: url[#branch]
 #   -S, --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
-#                        æŒ‡å®š sdk ä»“åº“åœ°å€å’Œåˆ†æ”¯
-#                        æ ¼å¼: url[#branch]
+#                        Ö¸¶¨ sdk ²Ö¿âµØÖ·ºÍ·ÖÖ§
+#                        ¸ñÊ½: url[#branch]
 #   -b, --backup <strategy>  Backup strategy when ENV exists:
-#                        å½“ ENV å·²å­˜åœ¨æ—¶çš„å¤‡ä»½ç­–ç•¥ï¼š
+#                        µ± ENV ÒÑ´æÔÚÊ±µÄ±¸·İ²ßÂÔ£º
 #                          preserve: Keep .config and local_pkgs, restore and delete backup
-#                                    ä¿ç•™ .config å’Œ local_pkgsï¼Œæ¢å¤ååˆ é™¤å¤‡ä»½
+#                                    ±£Áô .config ºÍ local_pkgs£¬»Ö¸´ºóÉ¾³ı±¸·İ
 #                          delete_all: Delete everything, no restore
-#                                    åˆ é™¤æ‰€æœ‰å†…å®¹ï¼Œä¸æ¢å¤
+#                                    É¾³ıËùÓĞÄÚÈİ£¬²»»Ö¸´
 #                          backup_all: Keep backup with hardlink restore
-#                                    ä¿ç•™å¤‡ä»½ï¼Œç”¨ç¡¬é“¾æ¥æ¢å¤æœ¬åœ°åŒ…
+#                                    ±£Áô±¸·İ£¬ÓÃÓ²Á´½Ó»Ö¸´±¾µØ°ü
 #   -t, --touch-env-url <url> Specify touch_env.py download URL
-#                        æŒ‡å®š touch_env.py ä¸‹è½½ URL
+#                        Ö¸¶¨ touch_env.py ÏÂÔØ URL
 #   -h, --help           Show this help message
-#                        æ˜¾ç¤ºæ­¤å¸®åŠ©ä¿¡æ¯
+#                        ÏÔÊ¾´Ë°ïÖúĞÅÏ¢
 #
 
 # ============================================================================
@@ -235,28 +235,28 @@ function Get-SystemLanguage {
 # Display help information and exit
 function Print-Help {
     if ($script:Config.LangCurrent -eq "zh") {
-        Write-Host "RT-Thread ENV å®‰è£…ç¨‹åº"
+        Write-Host "RT-Thread ENV °²×°³ÌĞò"
         Write-Host ""
-        Write-Host "ç”¨æ³•: .\install.ps1 [é€‰é¡¹]"
+        Write-Host "ÓÃ·¨: .\install.ps1 [Ñ¡Ïî]"
         Write-Host ""
-        Write-Host "é€‰é¡¹:"
-        Write-Host "  -y, --yes, --auto    è‡ªåŠ¨å®‰è£…ï¼Œæ— éœ€æç¤º"
-        Write-Host "  -c, --cn, --gitee    ä½¿ç”¨ä¸­å›½é•œåƒï¼ˆGiteeï¼Œæ¸…å PyPIï¼‰"
-        Write-Host "  -o, --official       å¼ºåˆ¶ä½¿ç”¨å®˜æ–¹æº"
-        Write-Host "  -d, --pyocd          å®‰è£… pyocdï¼ˆç”¨äºè°ƒè¯•ï¼‰"
-        Write-Host "  -p, --python [path]  å®‰è£…ä¾¿æºå¼ Python, å®‰è£…ç›®å½•ä¸º pathï¼ˆé»˜è®¤ï¼šD:\Tools\Pythonï¼‰"
-        Write-Host "  -r, --env-root [path] è®¾ç½®è‡ªå®šä¹‰å®‰è£…ç›®å½•"
-        Write-Host "  -e, --en, --english  å¼ºåˆ¶æ˜¾ç¤ºè‹±æ–‡ä¿¡æ¯"
-        Write-Host "  -z, --zh, --chinese  å¼ºåˆ¶æ˜¾ç¤ºä¸­æ–‡ä¿¡æ¯"
-        Write-Host "  -P, --packages [repo] æŒ‡å®š packages ä»“åº“åœ°å€å’Œåˆ†æ”¯"
-        Write-Host "                        æ ¼å¼: url[#branch]"
-        Write-Host "  -E, --env [repo]     æŒ‡å®š env ä»“åº“åœ°å€å’Œåˆ†æ”¯"
-        Write-Host "                        æ ¼å¼: url[#branch]"
-        Write-Host "  -S, --sdk [repo]     æŒ‡å®š sdk ä»“åº“åœ°å€å’Œåˆ†æ”¯"
-        Write-Host "                        æ ¼å¼: url[#branch]"
-        Write-Host "  -b, --backup [strategy] å¤‡ä»½ç­–ç•¥ (preserve/delete_all/backup_all)"
-        Write-Host "  -t, --touch-env-url [url] æŒ‡å®š touch_env.py ä¸‹è½½ URL"
-        Write-Host "  -h, --help           æ˜¾ç¤ºæ­¤å¸®åŠ©ä¿¡æ¯"
+        Write-Host "Ñ¡Ïî:"
+        Write-Host "  -y, --yes, --auto    ×Ô¶¯°²×°£¬ÎŞĞèÌáÊ¾"
+        Write-Host "  -c, --cn, --gitee    Ê¹ÓÃÖĞ¹ú¾µÏñ£¨Gitee£¬Çå»ª PyPI£©"
+        Write-Host "  -o, --official       Ç¿ÖÆÊ¹ÓÃ¹Ù·½Ô´"
+        Write-Host "  -d, --pyocd          °²×° pyocd£¨ÓÃÓÚµ÷ÊÔ£©"
+        Write-Host "  -p, --python [path]  °²×°±ãĞ¯Ê½ Python, °²×°Ä¿Â¼Îª path£¨Ä¬ÈÏ£ºD:\Tools\Python£©"
+        Write-Host "  -r, --env-root [path] ÉèÖÃ×Ô¶¨Òå°²×°Ä¿Â¼"
+        Write-Host "  -e, --en, --english  Ç¿ÖÆÏÔÊ¾Ó¢ÎÄĞÅÏ¢"
+        Write-Host "  -z, --zh, --chinese  Ç¿ÖÆÏÔÊ¾ÖĞÎÄĞÅÏ¢"
+        Write-Host "  -P, --packages [repo] Ö¸¶¨ packages ²Ö¿âµØÖ·ºÍ·ÖÖ§"
+        Write-Host "                        ¸ñÊ½: url[#branch]"
+        Write-Host "  -E, --env [repo]     Ö¸¶¨ env ²Ö¿âµØÖ·ºÍ·ÖÖ§"
+        Write-Host "                        ¸ñÊ½: url[#branch]"
+        Write-Host "  -S, --sdk [repo]     Ö¸¶¨ sdk ²Ö¿âµØÖ·ºÍ·ÖÖ§"
+        Write-Host "                        ¸ñÊ½: url[#branch]"
+        Write-Host "  -b, --backup [strategy] ±¸·İ²ßÂÔ (preserve/delete_all/backup_all)"
+        Write-Host "  -t, --touch-env-url [url] Ö¸¶¨ touch_env.py ÏÂÔØ URL"
+        Write-Host "  -h, --help           ÏÔÊ¾´Ë°ïÖúĞÅÏ¢"
         Write-Host ""
     }
     else {
@@ -398,79 +398,79 @@ $script:Messages = @{
         check_list_alt_url               = "  3. Try using -t parameter to specify a different URL"
     }
     zh = @{
-        banner_title                     = "RT-Thread ENV å®‰è£…ç¨‹åº"
-        info                             = "ä¿¡æ¯"
-        success                          = "æˆåŠŸ"
-        warning                          = "è­¦å‘Š"
-        error                            = "é”™è¯¯"
-        python_version_too_low           = "Python ç‰ˆæœ¬ {0} è¿‡ä½ï¼ˆéœ€è¦ >= 3.6ï¼‰ã€‚å°†å®‰è£…ä¾¿æºå¼ Python..."
-        installing_portable_python       = "æ­£åœ¨å®‰è£…ä¾¿æºå¼ Python {0}..."
-        downloading_portable_python      = "æ­£åœ¨ä¸‹è½½ä¾¿æºå¼ Pythonï¼Œè‡ª: {0}"
-        python_installed                 = "Python å·²å®‰è£…æˆåŠŸã€‚"
-        python_version_failed            = "ä» {0} è·å– Python ç‰ˆæœ¬å¤±è´¥"
-        python_not_found_or_invalid      = "æœªæ‰¾åˆ° Python æˆ– Python æ— æ•ˆã€‚è¯·å…ˆå®‰è£… Pythonã€‚"
-        python_setup_failed              = "Python è®¾ç½®å¤±è´¥ï¼Œé”™è¯¯ä»£ç : {0}"
-        python_ready                     = "Python å°±ç»ª: {0} (ç‰ˆæœ¬: {1})"
-        git_installed                    = "Git å·²å®‰è£…æˆåŠŸã€‚"
-        git_not_found_no_admin          = "æœªå®‰è£… Git ä¸”æ‚¨ä¸æ˜¯ç®¡ç†å‘˜ã€‚"
-        restart_required                 = "Git å·²å®‰è£…ã€‚è¯·é‡å¯ç»ˆç«¯æˆ–é‡æ–°è¿è¡Œè„šæœ¬ã€‚"
-        git_found                        = "æ‰¾åˆ° Git: {0}"
-        touch_env_failed                 = "touch_env.py æ‰§è¡Œå¤±è´¥ï¼Œé”™è¯¯ä»£ç : {0}"
-        touch_env_downloaded             = "touch_env.py ä¸‹è½½æˆåŠŸã€‚"
-        downloading_git                  = "æ­£åœ¨ä¸‹è½½ Git..."
-        installing_git                   = "æ­£åœ¨å®‰è£… Git..."
-        fetching_git_from_npmmirror      = "æ­£åœ¨ä» npmmirror è·å– Git ç‰ˆæœ¬..."
-        fetching_git_from_github         = "æ­£åœ¨ä» GitHub API è·å– Git ç‰ˆæœ¬..."
-        git_version_found                = "æ‰¾åˆ° Git ç‰ˆæœ¬: {0}"
-        npmmirror_fetch_failed           = "ä» npmmirror è·å– Git ç‰ˆæœ¬å¤±è´¥ï¼Œå°è¯• GitHub API..."
-        download_failed                  = "ä¸‹è½½å¤±è´¥: {0}"
-        github_api_failed                = "GitHub API è¯·æ±‚å¤±è´¥ï¼Œä½¿ç”¨å¤‡é€‰ç‰ˆæœ¬..."
-        using_fixed_git_version          = "ä½¿ç”¨å›ºå®š Git ç‰ˆæœ¬: {0}"
-        git_not_found                    = "æœªå®‰è£… Gitã€‚è¯·å…ˆå®‰è£… Gitã€‚"
-        admin_required_for_git_install  = "Git å®‰è£…éœ€è¦ç®¡ç†å‘˜æƒé™ã€‚è¯·ä»¥ç®¡ç†å‘˜èº«ä»½è¿è¡Œã€‚"
-        elevation_failed                 = "æå‡æƒé™å¤±è´¥ã€‚è¯·ä»¥ç®¡ç†å‘˜èº«ä»½è¿è¡Œã€‚"
-        execution_policy_too_low         = "æ‰§è¡Œç­–ç•¥è¿‡ä½ã€‚éœ€è¦è®¾ç½®ä¸º RemoteSigned æˆ–æ›´é«˜ã€‚"
-        admin_required_for_env_config    = "é…ç½® Windows ç¯å¢ƒéœ€è¦ç®¡ç†å‘˜æƒé™ã€‚è¯·ä»¥ç®¡ç†å‘˜èº«ä»½è¿è¡Œã€‚"
-        admin_run_instructions         = "è¯·ä»¥ç®¡ç†å‘˜èº«ä»½è¿è¡Œè„šæœ¬æ¥é…ç½® Windows ç¯å¢ƒï¼š"
-        admin_step_1                   = "  1. å³é”®ç‚¹å‡» PowerShell"
-        admin_step_2                   = "  2. é€‰æ‹© 'ä»¥ç®¡ç†å‘˜èº«ä»½è¿è¡Œ'"
-        admin_step_3                   = "  3. å†æ¬¡è¿è¡Œè„šæœ¬"
-        status_current_policy          = "å½“å‰ç”Ÿæ•ˆçš„æ‰§è¡Œç­–ç•¥: {0}ï¼ˆä½œç”¨åŸŸ: {1}ï¼‰"
-        status_current_longpath        = "å½“å‰é•¿è·¯å¾„æ”¯æŒ: {0}"
-        status_new_policy              = "æ–°çš„ç”Ÿæ•ˆæ‰§è¡Œç­–ç•¥: {0}ï¼ˆä½œç”¨åŸŸ: {1}ï¼‰"
-        status_new_longpath            = "æ–°çš„é•¿è·¯å¾„æ”¯æŒ: {0}"
-        status_enabled                 = "å·²å¯ç”¨"
-        status_disabled                = "å·²ç¦ç”¨"
-        verified_policy_set            = "å·²éªŒè¯: {0} ç°åœ¨æ˜¯ {1}"
-        verified_policy_set_exception  = "æˆåŠŸï¼ˆå°½ç®¡æœ‰å¼‚å¸¸å·²éªŒè¯: {0}ï¼‰"
-        warning_policy_not_set         = "è­¦å‘Š: {0} æ˜¯ {1}ï¼ˆæœŸæœ›ä¸º RemoteSignedï¼‰"
-        long_path_support_required       = "éœ€è¦å¯ç”¨é•¿è·¯å¾„æ”¯æŒã€‚è¯·ä»¥ç®¡ç†å‘˜èº«ä»½è¿è¡Œã€‚"
-        windows_env_adequate             = "Windows ç¯å¢ƒé…ç½®å·²æ»¡è¶³è¦æ±‚ã€‚"
-        windows_env_set_failed           = "Windows ç¯å¢ƒé…ç½®å¤±è´¥ã€‚"
-        windows_env_initialized          = "Windows ç¯å¢ƒå·²æˆåŠŸåˆå§‹åŒ–ã€‚"
-        install_portable_python          = "å®‰è£…ä¾¿æºå¼ Python - Python {0}"
-        initializing_windows_env         = "æ­£åœ¨åˆå§‹åŒ– Windows ç¯å¢ƒ..."
-        requesting_elevation             = "æ­£åœ¨è¯·æ±‚ç®¡ç†å‘˜æƒé™: {0}"
-        multiple_python_found            = "æ‰¾åˆ°å¤šä¸ª Python å®‰è£…ï¼š"
-        select_python                    = "æ‰¾åˆ° {0} ä¸ª Python å®‰è£…ã€‚é»˜è®¤é€‰é¡¹ä¸º {1}ï¼ˆæœ€æ–°ï¼‰ã€‚é€‰æ‹© [1-{0}]ï¼Œæˆ–è¾“å…¥ {2} å®‰è£…ä¾¿æºå¼ Python: "
-        auto_selected                    = "è‡ªåŠ¨é€‰æ‹© Python: {0}"
-        python_not_found                 = "æœªæ‰¾åˆ° Pythonã€‚è¯·å…ˆå®‰è£… Pythonã€‚"
-        python_path_prompt              = "è¯·è¾“å…¥ä¾¿æºå¼ Python å®‰è£…è·¯å¾„"
-        python_path_default             = "[é»˜è®¤: {0}]"
-        python_path_invalid             = "é”™è¯¯: è·¯å¾„ä¸èƒ½åŒ…å« {0}"
-        python_path_no_permission       = "é”™è¯¯: æ²¡æœ‰ç›®å½•çš„å†™å…¥æƒé™: {0}"
-        python_path_creating_dir        = "æ­£åœ¨åˆ›å»ºç›®å½•: {0}"
-        python_path_directory_exists    = "é”™è¯¯: ç›®å½•å·²å­˜åœ¨: {0}ã€‚è¯·æŒ‡å®šå…¶ä»–è·¯å¾„ã€‚"
-        downloading_touch_env            = "æ­£åœ¨ä¸‹è½½ touch_env.pyï¼Œè‡ª: {0}"
-        touch_env_download_failed        = "ä¸‹è½½ touch_env.py å¤±è´¥: {0}"
-        ssl_verification_failed          = "SSL éªŒè¯å¤±è´¥ï¼Œæ­£åœ¨é‡è¯•ï¼ˆä¸éªŒè¯è¯ä¹¦ï¼‰..."
-        mirror_selection                 = "ä½¿ç”¨é•œåƒ: {0}"
-        china_mirror                     = "ä¸­å›½ï¼ˆGitee, npmmirrorï¼‰"
-        official_mirror                  = "å®˜æ–¹ï¼ˆGitHub, PyPIï¼‰"
-        check_list                       = "è¯·æ£€æŸ¥:"
-        check_list_connection            = "  1. æ‚¨çš„ç½‘ç»œè¿æ¥"
-        check_list_url                   = "  2. URL æ˜¯å¦æ­£ç¡®: {0}"
-        check_list_alt_url               = "  3. å°è¯•ä½¿ç”¨ -t å‚æ•°æŒ‡å®šä¸åŒçš„ URL"
+        banner_title                     = "RT-Thread ENV °²×°³ÌĞò"
+        info                             = "ĞÅÏ¢"
+        success                          = "³É¹¦"
+        warning                          = "¾¯¸æ"
+        error                            = "´íÎó"
+        python_version_too_low           = "Python °æ±¾ {0} ¹ıµÍ£¨ĞèÒª >= 3.6£©¡£½«°²×°±ãĞ¯Ê½ Python..."
+        installing_portable_python       = "ÕıÔÚ°²×°±ãĞ¯Ê½ Python {0}..."
+        downloading_portable_python      = "ÕıÔÚÏÂÔØ±ãĞ¯Ê½ Python£¬×Ô: {0}"
+        python_installed                 = "Python ÒÑ°²×°³É¹¦¡£"
+        python_version_failed            = "´Ó {0} »ñÈ¡ Python °æ±¾Ê§°Ü"
+        python_not_found_or_invalid      = "Î´ÕÒµ½ Python »ò Python ÎŞĞ§¡£ÇëÏÈ°²×° Python¡£"
+        python_setup_failed              = "Python ÉèÖÃÊ§°Ü£¬´íÎó´úÂë: {0}"
+        python_ready                     = "Python ¾ÍĞ÷: {0} (°æ±¾: {1})"
+        git_installed                    = "Git ÒÑ°²×°³É¹¦¡£"
+        git_not_found_no_admin          = "Î´°²×° Git ÇÒÄú²»ÊÇ¹ÜÀíÔ±¡£"
+        restart_required                 = "Git ÒÑ°²×°¡£ÇëÖØÆôÖÕ¶Ë»òÖØĞÂÔËĞĞ½Å±¾¡£"
+        git_found                        = "ÕÒµ½ Git: {0}"
+        touch_env_failed                 = "touch_env.py Ö´ĞĞÊ§°Ü£¬´íÎó´úÂë: {0}"
+        touch_env_downloaded             = "touch_env.py ÏÂÔØ³É¹¦¡£"
+        downloading_git                  = "ÕıÔÚÏÂÔØ Git..."
+        installing_git                   = "ÕıÔÚ°²×° Git..."
+        fetching_git_from_npmmirror      = "ÕıÔÚ´Ó npmmirror »ñÈ¡ Git °æ±¾..."
+        fetching_git_from_github         = "ÕıÔÚ´Ó GitHub API »ñÈ¡ Git °æ±¾..."
+        git_version_found                = "ÕÒµ½ Git °æ±¾: {0}"
+        npmmirror_fetch_failed           = "´Ó npmmirror »ñÈ¡ Git °æ±¾Ê§°Ü£¬³¢ÊÔ GitHub API..."
+        download_failed                  = "ÏÂÔØÊ§°Ü: {0}"
+        github_api_failed                = "GitHub API ÇëÇóÊ§°Ü£¬Ê¹ÓÃ±¸Ñ¡°æ±¾..."
+        using_fixed_git_version          = "Ê¹ÓÃ¹Ì¶¨ Git °æ±¾: {0}"
+        git_not_found                    = "Î´°²×° Git¡£ÇëÏÈ°²×° Git¡£"
+        admin_required_for_git_install  = "Git °²×°ĞèÒª¹ÜÀíÔ±È¨ÏŞ¡£ÇëÒÔ¹ÜÀíÔ±Éí·İÔËĞĞ¡£"
+        elevation_failed                 = "ÌáÉıÈ¨ÏŞÊ§°Ü¡£ÇëÒÔ¹ÜÀíÔ±Éí·İÔËĞĞ¡£"
+        execution_policy_too_low         = "Ö´ĞĞ²ßÂÔ¹ıµÍ¡£ĞèÒªÉèÖÃÎª RemoteSigned »ò¸ü¸ß¡£"
+        admin_required_for_env_config    = "ÅäÖÃ Windows »·¾³ĞèÒª¹ÜÀíÔ±È¨ÏŞ¡£ÇëÒÔ¹ÜÀíÔ±Éí·İÔËĞĞ¡£"
+        admin_run_instructions         = "ÇëÒÔ¹ÜÀíÔ±Éí·İÔËĞĞ½Å±¾À´ÅäÖÃ Windows »·¾³£º"
+        admin_step_1                   = "  1. ÓÒ¼üµã»÷ PowerShell"
+        admin_step_2                   = "  2. Ñ¡Ôñ 'ÒÔ¹ÜÀíÔ±Éí·İÔËĞĞ'"
+        admin_step_3                   = "  3. ÔÙ´ÎÔËĞĞ½Å±¾"
+        status_current_policy          = "µ±Ç°ÉúĞ§µÄÖ´ĞĞ²ßÂÔ: {0}£¨×÷ÓÃÓò: {1}£©"
+        status_current_longpath        = "µ±Ç°³¤Â·¾¶Ö§³Ö: {0}"
+        status_new_policy              = "ĞÂµÄÉúĞ§Ö´ĞĞ²ßÂÔ: {0}£¨×÷ÓÃÓò: {1}£©"
+        status_new_longpath            = "ĞÂµÄ³¤Â·¾¶Ö§³Ö: {0}"
+        status_enabled                 = "ÒÑÆôÓÃ"
+        status_disabled                = "ÒÑ½ûÓÃ"
+        verified_policy_set            = "ÒÑÑéÖ¤: {0} ÏÖÔÚÊÇ {1}"
+        verified_policy_set_exception  = "³É¹¦£¨¾¡¹ÜÓĞÒì³£ÒÑÑéÖ¤: {0}£©"
+        warning_policy_not_set         = "¾¯¸æ: {0} ÊÇ {1}£¨ÆÚÍûÎª RemoteSigned£©"
+        long_path_support_required       = "ĞèÒªÆôÓÃ³¤Â·¾¶Ö§³Ö¡£ÇëÒÔ¹ÜÀíÔ±Éí·İÔËĞĞ¡£"
+        windows_env_adequate             = "Windows »·¾³ÅäÖÃÒÑÂú×ãÒªÇó¡£"
+        windows_env_set_failed           = "Windows »·¾³ÅäÖÃÊ§°Ü¡£"
+        windows_env_initialized          = "Windows »·¾³ÒÑ³É¹¦³õÊ¼»¯¡£"
+        install_portable_python          = "°²×°±ãĞ¯Ê½ Python - Python {0}"
+        initializing_windows_env         = "ÕıÔÚ³õÊ¼»¯ Windows »·¾³..."
+        requesting_elevation             = "ÕıÔÚÇëÇó¹ÜÀíÔ±È¨ÏŞ: {0}"
+        multiple_python_found            = "ÕÒµ½¶à¸ö Python °²×°£º"
+        select_python                    = "ÕÒµ½ {0} ¸ö Python °²×°¡£Ä¬ÈÏÑ¡ÏîÎª {1}£¨×îĞÂ£©¡£Ñ¡Ôñ [1-{0}]£¬»òÊäÈë {2} °²×°±ãĞ¯Ê½ Python: "
+        auto_selected                    = "×Ô¶¯Ñ¡Ôñ Python: {0}"
+        python_not_found                 = "Î´ÕÒµ½ Python¡£ÇëÏÈ°²×° Python¡£"
+        python_path_prompt              = "ÇëÊäÈë±ãĞ¯Ê½ Python °²×°Â·¾¶"
+        python_path_default             = "[Ä¬ÈÏ: {0}]"
+        python_path_invalid             = "´íÎó: Â·¾¶²»ÄÜ°üº¬ {0}"
+        python_path_no_permission       = "´íÎó: Ã»ÓĞÄ¿Â¼µÄĞ´ÈëÈ¨ÏŞ: {0}"
+        python_path_creating_dir        = "ÕıÔÚ´´½¨Ä¿Â¼: {0}"
+        python_path_directory_exists    = "´íÎó: Ä¿Â¼ÒÑ´æÔÚ: {0}¡£ÇëÖ¸¶¨ÆäËûÂ·¾¶¡£"
+        downloading_touch_env            = "ÕıÔÚÏÂÔØ touch_env.py£¬×Ô: {0}"
+        touch_env_download_failed        = "ÏÂÔØ touch_env.py Ê§°Ü: {0}"
+        ssl_verification_failed          = "SSL ÑéÖ¤Ê§°Ü£¬ÕıÔÚÖØÊÔ£¨²»ÑéÖ¤Ö¤Êé£©..."
+        mirror_selection                 = "Ê¹ÓÃ¾µÏñ: {0}"
+        china_mirror                     = "ÖĞ¹ú£¨Gitee, npmmirror£©"
+        official_mirror                  = "¹Ù·½£¨GitHub, PyPI£©"
+        check_list                       = "Çë¼ì²é:"
+        check_list_connection            = "  1. ÄúµÄÍøÂçÁ¬½Ó"
+        check_list_url                   = "  2. URL ÊÇ·ñÕıÈ·: {0}"
+        check_list_alt_url               = "  3. ³¢ÊÔÊ¹ÓÃ -t ²ÎÊıÖ¸¶¨²»Í¬µÄ URL"
     }
 }
 
@@ -1374,7 +1374,7 @@ function Show-Banner {
 function Ensure-Python {
     $result = $script:Config.PythonConfig
 
-    # æ­¥éª¤ 0: æ£€æŸ¥ä¾¿æº Python è·¯å¾„æ˜¯å¦ä¸ºç©º
+    # ²½Öè 0: ¼ì²é±ãĞ¯ Python Â·¾¶ÊÇ·ñÎª¿Õ
     if ($result.InstallPortablePython -and [string]::IsNullOrEmpty($result.PythonPath)) {
         if ($script:Config.AutoMode) {
             # Auto mode: use default path
@@ -1395,12 +1395,12 @@ function Ensure-Python {
         }
     }
 
-    # æ­¥éª¤ 1: æŸ¥æ‰¾é€‰æ‹©ç³»ç»Ÿ Python
+    # ²½Öè 1: ²éÕÒÑ¡ÔñÏµÍ³ Python
     if (-not $result.InstallPortablePython) {
         $result = Select-Python -PythonPaths (Find-SystemPython)
     }
 
-    # æ­¥éª¤ 2: éªŒè¯ç³»ç»Ÿ Python
+    # ²½Öè 2: ÑéÖ¤ÏµÍ³ Python
     if (-not $result.InstallPortablePython -and $result.PythonPath) {
         $result = Check-Python -PythonConfig $result
     }
@@ -1413,12 +1413,12 @@ function Ensure-Python {
         }
     }
 
-    # æ­¥éª¤ 3: å®‰è£…ä¾¿æºå¼ Pythonï¼ˆå¦‚æœéœ€è¦ï¼‰
+    # ²½Öè 3: °²×°±ãĞ¯Ê½ Python£¨Èç¹ûĞèÒª£©
     if ($result.InstallPortablePython) {
         $result = Install-PortablePython -UseCNMirror $script:Config.UseCN
     }
 
-    # æ­¥éª¤ 4: æ£€æŸ¥ç»“æœ
+    # ²½Öè 4: ¼ì²é½á¹û
     if ($result.Result -ne 0) {
         Write-LogError "python_setup_failed" $result.Result
         exit $result.Result
@@ -1471,7 +1471,7 @@ function Build-TouchEnvArgs {
 
     # Build arguments list
     $pythonArgs = @($TouchEnvFilePath)
-    # æ¡ä»¶ä¼ é€’ --env-root
+    # Ìõ¼ş´«µİ --env-root
     if ($script:Config.EnvRoot) {
         $pythonArgs += "--env-root", $script:Config.EnvRoot
     }
@@ -1527,8 +1527,8 @@ function Invoke-TouchEnv {
         # Build arguments list
         $pythonArgs = Build-TouchEnvArgs -TouchEnvFilePath $touchEnvFile
 
-        # æ˜¾ç¤º"$env:TEMP\touch_env_output.txt" çš„å†…å®¹
-        Write-Host "è¿è¡Œå‚æ•°:  $pythonArgs" -ForegroundColor Green
+        # ÏÔÊ¾"$env:TEMP\touch_env_output.txt" µÄÄÚÈİ
+        Write-Host "ÔËĞĞ²ÎÊı:  $pythonArgs" -ForegroundColor Green
 
         # Run touch_env.py in the same window with full interactivity
         & $script:Config.PythonConfig.PythonPath $pythonArgs
