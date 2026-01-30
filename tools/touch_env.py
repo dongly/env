@@ -269,7 +269,7 @@ MESSAGES = {
         'pyocd_install_confirm': 'Install pyocd? [y/N]: ',
         'installing_pyocd': 'Will install pyocd',
         'skipping_pyocd': 'Skipping pyocd installation',
-        'install_pyocd_method': '5. After activation, install pyocd later: `pip install pyocd`',
+        'install_pyocd_method': '5. To install pyocd, run after activation: `pip install pyocd`',
         'fixed_guiconfig': 'Fixed guiconfig.py (added missing import)',
         'setup_complete': 'RT-Thread ENV installation completed!',
         'next_steps': 'Next steps:',
