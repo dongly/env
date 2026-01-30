@@ -357,6 +357,10 @@ $script:Messages = @{
         elevation_failed                 = "Failed to elevate privileges. Please run as administrator."
         execution_policy_too_low         = "Execution policy is too low. Need to set to RemoteSigned or higher."
         admin_required_for_env_config    = "Administrator privileges required to configure Windows environment. Please run as administrator."
+        admin_run_instructions         = "Please run the script as administrator to configure Windows environment:"
+        admin_step_1                   = "  1. Right-click PowerShell"
+        admin_step_2                   = "  2. Select 'Run as administrator'"
+        admin_step_3                   = "  3. Run the script again"
         long_path_support_required       = "Long path support is required. Please run as administrator."
         windows_env_adequate             = "Windows environment configuration is adequate."
         windows_env_set_failed           = "Failed to configure Windows environment."
@@ -419,6 +423,10 @@ $script:Messages = @{
         elevation_failed                 = "提升权限失败。请以管理员身份运行。"
         execution_policy_too_low         = "执行策略过低。需要设置为 RemoteSigned 或更高。"
         admin_required_for_env_config    = "配置 Windows 环境需要管理员权限。请以管理员身份运行。"
+        admin_run_instructions         = "请以管理员身份运行脚本来配置 Windows 环境："
+        admin_step_1                   = "  1. 右键点击 PowerShell"
+        admin_step_2                   = "  2. 选择 '以管理员身份运行'"
+        admin_step_3                   = "  3. 再次运行脚本"
         long_path_support_required       = "需要启用长路径支持。请以管理员身份运行。"
         windows_env_adequate             = "Windows 环境配置已满足要求。"
         windows_env_set_failed           = "Windows 环境配置失败。"
@@ -1728,10 +1736,10 @@ function Init-WindowsEnv {
         # Not admin, show error and exit
         Write-LogError "admin_required_for_env_config"
         Write-Host ""
-        Write-Host "Please run the script as administrator to configure Windows environment:" -ForegroundColor Yellow
-        Write-Host "  1. Right-click PowerShell" -ForegroundColor White
-        Write-Host "  2. Select 'Run as administrator'" -ForegroundColor White
-        Write-Host "  3. Run the script again" -ForegroundColor White
+        Write-LogRaw "admin_run_instructions" -Color Yellow
+        Write-LogRaw "admin_step_1" -Color White
+        Write-LogRaw "admin_step_2" -Color White
+        Write-LogRaw "admin_step_3" -Color White
         exit 1
     }
 }
