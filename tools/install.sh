@@ -460,41 +460,38 @@ check_git() {
 
 detect_china() {
     # Check if user is in China (by IP or system locale)
-    CONFIG_USE_CN="false"
+    # Only set CONFIG_USE_CN, don't override CONFIG_LANG (which may be set by --en/--zh)
+    if [ "$CONFIG_USE_CN_SET" = "true" ]; then
+        return  # User explicitly set mirror, skip detection
+    fi
 
     # Check IP-based detection (works on all systems)
     if command -v curl &> /dev/null 2>&1; then
         local ip_info=$(curl -s -m 5 --connect-timeout 3 "$IPINFO_URL" 2>&1)
         if [[ "$ip_info" == *"\"country\":\"CN\""* ]]; then
             CONFIG_USE_CN="true"
-            CONFIG_LANG="zh"
+            return
         fi
     fi
 
     # Fallback: check system timezone
-    if [ "$CONFIG_USE_CN" = "false" ]; then
-        local timezone=$(date +%Z 2>/dev/null || timedatectl show -p Timezone --value 2>/dev/null || echo "")
-        if [[ "$timezone" == *"CST"* ]] || [[ "$timezone" == *"Shanghai"* ]] || [[ "$timezone" == *"Beijing"* ]] || [[ "$timezone" == *"Asia/Shanghai"* ]]; then
-            CONFIG_USE_CN="true"
-            CONFIG_LANG="zh"
-        fi
+    local timezone=$(date +%Z 2>/dev/null || timedatectl show -p Timezone --value 2>/dev/null || echo "")
+    if [[ "$timezone" == *"CST"* ]] || [[ "$timezone" == *"Shanghai"* ]] || [[ "$timezone" == *"Beijing"* ]] || [[ "$timezone" == *"Asia/Shanghai"* ]]; then
+        CONFIG_USE_CN="true"
+        return
     fi
 
-    # Fallback: check system locale
-    if [ "$CONFIG_USE_CN" = "false" ]; then
-        case "${LC_ALL}:${LANG}" in
-            *zh*|*CN*)
-                CONFIG_LANG="zh"
-                ;;
-            *)
-                CONFIG_LANG="en"
-                ;;
-        esac
-    fi
+    # Fallback: check system locale - only set CONFIG_USE_CN
+    case "${LC_ALL}:${LANG}" in
+        *zh*|*CN*)
+            CONFIG_USE_CN="true"
+            ;;
+    esac
 }
 
 parse_args() {
     CONFIG_LANG="en"
+    CONFIG_LANG_SET="false"
     CONFIG_USE_CN="false"
     CONFIG_USE_CN_SET="false"
     CONFIG_OFFICIAL_MODE="false"
@@ -522,10 +519,12 @@ parse_args() {
             -e|--en|--english)
                 CONFIG_EN_MODE="true"
                 CONFIG_LANG="en"
+                CONFIG_LANG_SET="true"
                 ;;
             -z|--zh|--chinese)
                 CONFIG_ZH_MODE="true"
                 CONFIG_LANG="zh"
+                CONFIG_LANG_SET="true"
                 ;;
             -r|--env-root)
                 shift
@@ -586,11 +585,13 @@ parse_args() {
         CONFIG_USE_CN="false"
     fi
 
-    # Log mirror selection result
-    if [ "$CONFIG_USE_CN" = "true" ]; then
-        log_info "using_cn_mirror"
-    else
-        log_info "using_official_source"
+    # Set language based on CONFIG_USE_CN if not explicitly set
+    if [ "$CONFIG_LANG_SET" = "false" ]; then
+        if [ "$CONFIG_USE_CN" = "true" ]; then
+            CONFIG_LANG="zh"
+        else
+            CONFIG_LANG="en"
+        fi
     fi
 }
 
@@ -744,6 +745,13 @@ main() {
 
     # Print installation banner
     print_banner
+
+    # Log mirror selection result
+    if [ "$CONFIG_USE_CN" = "true" ]; then
+        log_info "using_cn_mirror"
+    else
+        log_info "using_official_source"
+    fi
 
     # Check dependencies (git, python), install if missing
     if ! check_git || ! check_python; then
