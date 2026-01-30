@@ -362,7 +362,7 @@ MESSAGES = {
         'pyocd_install_confirm': '安装 pyocd？[y/N]: ',
         'installing_pyocd': '将要安装 pyocd',
         'skipping_pyocd': '跳过 pyocd 安装',
-        'install_pyocd_method': '5. 激活后，如需安装 pyocd，运行: `pip install pyocd`',
+        'install_pyocd_method': '5. 如需安装 pyocd，激活后运行: `pip install pyocd`',
         'fixed_guiconfig': '已修复 guiconfig.py（添加缺失的导入）',
         'setup_complete': 'RT-Thread ENV 安装完成！',
         'next_steps': '后续步骤:',
