@@ -1,6 +1,6 @@
-# chcp 65001 > $null
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+﻿# chcp 65001 > $null
+# [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+# [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 
 # File      : install.ps1
 # This file is part of RT-Thread RTOS
