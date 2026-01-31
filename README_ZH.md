@@ -74,8 +74,9 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass Process; irm https://gitee.com/RT-Th
 
 **重要提示：**
 
-1. ✅ 安装脚本会自动处理权限提升和执行策略设置，可以作为普通用户运行 PowerShell。
-2. 🦠 杀毒软件可能会阻止安装，如有需要请暂时禁用。
+1. ✅ 安装脚本需要管理员权限进行脚本执行策略及长路径支持设置
+2. 非管理员权限运行时，如需上述设置会提示并退出
+3. 🦠 杀毒软件可能会阻止安装，如有需要请暂时禁用
 
 ### 激活 RT-Thread ENV
 
