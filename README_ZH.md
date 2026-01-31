@@ -16,21 +16,15 @@
 
 ## 目录
 
-- [Windows](#windows-使用指南)
-  - [安装](#安装-env-1)
-  - [激活环境](#激活-env-1)
-- [Linux/macOS](#linuxmacos-使用指南)
-  - [教程](#教程)
-  - [安装](#安装-env)
-  - [激活环境](#激活-env)
-  - [使用](#使用-env)
-
-- [参数说明](#参数说明)
+- [Windows 安装指南](#windows-安装指南)
+  - [安装 Env](#安装-env)
+  - [激活环境](#激活-rt-thread-env)
+- [Linux/macOS 安装指南](#linuxmacos-安装指南)
+  - [安装 Env](#安装-env-1)
+  - [激活环境](#激活-rt-thread-env-1)
+- [安装脚本参数说明](#安装脚本参数说明)
+- [使用 Env 指南](#使用-env-指南)
 - [故障排除](#故障排除)
-  - [备份策略说明](#备份策略说明)
-  - [镜像连接问题](#镜像连接问题)
-  - [权限问题（Linux/macOS）](#权限问题linuxmacos)
-  - [权限问题（Windows）](#权限问题windows)
 - [相关文档](#相关文档)
 - [许可证](#许可证)
 - [相关链接](#相关链接)
@@ -89,7 +83,7 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass Process; irm https://gitee.com/RT-Th
 
 **方案 A：每次手动激活**
 
-每 次启动新的 PowerShell 会话时运行以下命令：
+每次启动新的 PowerShell 会话时运行以下命令：
 
 ```powershell
 ~/.rt-env/env.ps1
@@ -115,10 +109,6 @@ PowerShell 配置文件位于：
 ---
 ## Linux/macOS 安装指南
 
-### 教程
-
-[如何在 Ubuntu 中安装 Env 工具并配合 QEMU 模拟器使用](https://github.com/RT-Thread/rt-thread/blob/master/documentation/quick-start/quick_start_qemu/quick_start_qemu_linux.md)
-
 **统一安装脚本（Linux 和 macOS）**
 
 ```bash
@@ -138,22 +128,24 @@ wget -O- https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.sh | ba
 
 有关所有可用参数的完整说明，请参见 [安装脚本参数说明](#安装脚本参数说明) 部分。
 
+### 教程
 
+[如何在 Ubuntu 中安装 Env 工具并配合 QEMU 模拟器使用](https://github.com/RT-Thread/rt-thread/blob/master/documentation/quick-start/quick_start_qemu/quick_start_qemu_linux.md)
 
 
 ### 激活 RT-Thread ENV
 
 安装完成后，在使用 RT-Thread 工具之前需要激活环境变量。
 
-- **方案 A：每次手动激活**
+**方案 A：每次手动激活**
 
-每 次 打开新终端时运行以下命令：
+每次打开新终端时运行以下命令：
 
 ```bash
 source ~/.rt-env/env.sh
 ```
 
-- **方案 B：登录时自动激活（推荐）**
+**方案 B：登录时自动激活（推荐）**
 
 将激活命令添加到 shell 配置文件，使其自动运行：
 
@@ -184,16 +176,16 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 | `-P`, `--packages <repo>[#<branch>]` | 指定 packages 仓库地址和分支，格式: url[#branch] |
 | `-E`, `--env <repo>[#<branch>]` | 指定 env 仓库地址和分支，格式: url[#branch] |
 | `-S`, `--sdk <repo>[#<branch>]` | 指定 sdk 仓库地址和分支，格式: url[#branch] |
-| `-b`, `--backup <strategy>` | 备份策略: preserve(保留配置和工具链,删除其他), delete_all(删除所有内容), backup_all(完整备份) |
+| `-b`, `--backup <strategy>` | 备份策略：preserve（保留配置和工具链）、delete_all（删除所有内容）、backup_all（完整备份） |
 | `-t`, `--touch-env-url <url>` | 指定 touch_env.py 下载 URL |
 | `-h`, `--help` | 显示帮助信息 |
-| `-p`, `--python [path]` | 安装便携式 Python，安装目录为 path（仅 Windows PowerShell，默认：D:\Tools\Python） |
+| `-p`, `--python [path]` | 安装便携式 Python，安装目录为 path（仅 Windows，默认：D:\Tools\Python） |
 
 **备份策略说明：**
 
-- **preserve** (默认): 保留配置文件(.config)和工具链(local_pkgs)，删除其他内容后重新安装
-- **delete_all**: 完全删除现有ENV目录，不保留任何内容
-- **backup_all**: 创建完整备份，保留所有内容，包括配置和工具链
+- **preserve** (默认)：保留配置文件（.config）和工具链（local_pkgs），删除其他内容后重新安装
+- **delete_all**：完全删除现有 ENV 目录，不保留任何内容
+- **backup_all**：创建完整备份，保留所有内容，包括配置和工具链
 
 **使用示例：**
 
@@ -233,22 +225,12 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 ./install.sh -S "https://github.com/RT-Thread/sdk.git#master"
 ```
 
-**一行命令（推荐）：**
-
-**Windows：**
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy Bypass Process; irm https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.ps1 | Out-File -Encoding utf8 .\install.ps1; .\install.ps1 -E 'https://github.com/RT-Thread/env.git#master'
-```
-
-**Linux/macOS：**
-```bash
-wget -O- https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.sh | bash
-```
-
-## 使用 Env
+## 使用 Env 指南
 
 详细使用说明请参考：
-<https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md#bsp-configuration-menuconfig>
+
+- [Env 工具使用指南](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md)
+- [Env 用户手册](https://www.rt-thread.org/document/site/#/development-tools/env/env)
 
 ---
 ## 故障排除
@@ -285,15 +267,15 @@ sudo chown -R $USER:$USER ~/.rt-env
 
 ## 相关文档
 
-- [Env 工具使用指南](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md)
-- [QEMU 快速入门](https://github.com/RT-Thread/rt-thread/blob/master/documentation/quick-start/quick_start_qemu/quick_start_qemu_linux.md)
-- [BSP 配置](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md#bsp-configuration-menuconfig)
+- [Env 工具完整文档](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md)
+- [QEMU 快速入门教程](https://github.com/RT-Thread/rt-thread/blob/master/documentation/quick-start/quick_start_qemu/quick_start_qemu_linux.md)
+- [BSP 配置指南](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md#bsp-configuration-menuconfig)
 
 ---
 
 ## 许可证
 
-GPL-2.0 license
+本项目采用 GPL-2.0 许可证开源。
 
 ---
 
