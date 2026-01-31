@@ -1,4 +1,8 @@
-﻿# File      : install.ps1
+# chcp 65001 > $null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+
+# File      : install.ps1
 # This file is part of RT-Thread RTOS
 # COPYRIGHT (C) 2006 - 2026, RT-Thread Development Team
 #
@@ -187,7 +191,6 @@ function Parse-Arguments {
 }
 
 # Register-CleanupHandler function
-# Register-CleanupHandler function
 # Register cleanup handler for temporary files
 # This ensures temporary files are cleaned up even if the script exits unexpectedly
 function Register-CleanupHandler {
@@ -206,10 +209,6 @@ function Register-CleanupHandler {
 
     Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action $cleanupAction | Out-Null
 }
-
-# Register cleanup handler immediately when script loads
-# This ensures cleanup happens regardless of where/when the script exits
-# (before Main(), during parameter validation, or after installation)
 
 # Add-TempFile function
 # Track temporary file for cleanup
@@ -355,7 +354,21 @@ $script:Messages = @{
         git_not_found                    = "Git is not installed. Please install Git first."
         admin_required_for_git_install  = "Git installation requires administrator privileges. Please run as administrator."
         elevation_failed                 = "Failed to elevate privileges. Please run as administrator."
-        execution_policy_too_low         = "Execution policy is too low. Please run as administrator."
+        execution_policy_too_low         = "Execution policy is too low. Need to set to RemoteSigned or higher."
+        admin_required_for_env_config    = "Administrator privileges required to configure Windows environment. Please run as administrator."
+        admin_run_instructions         = "Please run the script as administrator to configure Windows environment:"
+        admin_step_1                   = "  1. Right-click PowerShell"
+        admin_step_2                   = "  2. Select 'Run as administrator'"
+        admin_step_3                   = "  3. Run the script again"
+        status_current_policy          = "Current effective execution policy: {0} (scope: {1})"
+        status_current_longpath        = "Current long path support: {0}"
+        status_new_policy              = "New effective execution policy: {0} (scope: {1})"
+        status_new_longpath            = "New long path support: {0}"
+        status_enabled                 = "Enabled"
+        status_disabled                = "Disabled"
+        verified_policy_set            = "Verified: {0} is now {1}"
+        verified_policy_set_exception  = "Success (verified despite exception: {0})"
+        warning_policy_not_set         = "Warning: {0} is {1} (expected RemoteSigned)"
         long_path_support_required       = "Long path support is required. Please run as administrator."
         windows_env_adequate             = "Windows environment configuration is adequate."
         windows_env_set_failed           = "Failed to configure Windows environment."
@@ -416,7 +429,21 @@ $script:Messages = @{
         git_not_found                    = "未安装 Git。请先安装 Git。"
         admin_required_for_git_install  = "Git 安装需要管理员权限。请以管理员身份运行。"
         elevation_failed                 = "提升权限失败。请以管理员身份运行。"
-        execution_policy_too_low         = "执行策略过低。请以管理员身份运行。"
+        execution_policy_too_low         = "执行策略过低。需要设置为 RemoteSigned 或更高。"
+        admin_required_for_env_config    = "配置 Windows 环境需要管理员权限。请以管理员身份运行。"
+        admin_run_instructions         = "请以管理员身份运行脚本来配置 Windows 环境："
+        admin_step_1                   = "  1. 右键点击 PowerShell"
+        admin_step_2                   = "  2. 选择 '以管理员身份运行'"
+        admin_step_3                   = "  3. 再次运行脚本"
+        status_current_policy          = "当前生效的执行策略: {0}（作用域: {1}）"
+        status_current_longpath        = "当前长路径支持: {0}"
+        status_new_policy              = "新的生效执行策略: {0}（作用域: {1}）"
+        status_new_longpath            = "新的长路径支持: {0}"
+        status_enabled                 = "已启用"
+        status_disabled                = "已禁用"
+        verified_policy_set            = "已验证: {0} 现在是 {1}"
+        verified_policy_set_exception  = "成功（尽管有异常已验证: {0}）"
+        warning_policy_not_set         = "警告: {0} 是 {1}（期望为 RemoteSigned）"
         long_path_support_required       = "需要启用长路径支持。请以管理员身份运行。"
         windows_env_adequate             = "Windows 环境配置已满足要求。"
         windows_env_set_failed           = "Windows 环境配置失败。"
@@ -708,6 +735,10 @@ function Install-Git {
         }
 
         Write-LogSuccess "git_installed"
+    }
+    catch {
+        Write-LogError "download_failed" $_.Exception.Message
+        throw
     }
     finally {
         # Cleanup installer
@@ -1549,7 +1580,7 @@ function Request-Elevation {
     
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "powershell.exe"
-    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$tempScript`""
+    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -NoExit -File `"$tempScript`""
     $psi.Verb = "RunAs"
     $psi.UseShellExecute = $true
     
@@ -1565,19 +1596,100 @@ function Request-Elevation {
     }
 }
 
+# Get-EffectiveExecutionPolicy: Get the effective execution policy (excluding Process scope)
+# Returns a hashtable with Policy and EffectiveScope
+function Get-EffectiveExecutionPolicy {
+    $policyLevels = @{
+        "Undefined"     = 0
+        "Restricted"    = 1
+        "AllSigned"     = 2
+        "RemoteSigned"  = 3
+        "Unrestricted"  = 4
+        "Bypass"        = 5
+    }
 
-
-# Init-WindowsEnv: Initialize Windows environment settings
-function Init-WindowsEnv {
-    Write-LogInfo "initializing_windows_env"
-    
-    # Check execution policy
     try {
-        $currentPolicy = Get-ExecutionPolicy -Scope LocalMachine -ErrorAction SilentlyContinue
+        # Get all execution policies
+        $policies = Get-ExecutionPolicy -List -ErrorAction SilentlyContinue
+
+        # If policies is empty or null, Get-ExecutionPolicy failed
+        if (-not $policies -or $policies.Count -eq 0) {
+            # Fallback: try to get each scope individually
+            $fallbackPolicies = @()
+            foreach ($scope in @("MachinePolicy", "UserPolicy", "Process", "CurrentUser", "LocalMachine")) {
+                try {
+                    $policy = Get-ExecutionPolicy -Scope $scope -ErrorAction SilentlyContinue
+                    $fallbackPolicies += [PSCustomObject]@{
+                        Scope = $scope
+                        ExecutionPolicy = $policy
+                    }
+                } catch {
+                    $fallbackPolicies += [PSCustomObject]@{
+                        Scope = $scope
+                        ExecutionPolicy = "Undefined"
+                    }
+                }
+            }
+            $policies = $fallbackPolicies
+        }
+
+        # Priority order: MachinePolicy > UserPolicy > Process > CurrentUser > LocalMachine
+        # We exclude Process scope as it's temporary
+        $scopePriority = @("MachinePolicy", "UserPolicy", "CurrentUser", "LocalMachine")
+
+        foreach ($scope in $scopePriority) {
+            $policy = $policies | Where-Object { $_.Scope -eq $scope }
+            if ($policy -and $policy.ExecutionPolicy -ne "Undefined") {
+                return @{
+                    Policy = $policy.ExecutionPolicy
+                    EffectiveScope = $scope
+                }
+            }
+        }
+
+        # If all are Undefined, return Restricted (default)
+        return @{
+            Policy = "Restricted"
+            EffectiveScope = "LocalMachine (default)"
+        }
     }
     catch {
-        $currentPolicy = "Restricted"
+        # If Get-ExecutionPolicy fails, assume Restricted
+        return @{
+            Policy = "Restricted"
+            EffectiveScope = "Unknown"
+        }
     }
+}
+
+# Show-CurrentExecutionPolicyStatus: Display current execution policy status
+function Show-CurrentExecutionPolicyStatus {
+    param(
+        [hashtable]$PolicyInfo
+    )
+    
+    $currentPolicy = $PolicyInfo.Policy
+    $currentScope = $PolicyInfo.EffectiveScope
+    
+    if ($currentScope) {
+        $statusMsg = Get-Message "status_current_policy"
+        $formatted = $statusMsg -f $currentPolicy, $currentScope
+        Write-Host $formatted -ForegroundColor Cyan
+    } else {
+        $statusMsg = Get-Message "status_current_policy"
+        $formatted = $statusMsg -f $currentPolicy, "N/A"
+        Write-Host $formatted -ForegroundColor Cyan
+    }
+}
+
+# Check-ExecutionPolicy: Check if execution policy needs to be changed
+function Check-ExecutionPolicy {
+    param(
+        [hashtable]$PolicyInfo
+    )
+    
+    $currentPolicy = $PolicyInfo.Policy
+    $currentScope = $PolicyInfo.EffectiveScope
     
     $policyLevels = @{
         "Undefined"     = 0
@@ -1592,81 +1704,288 @@ function Init-WindowsEnv {
     $targetLevel = $policyLevels["RemoteSigned"]
     $needPolicy = ($null -eq $currentLevel -or $currentLevel -lt $targetLevel)
     
-    # Check long path support
+    # Determine which scope to set based on effective scope
+    $scopeToSet = ""
+    if ($needPolicy) {
+        # Extract scope name from "Scope (description)" format if needed
+        if ($currentScope -match "^(.*?)\s*\(") {
+            $scopeName = $Matches[1].Trim()
+        } else {
+            $scopeName = $currentScope
+        }
+        $scopeToSet = if ($scopeName -and $scopeName -ne "Process" -and $scopeName -ne "Unknown" -and $scopeName -ne "N/A") { $scopeName } else { "LocalMachine" }
+        $script:Config.ScopeToSet = $scopeToSet
+    }
+    
+    return @{
+        NeedPolicy = $needPolicy
+        ScopeToSet = $scopeToSet
+    }
+}
+
+# Check-LongPathSupport: Check if long path support needs to be enabled
+function Check-LongPathSupport {
+    $needLongPath = $false
+    $longPathStatus = "Unknown"
+    
     try {
         $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
         $longPathEnabled = (Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).LongPathsEnabled
         $needLongPath = ($longPathEnabled -ne 1)
+        $longPathStatusKey = if ($longPathEnabled -eq 1) { "status_enabled" } else { "status_disabled" }
+        $longPathStatus = Get-Message $longPathStatusKey
+        Write-LogRaw "status_current_longpath" -Color Cyan -Arg1 $longPathStatus
     }
     catch {
         $needLongPath = $true
+        Write-Host "Current long path support: Unknown (assuming Disabled)" -ForegroundColor Yellow
     }
     
+    return @{
+        NeedLongPath = $needLongPath
+        CurrentStatus = $longPathStatus
+    }
+}
+
+# Show-ConfigurationNeeds: Display what needs to be changed
+function Show-ConfigurationNeeds {
+    param(
+        [bool]$NeedPolicy,
+        [bool]$NeedLongPath
+    )
+    
+    if ($NeedPolicy) {
+        Write-LogWarning "execution_policy_too_low"
+    }
+    if ($NeedLongPath) {
+        Write-LogWarning "long_path_support_required"
+    }
+}
+
+# Execute-SetExecutionPolicy: Execute Set-ExecutionPolicy command
+function Execute-SetExecutionPolicy {
+    param(
+        [string]$Scope
+    )
+    
+    $action = "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope $Scope -Force"
+    Write-Host "Executing: $action" -ForegroundColor Yellow
+    
+    $output = Invoke-Expression $action 2>&1
+    $actualSuccess = $true
+    
+    # Get current Process scope policy to check if it's the effective one
+    $processPolicy = try {
+        Get-ExecutionPolicy -Scope Process -ErrorAction SilentlyContinue
+    } catch {
+        "Undefined"
+    }
+    
+    # Check if the output contains the "overridden by a policy" warning
+    if ($output -match "overridden by a policy" -and $processPolicy -eq "Bypass") {
+        # Only ignore if Process scope is currently effective (Bypass)
+        Write-Host "Success (policy overridden by Process scope: $processPolicy)" -ForegroundColor Green
+    } elseif ($LASTEXITCODE -ne 0) {
+        $actualSuccess = $false
+        Write-LogWarning "windows_env_set_failed"
+        Write-Host "Error: $output" -ForegroundColor Red
+    } else {
+        Write-Host "Success" -ForegroundColor Green
+    }
+    
+    return $actualSuccess
+}
+
+# Verify-ExecutionPolicy: Verify execution policy was set correctly
+function Verify-ExecutionPolicy {
+    param(
+        [string]$Scope
+    )
+    
+    $actualPolicy = try {
+        Get-ExecutionPolicy -Scope $Scope -ErrorAction SilentlyContinue
+    } catch {
+        $null
+    }
+    
+    if ($actualPolicy -eq "RemoteSigned") {
+        Write-LogRaw "verified_policy_set" -Color Green -Arg1 $Scope -Arg2 $actualPolicy
+        return $true
+    } else {
+        Write-LogWarning "windows_env_set_failed"
+        Write-LogRaw "warning_policy_not_set" -Color Yellow -Arg1 $Scope -Arg2 $actualPolicy
+        return $false
+    }
+}
+
+# Show-NewPolicyStatus: Display new effective policy status
+function Show-NewPolicyStatus {
+    $newPolicyInfo = Get-EffectiveExecutionPolicy
+    $newEffectivePolicy = $newPolicyInfo.Policy
+    $newEffectiveScope = $newPolicyInfo.EffectiveScope
+    
+    if ($newEffectiveScope) {
+        $statusMsg = Get-Message "status_new_policy"
+        $formatted = $statusMsg -f $newEffectivePolicy, $newEffectiveScope
+        Write-Host $formatted -ForegroundColor Green
+    } else {
+        $statusMsg = Get-Message "status_new_policy"
+        $formatted = $statusMsg -f $newEffectivePolicy, "N/A"
+        Write-Host $formatted -ForegroundColor Green
+    }
+}
+
+# Execute-EnableLongPath: Execute command to enable long path support
+function Execute-EnableLongPath {
+    $action = 'Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force'
+    Write-Host "Executing: $action" -ForegroundColor Yellow
+    
+    $output = Invoke-Expression $action 2>&1
+    $actualSuccess = $true
+    
+    if ($LASTEXITCODE -ne 0) {
+        $actualSuccess = $false
+        Write-LogWarning "windows_env_set_failed"
+        Write-Host "Error: $output" -ForegroundColor Red
+    } else {
+        Write-Host "Success" -ForegroundColor Green
+    }
+    
+    return $actualSuccess
+}
+
+# Verify-LongPathSupport: Verify long path support was enabled
+function Verify-LongPathSupport {
+    $newLongPathEnabled = try {
+        (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -ErrorAction SilentlyContinue).LongPathsEnabled
+    } catch {
+        0
+    }
+    
+    $newLongPathStatusKey = if ($newLongPathEnabled -eq 1) { "status_enabled" } else { "status_disabled" }
+    $newLongPathStatus = Get-Message $newLongPathStatusKey
+    Write-LogRaw "status_new_longpath" -Color Green -Arg1 $newLongPathStatus
+    
+    return ($newLongPathEnabled -eq 1)
+}
+
+# Configure-WindowsEnvironment: Apply Windows environment configuration changes
+function Configure-WindowsEnvironment {
+    param(
+        [bool]$NeedPolicy,
+        [bool]$NeedLongPath
+    )
+    
+    $actions = @()
+    $allSuccess = $true
+    
+    if ($NeedPolicy) {
+        $scope = $script:Config.ScopeToSet
+        $actions += @{
+            command = "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope $scope -Force"
+            type = "policy"
+        }
+    }
+    
+    if ($NeedLongPath) {
+        $actions += @{
+            command = 'Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force'
+            type = "longpath"
+        }
+    }
+    
+    foreach ($actionItem in $actions) {
+        $action = $actionItem.command
+        $actionType = $actionItem.type
+        
+        try {
+            if ($actionType -eq "policy") {
+                $success = Execute-SetExecutionPolicy -Scope $script:Config.ScopeToSet
+                if ($success) {
+                    Verify-ExecutionPolicy -Scope $script:Config.ScopeToSet
+                    Show-NewPolicyStatus
+                } else {
+                    $allSuccess = $false
+                }
+            } elseif ($actionType -eq "longpath") {
+                $success = Execute-EnableLongPath
+                if ($success) {
+                    Verify-LongPathSupport
+                } else {
+                    $allSuccess = $false
+                }
+            }
+        }
+        catch {
+            # Even if exception occurs, check if the policy was actually set
+            if ($action -match "Set-ExecutionPolicy") {
+                $scope = $script:Config.ScopeToSet
+                $actualPolicy = try {
+                    Get-ExecutionPolicy -Scope $scope -ErrorAction SilentlyContinue
+                } catch {
+                    $null
+                }
+                if ($actualPolicy -eq "RemoteSigned") {
+                    $exceptionMsg = $_.Exception.Message
+                    Write-LogRaw "verified_policy_set_exception" -Color Green -Arg1 $exceptionMsg
+                    Write-LogRaw "verified_policy_set" -Color Green -Arg1 $scope -Arg2 $actualPolicy
+                    Show-NewPolicyStatus
+                } else {
+                    Write-LogError "windows_env_set_failed"
+                    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+                    $allSuccess = $false
+                }
+            } else {
+                Write-LogError "windows_env_set_failed"
+                Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+                $allSuccess = $false
+            }
+        }
+    }
+    
+    return $allSuccess
+}
+
+# Init-WindowsEnv: Initialize Windows environment settings
+function Init-WindowsEnv {
+    Write-LogInfo "initializing_windows_env"
+
+    # Check execution policy
+    $currentPolicyInfo = Get-EffectiveExecutionPolicy
+    Show-CurrentExecutionPolicyStatus -PolicyInfo $currentPolicyInfo
+    
+    $policyCheck = Check-ExecutionPolicy -PolicyInfo $currentPolicyInfo
+    
+    # Check long path support
+    $longPathCheck = Check-LongPathSupport
+    
     # If everything is OK, return
-    if (-not $needPolicy -and -not $needLongPath) {
+    if (-not $policyCheck.NeedPolicy -and -not $longPathCheck.NeedLongPath) {
         Write-LogSuccess "windows_env_adequate"
         return
     }
     
-    # Auto mode: check if admin
-    if ($script:Config.AutoMode) {
-        if (-not $script:Config.IsAdmin) {
-            if ($needPolicy) {
-                Write-LogError "execution_policy_too_low"
-            }
-            if ($needLongPath) {
-                Write-LogError "long_path_support_required"
-            }
+    # Show what needs to be changed
+    Show-ConfigurationNeeds -NeedPolicy $policyCheck.NeedPolicy -NeedLongPath $longPathCheck.NeedLongPath
+    
+    # Check if running as administrator
+    if ($script:Config.IsAdmin) {
+        $success = Configure-WindowsEnvironment -NeedPolicy $policyCheck.NeedPolicy -NeedLongPath $longPathCheck.NeedLongPath
+        
+        if ($success) {
+            Write-LogSuccess "windows_env_initialized"
+        } else {
             exit 1
         }
-    }
-    
-    # Build script block for elevation
-    $actions = @()
-    if ($needPolicy) {
-        $actions += 'Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force'
-    }
-    if ($needLongPath) {
-        $actions += 'Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force'
-    }
-    
-    # If admin, execute directly
-    if ($script:Config.IsAdmin) {
-        foreach ($action in $actions) {
-            try {
-                Invoke-Expression $action
-            }
-            catch {
-                Write-LogWarning "windows_env_set_failed"
-            }
-        }
-        Write-LogSuccess "windows_env_initialized"
         return
-    }
-    
-    # Interactive mode: request elevation
-    $actionsString = $actions | ForEach-Object { "'$_'" }
-    $actionsArray = $actionsString -join ', '
-    $scriptBlockText = @"
-try {
-`$actions = @($actionsArray)
-foreach (`$action in `$actions) {
-    Invoke-Expression `$action
-}
-exit 0
-}
-catch {
-    exit 1
-}
-"@
-    
-    $success = Request-Elevation -TaskDescription "Configure Windows environment" -ScriptBlock $scriptBlockText
-    
-    if ($success) {
-        Write-LogSuccess "windows_env_initialized"
-    }
-    else {
-        Write-LogError "windows_env_set_failed"
+    } else {
+        # Not admin, show error and exit
+        Write-LogError "admin_required_for_env_config"
+        Write-Host ""
+        Write-LogRaw "admin_run_instructions" -Color Yellow
+        Write-LogRaw "admin_step_1" -Color White
+        Write-LogRaw "admin_step_2" -Color White
+        Write-LogRaw "admin_step_3" -Color White
         exit 1
     }
 }
@@ -1682,9 +2001,6 @@ function Init-Config {
     # Set strict mode and error handling
     Set-StrictMode -Version Latest
     $ErrorActionPreference = "Stop"
-
-    # Register cleanup handler
-    Register-CleanupHandler
 
     # Initialize global config
     $script:Config = [PSCustomObject]@{
@@ -1702,7 +2018,11 @@ function Init-Config {
         PythonConfig   = New-PythonConfig
         EnvRoot        = ""
         TempFiles      = @()
+        ScopeToSet     = ""
     }
+
+    # Register cleanup handler (must be after Config initialization)
+    Register-CleanupHandler
 
     # Set config from parsed arguments
     $script:Config.LangCurrent = if ($ParsedArgs.ZhMode) { "zh" } elseif ($ParsedArgs.EnMode) { "en" } else { Get-SystemLanguage }
@@ -1774,16 +2094,16 @@ function Download-TouchEnv {
     if ($ParsedArgs.TouchEnvUrlValue) {
         $TOUCH_ENV_URL = $ParsedArgs.TouchEnvUrlValue
     }
-    elseif ($script:Config.CustomEnv) {
+    elseif ($ParsedArgs.CustomEnv) {
         # Use custom env repo for touch_env.py download
         # Parse URL and branch from string (format: url[#branch])
-        if ($script:Config.CustomEnv -match "#") {
-            $parts = $script:Config.CustomEnv -split "#", 2
+        if ($ParsedArgs.CustomEnv -match "#") {
+            $parts = $ParsedArgs.CustomEnv -split "#", 2
             $repo = $parts[0]
             $branch = $parts[1]
         }
         else {
-            $repo = $script:Config.CustomEnv
+            $repo = $ParsedArgs.CustomEnv
             $branch = "master"
         }
 
