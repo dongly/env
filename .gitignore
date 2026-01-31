@@ -109,3 +109,7 @@ sdk_list.json
 sdk_cfg.json
 .config
 .config.old
+
+# backup files
+*~
+*.bak

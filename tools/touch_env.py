@@ -1504,19 +1504,11 @@ def prompt_pyocd(config):
     if config.auto_mode:
         return False
 
-    # Only prompt on Windows and macOS
-    if platform.system() not in ['Windows', 'Darwin']:
-        return False
-
     print()
     log_raw('pyocd_install_prompt')
     response = input(get_message('pyocd_install_confirm'))
 
     install_pyocd = response.lower() == 'y'
-    if install_pyocd:
-        log_info('installing_pyocd')
-    else:
-        log_info('skipping_pyocd')
 
     return install_pyocd
 
@@ -1809,6 +1801,11 @@ def run_touch_env(args):
         # Step 6: Prompt for pyocd installation
         if not config.install_pyocd:
             config.install_pyocd = prompt_pyocd(config)
+
+        if config.install_pyocd:
+            log_info('installing_pyocd')
+        else:
+            log_info('skipping_pyocd')
 
         # Step 7: Install packages
         install_packages(config)
