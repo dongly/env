@@ -116,13 +116,13 @@ After adding the activation command, the environment will be loaded automaticall
 **Unified Installation Script (Linux and macOS)**
 
 ```bash
-wget -O- https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.sh | bash
+bash -c "$(wget https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.sh -O -)"
 ```
 
 For users in China (optional):
 
 ```bash
-wget -O- https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.sh | bash --cn
+bash -c "$(wget https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.sh -O -)" -- --cn
 ```
 
 **Notes:**
@@ -219,6 +219,9 @@ The following are the parameter descriptions common to all installation scripts:
 
 # Use China mirror + automatic installation
 ./install.sh -c -y
+
+# Specify custom ENV repository (branch dev)
+bash -c "$(wget https://raw.githubusercontent.com/RT-Thread/env/dev/tools/install.sh -O -)" -- --env https://github.com/RT-Thread/env.git#dev
 
 # Specify custom packages repository
 ./install.sh -P "https://gitee.com/RT-Thread/packages.git#master"
