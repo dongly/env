@@ -101,10 +101,14 @@ notepad $PROFILE
 ~/.rt-env/env.ps1
 ```
 
-PowerShell 配置文件位于：
-`C:\Users\<用户名>\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1`
+**配置文件路径说明：**
 
-如果 `WindowsPowerShell` 文件夹不存在，可能需要先创建它。添加激活命令后，每次重启 PowerShell 时会自动加载环境，无需再执行方案 A。
+| PowerShell 版本 | 配置文件路径 |
+|----------------|-------------|
+| Windows PowerShell (v5.1) | `C:\Users\<用户名>\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1` |
+| PowerShell 7+ | `C:\Users\<用户名>\Documents\PowerShell\Microsoft.PowerShell_profile.ps1` |
+
+添加激活命令后，每次重启 PowerShell 时会自动加载环境，无需再执行方案 A。
 
 ---
 ## Linux/macOS 安装指南
@@ -167,7 +171,7 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 
 | 参数 | 描述 |
 |------|------|
-| `-y`, `--yes`, `--auto` | 自动安装，无提示 |
+| `-y`, `--yes`, `--auto` | 自动安装，无交互 |
 | `-c`, `--cn`, `--gitee` | 使用中国镜像源（Gitee、PyPI TUNA） |
 | `-o`, `--official` | 强制使用官方源 |
 | `-d`, `--pyocd` | 安装 pyocd（用于调试） |
