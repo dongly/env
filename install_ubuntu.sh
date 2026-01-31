@@ -11,8 +11,8 @@
 #   ./install_ubuntu.sh --gitee     # Auto-install (Gitee)
 #
 # Deprecated: Please use tools/install.sh directly
-#   curl https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.sh | bash -s -- -y
-#   curl https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.sh | bash -s -- -y --cn
+#   bash -c "$(wget https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.sh -O -)"
+#   bash -c "$(wget https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.sh -O -)" -- --cn
 #
 # This script maintains backward compatibility with old versions while
 # delegating to the new unified install.sh script
@@ -99,10 +99,10 @@ echo "此脚本已废弃，推荐直接使用 tools/install.sh"
 echo "This script is deprecated, please use tools/install.sh directly"
 echo ""
 echo "使用 GitHub / Using GitHub:"
-echo "  curl $URL_GITHUB | bash -s -- -y"
+echo "  bash -c \"\$(wget $URL_GITHUB -O -)\""
 echo ""
 echo "使用中国镜像 / Using China Mirror:"
-echo "  curl $URL_GITEE | bash -s -- -y --cn"
+echo "  bash -c \"\$(wget $URL_GITEE -O -)\" -- --cn"
 echo ""
 echo "============================================================"
 echo ""
@@ -137,7 +137,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --help, -h          Show this help"
             echo ""
             echo "This script downloads and executes the new install.sh with"
-            echo "backward compatibility settings for old .env path and GitHub Actions."
+            echo "backward compatibility settings for old .env path."
             exit 0
             ;;
         *)
