@@ -41,17 +41,44 @@
 
 ### 安装 Env
 
-**前提条件：** 无特殊要求，安装脚本会自动处理权限提升和执行策略设置。
+**前提条件：**
+- 第一次安装需要使用管理员权限（用于设置 .ps1 脚本的执行策略及启用长路径支持）
+- 之后的更新可以使用普通用户权限
 
 **支持的 PowerShell 版本：**
 - Windows PowerShell (PowerShell v5.1 及以上版本)
 - PowerShell Core / PowerShell 7+ (跨平台版本)
 
-在 PowerShell 中执行：
+**重要兼容性说明：**
+
+> ⚠️ **Windows PowerShell 与 PowerShell 编码兼容性**
+>
+> - **Windows PowerShell**：在中文 Windows 系统上，默认编码是 GB2312。从网络下载的 .ps1 脚本通常是 UTF-8 编码，但 Windows PowerShell 不支持不带 BOM 的 UTF-8 文件，只能读取 UTF-8 with BOM 编码的文件。
+>
+> - **PowerShell Core / PowerShell 7+**：原生支持 UTF-8，无编码问题。
+>
+> 为确保兼容性，安装脚本已配置为 UTF-8 with BOM 编码，并推荐使用以下安装命令：
+
+**Windows PowerShell 与 PowerShell 兼容的安装命令：**
+
+```powershell
+# 设置当前进程的执行策略为 Bypass
+Set-ExecutionPolicy -ExecutionPolicy Bypass Process
+
+# 下载安装脚本并保存为 UTF-8 with BOM 编码
+irm https://raw.githubusercontent.com/dongly/env/i3/tools/install.ps1 | Out-File -Encoding utf8 .\install.ps1
+
+# 执行安装脚本
+.\install.ps1 -E 'https://github.com/dongly/env.git#i3'
+```
+
+或者使用内存运行方式（推荐）：
 
 ```powershell
 # 一行命令下载并运行安装脚本（使用内存运行）
-$script = Invoke-WebRequest -Uri https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.ps1 -UseBasicParsing; Invoke-Expression $script.Content
+Set-ExecutionPolicy -ExecutionPolicy Bypass Process
+$script = Invoke-WebRequest -Uri https://raw.githubusercontent.com/dongly/env/i3/tools/install.ps1 -UseBasicParsing
+Invoke-Expression $script.Content
 ```
 
 中国大陆用户（可选，安装脚本会自动检测并使用镜像）：
