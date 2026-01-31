@@ -113,8 +113,8 @@ USE_CN_SET="false"
 OTHER_ARGS=""
 INSTALL_URL=""
 
-for arg in "$@"; do
-    case "$arg" in
+while [[ $# -gt 0 ]]; do
+    case "$1" in
         -c|--cn|--gitee)
             USE_CN="true"
             USE_CN_SET="true"
@@ -141,9 +141,10 @@ for arg in "$@"; do
             exit 0
             ;;
         *)
-            OTHER_ARGS="$OTHER_ARGS $arg"
+            OTHER_ARGS="$OTHER_ARGS $1"
             ;;
     esac
+    shift
 done
 
 # Auto-detect China if not explicitly set
