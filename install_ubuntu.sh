@@ -123,7 +123,11 @@ for arg in "$@"; do
             USE_CN="false"
             USE_CN_SET="true"
             ;;
-        --help|-h)
+        -i|--install)
+            INSTALL_URL="$2"
+            shift
+            ;;
+        -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
@@ -148,7 +152,7 @@ if [[ "$USE_CN_SET" == "false" ]]; then
 fi
 
 # Determine URL
-if [[ "$INSTALL_URL" != "" ]]; then
+if [[ "$INSTALL_URL" == "" ]]; then
     if [[ "$USE_CN" == "true" ]]; then
         INSTALL_URL="$URL_GITEE"
     else
