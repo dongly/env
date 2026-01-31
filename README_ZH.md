@@ -117,13 +117,13 @@ notepad $PROFILE
 **统一安装脚本（Linux 和 macOS）**
 
 ```bash
-wget -O- https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.sh | bash
+ bash -c "$(wget https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.ps1 -O -)"
 ```
 
 中国大陆用户（可选）：
 
 ```bash
-wget -O- https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.sh | bash --cn
+ bash -c "$(wget https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.sh -O -)" -- --cn
 ```
 
 **注意：**
@@ -220,6 +220,9 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 
 # 使用中国镜像 + 自动安装
 ./install.sh -c -y
+
+# 指定自定义 ENV 仓库(分支 dev)
+ bash -c "$(wget https://raw.githubusercontent.com/RT-Thread/env/dev/tools/install.ps1 -O -)" -- --env https://github.com/RT-Thread/env.git#dev
 
 # 指定自定义 packages 仓库
 ./install.sh -P "https://gitee.com/RT-Thread/packages.git#master"
