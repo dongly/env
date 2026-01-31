@@ -35,6 +35,42 @@ IPINFO_URL="https://ipinfo.io/json"
 ENV_DEFAULT_DIR=".env"
 : "${ENV_ROOT:=$HOME/$ENV_DEFAULT_DIR}"
 
+# Function to detect if user is in China
+detect_china() {
+    # Check if user is in China (by IP or system locale)
+    # Return "true" if in China, "false" otherwise
+    if [ "$USE_CN_SET" = "true" ]; then
+        echo "$USE_CN"  # Return the explicitly set value
+        return
+    fi
+
+    # Check IP-based detection (works on all systems)
+    if command -v curl &> /dev/null 2>&1; then
+        local ip_info=$(curl -s -m 5 --connect-timeout 3 "$IPINFO_URL" 2>&1)
+        if [[ "$ip_info" == *"\"country\":\"CN\""* ]]; then
+            echo "true"
+            return
+        fi
+    fi
+
+    # Fallback: check system timezone
+    local timezone=$(date +%Z 2>/dev/null || timedatectl show -p Timezone --value 2>/dev/null || echo "")
+    if [[ "$timezone" == *"CST"* ]] || [[ "$timezone" == *"Shanghai"* ]] || [[ "$timezone" == *"Beijing"* ]] || [[ "$timezone" == *"Asia/Shanghai"* ]]; then
+        echo "true"
+        return
+    fi
+
+    # Fallback: check system locale
+    case "${LC_ALL}:${LANG}" in
+        *zh*|*CN*)
+            echo "true"
+            ;;
+        *)
+            echo "false"
+            ;;
+    esac
+}
+
 # ============================================================================
 # Activate Virtual Environment (for backward compatibility)
 # ============================================================================
@@ -75,14 +111,15 @@ echo ""
 USE_CN=""
 USE_CN_SET="false"
 OTHER_ARGS=""
+INSTALL_URL=""
 
 for arg in "$@"; do
     case "$arg" in
-        --cn|--gitee)
+        -c|--cn|--gitee)
             USE_CN="true"
             USE_CN_SET="true"
             ;;
-        --no-mirror)
+        -o|--official)
             USE_CN="false"
             USE_CN_SET="true"
             ;;
@@ -91,7 +128,8 @@ for arg in "$@"; do
             echo ""
             echo "Options:"
             echo "  --cn, --gitee       Use China mirror (Gitee)"
-            echo "  --no-mirror         Force use official GitHub source"
+            echo "  -o, --official      Force use official GitHub source"
+            echo "  -i, --install url  Specify custom install.sh URL"
             echo "  --help, -h          Show this help"
             echo ""
             echo "This script downloads and executes the new install.sh with"
@@ -110,10 +148,12 @@ if [[ "$USE_CN_SET" == "false" ]]; then
 fi
 
 # Determine URL
-if [[ "$USE_CN" == "true" ]]; then
-    INSTALL_URL="$URL_GITEE"
-else
-    INSTALL_URL="$URL_GITHUB"
+if [[ "$INSTALL_URL" != "" ]]; then
+    if [[ "$USE_CN" == "true" ]]; then
+        INSTALL_URL="$URL_GITEE"
+    else
+        INSTALL_URL="$URL_GITHUB"
+    fi
 fi
 
 echo "检测到位置: $([ "$USE_CN" == "true" ] && echo "中国大陆" || echo "其他地区")"
@@ -121,7 +161,7 @@ echo "下载地址: $INSTALL_URL"
 echo ""
 
 # Download and execute install.sh directly (without writing to disk)
-wget -qO- "$INSTALL_URL" | bash -s -- -y --env-root "$ENV_ROOT" $OTHER_ARGS
+bash -c "$(wget $INSTALL_URL -qO -)" -- -y --env-root "$ENV_ROOT" $OTHER_ARGS
 
 # Activate virtual environment after installation
 if [ -d "$ENV_ROOT" ]; then
