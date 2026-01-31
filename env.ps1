@@ -4,7 +4,7 @@
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 
 # Can be overridden by $env:ENV_ROOT environment variable,default to script directory
-$env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else {Split-Path -Parent $PSScriptRoot }
+$env:ENV_ROOT = if ($env:ENV_ROOT) { $env:ENV_ROOT } else {$PSScriptRoot }
 
 # Virtual environment directory name
 $env:RT_VENV_DIR = if ($env:RT_VENV_DIR) { $env:RT_VENV_DIR } else { "$env:ENV_ROOT\venv\rt-env" }
