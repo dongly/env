@@ -128,11 +128,6 @@ wget -O- https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.sh | ba
 
 有关所有可用参数的完整说明，请参见 [安装脚本参数说明](#安装脚本参数说明) 部分。
 
-### 教程
-
-[如何在 Ubuntu 中安装 Env 工具并配合 QEMU 模拟器使用](https://github.com/RT-Thread/rt-thread/blob/master/documentation/quick-start/quick_start_qemu/quick_start_qemu_linux.md)
-
-
 ### 激活 RT-Thread ENV
 
 安装完成后，在使用 RT-Thread 工具之前需要激活环境变量。
@@ -158,6 +153,12 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 ```
 
 添加后，每次登录系统时会自动激活环境，无需再手动执行该命令。
+
+### 教程
+
+**Env 工具教程：**
+
+- [在 Ubuntu 中安装 Env 并配合 QEMU 模拟器使用](https://github.com/RT-Thread/rt-thread/blob/master/documentation/quick-start/quick_start_qemu/quick_start_qemu_linux.md)
 
 ---
 ## 安装脚本参数说明
@@ -191,34 +192,34 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 
 **Windows (PowerShell)：**
 ```powershell
-# 基本安装（自动检测镜像）
+# 基本安装
 .\install.ps1
 
-# 使用中国镜像并自动安装（无提示）
+# 使用中国镜像 + 自动安装
 .\install.ps1 -c -y
 
-# 安装便携式 Python 并指定自定义路径
+# 安装便携式 Python
 .\install.ps1 -p "D:\Tools\Python" -r "D:\RT-Env"
 
 # 指定自定义 env 仓库分支
 .\install.ps1 -E "https://github.com/RT-Thread/env.git#master"
 
-# 安装 pyocd 调试工具并强制使用官方源
+# 安装 pyocd + 官方源
 .\install.ps1 -d -o
 ```
 
 **Linux/macOS (bash)：**
 ```bash
-# 基本安装（自动检测镜像）
+# 基本安装
 ./install.sh
 
-# 使用中国镜像并自动安装（无提示）
+# 使用中国镜像 + 自动安装
 ./install.sh -c -y
 
 # 指定自定义 packages 仓库
 ./install.sh -P "https://gitee.com/RT-Thread/packages.git#master"
 
-# 使用备份策略（保留配置）
+# 使用备份策略
 ./install.sh -b preserve
 
 # 指定自定义 sdk 仓库
@@ -230,7 +231,7 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 详细使用说明请参考：
 
 - [Env 工具使用指南](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md)
-- [Env 用户手册](https://www.rt-thread.org/document/site/#/development-tools/env/env)
+- [Env 官方用户手册](https://www.rt-thread.org/document/site/#/development-tools/env/env)
 
 ---
 ## 故障排除
@@ -261,15 +262,15 @@ sudo chown -R $USER:$USER ~/.rt-env
 如果遇到权限错误：
 
 1. 检查杀毒软件是否阻止安装
-2. Windows 安装脚本会自动检测是否需要管理员权限，如果需要，会提示用户以管理员身份运行安装程序
+2. 脚本会自动检测是否需要管理员权限，如需要会提示用户以管理员身份运行
 
 ---
 
 ## 相关文档
 
 - [Env 工具完整文档](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md)
-- [QEMU 快速入门教程](https://github.com/RT-Thread/rt-thread/blob/master/documentation/quick-start/quick_start_qemu/quick_start_qemu_linux.md)
-- [BSP 配置指南](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md#bsp-configuration-menuconfig)
+- [QEMU 快速入门](https://github.com/RT-Thread/rt-thread/blob/master/documentation/quick-start/quick_start_qemu/quick_start_qemu_linux.md)
+- [BSP 配置说明](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md#bsp-configuration-menuconfig)
 
 ---
 
