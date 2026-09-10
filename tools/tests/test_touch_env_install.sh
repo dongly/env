@@ -6,8 +6,13 @@
 # touches the real ~/.rt-env. PIP_NO_DEPS=1 keeps the venv bootstrap local
 # (the editable env package install still resolves its own metadata).
 #
+# Set RT_ENV_TEST_FULL=1 to run a TRULY real install instead: install all
+# third-party dependencies and pyocd (network required), then actually run
+# the installed rt-env (version, info, help) from the fresh venv.
+#
 # Usage: bash tools/tests/test_touch_env_install.sh
-# Needs: bash, git, python (with venv + pip).
+#        RT_ENV_TEST_FULL=1 bash tools/tests/test_touch_env_install.sh
+# Needs: bash, git, python (with venv + pip); network only in FULL mode.
 
 set -u
 
@@ -85,8 +90,13 @@ git --git-dir="$SDK_BARE" symbolic-ref HEAD refs/heads/master
 section '2. run the real installer (auto, keep-sdk yes, local sources)'
 # ---------------------------------------------------------------------------
 ENV_ROOT="$WORK/env-root"
-# Keep the venv bootstrap local: skip third-party deps (env metadata still resolves)
-export PIP_NO_DEPS=1
+FULL="${RT_ENV_TEST_FULL:-0}"
+if [ "$FULL" = "1" ]; then
+    printf '  (FULL mode: installing all dependencies and pyocd - needs network)\n'
+else
+    # Keep the venv bootstrap local: skip third-party deps (env metadata still resolves)
+    export PIP_NO_DEPS=1
+fi
 OUTPUT="$("$PY" "$TOUCH_ENV" \
     --env-root "$ENV_ROOT" \
     --auto-mode \
@@ -160,6 +170,46 @@ if [ -f "$VENV_PY" ]; then
     fi
 else
     fail 'venv python present'
+fi
+
+# ---------------------------------------------------------------------------
+section '4b. installed tool actually runs (FULL mode only)'
+# ---------------------------------------------------------------------------
+if [ "$FULL" != "1" ]; then
+    printf '  (skipped: set RT_ENV_TEST_FULL=1 for real deps + runtime checks)\n'
+else
+    # pyocd is installed unconditionally by install_packages()
+    if [ -f "$VENV_DIR/Scripts/pyocd.exe" ] || [ -f "$VENV_DIR/bin/pyocd" ]; then
+        pass 'pyocd installed'
+    else
+        fail 'pyocd installed'
+    fi
+
+    if [ -f "$RT_ENV_EXE" ]; then
+        RV="$("$RT_ENV_EXE" -v 2>&1 || true)"
+        if printf '%s' "$RV" | grep -q 'RT-Thread Env Tool'; then
+            pass "rt-env -v runs ($(printf '%s' "$RV" | head -n 1))"
+        else
+            fail "rt-env -v runs (got: ${RV:-<empty>})"
+        fi
+
+        RI="$("$RT_ENV_EXE" --info 2>&1 || true)"
+        if printf '%s' "$RI" | grep -q 'Welcome to RT-Thread Env Tool'; then
+            pass 'rt-env --info runs'
+        else
+            fail "rt-env --info runs (got: $(printf '%s' "$RI" | head -n 1))"
+        fi
+
+        RH="$("$RT_ENV_EXE" --help 2>&1 || true)"
+        if printf '%s' "$RH" | grep -q 'usage: rt-env' &&
+            printf '%s' "$RH" | grep -q 'webui'; then
+            pass 'rt-env --help runs (usage + webui subcommand)'
+        else
+            fail 'rt-env --help runs'
+        fi
+    else
+        fail 'rt-env console script present for runtime checks'
+    fi
 fi
 
 section '5. cleanup bookkeeping'

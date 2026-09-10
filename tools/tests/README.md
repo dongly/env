@@ -33,7 +33,7 @@ bash tools/tests/test_install_sh.sh && \
 | `test_touch_env_args.py` | touch_env.py：参数面（AST + `--help`）、中英消息对称、常量 | 任意 | 12 tests OK |
 | `test_touch_env_behavior.py` | touch_env.py：`--keep-sdk` 三态决策（P0 回归）、`parse_repo_url`、安全删除、消息查找 | 任意 | 14 tests OK |
 | `test_install_ps1.ps1` | install.ps1：parser、帮助断言、清理接线；参数转发经 `RT_ENV_PS1_STUB_URL` 启用 | Windows | 8 PASS / 0 FAIL / 1 SKIP |
-| `test_touch_env_install.sh` | **真实安装端到端**（离线）：本地 bare 三源克隆 → venv 创建 → editable 安装 → metadata 解析 | Linux / macOS / Git Bash | 8 PASS / 0 FAIL |
+| `test_touch_env_install.sh` | **真实安装端到端**：离线模式（本地 bare 三源克隆 → venv → editable 元数据）；`RT_ENV_TEST_FULL=1` 全量模式（真依赖 + pyocd + 真运行 rt-env） | Linux / macOS / Git Bash | 离线 8 PASS；全量 12 PASS |
 
 ### 约定
 
@@ -159,6 +159,17 @@ bash tools/tests/test_touch_env_install.sh
 - 设 `PIP_NO_DEPS=1` 使 venv 引导不下载第三方依赖（editable 元数据仍可解析），保证离线可跑
 - 全程在临时 `ENV_ROOT` 内，绝不触碰真实 `~/.rt-env`；结束自动清理
 - 空仓库的 `HEAD` 需显式指向被推入的分支（`git symbolic-ref HEAD refs/heads/master`），否则 `git clone` 得到空工作树
+
+**全量模式（真正的真实安装，需网络）**：
+
+```bash
+RT_ENV_TEST_FULL=1 bash tools/tests/test_touch_env_install.sh
+```
+
+与离线模式的差异：
+- **安装全部第三方依赖**（SCons/requests/psutil/tqdm/kconfiglib/pyyaml）与 **pyocd**，真实走网络
+- **真运行已安装的工具**：`rt-env -v`（单行版本号）、`rt-env --info`（环境横幅）、`rt-env --help`（usage + webui 子命令）
+- 断言 12 项（离线 8 项 + pyocd/运行时 4 项）；耗时较长（依赖下载）
 
 ---
 
