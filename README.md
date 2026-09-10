@@ -200,33 +200,23 @@ After adding, the environment will be automatically activated each time you log 
 | Parameter | Description |
 |-----------|-------------|
 | **Basic Parameters**||
-| `-y`, `--yes`, `--auto` | Automatic installation, no interaction |
+| `--yes`, `--auto` | Automatic installation, no interaction |
 | `-h`, `--help` | Display help information |
 |**Source Settings**||
-| `-c`, `--cn`, `--gitee` | Use China mirror sources (Gitee, PyPI TUNA) |
-| `-o`, `--official` | Force use of official sources |
+| `--cn`, `--gitee` | Use China mirror sources (Gitee, PyPI TUNA) |
+| `--official` | Force use of official sources |
 | **Repository Configuration**||
-| `-P`, `--packages <repo>[#<branch>]` | Specify packages repository address and branch |
-| `-E`, `--env <repo>[#<branch>]` | Specify env repository address and branch |
-| `-S`, `--sdk <repo>[#<branch>]` | Specify sdk repository address and branch |
-| `-t`, `--touch-env-url <url>` | Specify touch_env.py download URL |
+| `--packages <repo>[#<branch>]` | Specify packages repository address and branch |
+| `--env <repo>[#<branch>]` | Specify env repository address and branch |
+| `--sdk <repo>[#<branch>]` | Specify sdk repository address and branch |
+| `--touch-env-url <url>` | Specify touch_env.py download URL |
 |**Path & Installation**||
-| `-r`, `--env-root <path>` | Set custom .rt-env directory path (default: `~/.rt-env`) |
-| `-p`, `--python [path]` | Install portable Python, installation directory is path (Windows only, default: D:\Tools\Python) |
+| `--env-root <path>` | Set custom .rt-env directory path (default: `~/.rt-env`) |
+| `--python [path]` | Install portable Python, installation directory is path (Windows only, default: D:\Tools\Python) |
 |**Other Options**||
-| `-d`, `--pyocd` | Install pyocd (for debugging) |
-| `-e`, `--en`, `--english` | Force English display |
-| `-z`, `--zh`, `--chinese` | Force Chinese display |
-| `-b`, `--backup <strategy>` | Backup strategy |
-
-### Backup Strategies
-
-| Strategy | Description |
-|----------|-------------|
-| **preserve** (default) | Keep configuration files (.config) and toolchains (local_pkgs), delete other content |
-| **delete_all** | Backup then delete existing ENV directory |
-| **delete_all_now** | Immediately delete existing ENV directory, no backup |
-| **backup_all** | Create full backup, keep all content |
+| `--en`, `--english` | Force English display |
+| `--zh`, `--chinese` | Force Chinese display |
+| `--keep-toolchain <yes\|no>` | Keep toolchains (local_pkgs) and config when reinstalling (default: `yes`, prompt if omitted) |
 
 ### Usage Examples
 
@@ -238,16 +228,16 @@ After adding, the environment will be automatically activated each time you log 
 .\install.ps1
 
 # Use China mirror + automatic installation
-.\install.ps1 -c -y
+.\install.ps1 --cn --yes
 
 # Install portable Python + custom path
-.\install.ps1 -p "D:\Tools\Python" -r "D:\RT-Env"
+.\install.ps1 --python "D:\Tools\Python" --env-root "D:\RT-Env"
 
 # Specify custom env repository branch
-.\install.ps1 -E "https://github.com/RT-Thread/env.git#master"
+.\install.ps1 --env "https://github.com/RT-Thread/env.git#master"
 
-# Install pyocd + official source
-.\install.ps1 -d -o
+# Official source + fresh install (remove existing toolchains)
+.\install.ps1 --official --keep-toolchain no
 ```
 
 </details>
@@ -260,16 +250,16 @@ After adding, the environment will be automatically activated each time you log 
 ./install.sh
 
 # Use China mirror + automatic installation
-./install.sh -c -y
+./install.sh --cn --yes
 
 # Specify custom packages repository
-./install.sh -P "https://gitee.com/RT-Thread/packages.git#master"
+./install.sh --packages "https://gitee.com/RT-Thread-Mirror/packages.git#master"
 
-# Use backup strategy
-./install.sh -b preserve
+# Keep existing toolchains while reinstalling
+./install.sh --keep-toolchain yes
 
 # Specify custom sdk repository
-./install.sh -S "https://github.com/RT-Thread/sdk.git#master"
+./install.sh --sdk "https://github.com/RT-Thread/sdk.git#master"
 ```
 
 </details>
@@ -322,12 +312,12 @@ After activation, you can use the following commands:
 | `sdk` | 🛠️ Toolchain Manager | Install development toolchains |
 | `scons` | 🔨 Build Project | Build project |
 
-### Step 4️⃣: Additional Tools (Optional)
+### Step 4️⃣: Additional Tools
 
-**pyocd** - For debugging Cortex-M devices:
+**pyocd** - For debugging Cortex-M devices, installed by default with the environment (no manual step needed). To upgrade manually:
 
 ```bash
-pip install pyocd
+pip install --upgrade pyocd
 ```
 
 ### 📚 Detailed Documentation

@@ -36,46 +36,36 @@
 #
 # Usage:
 # 用法:
-#   .\install.ps1 [-y] [-c] [-o] [-d] [-p [path]] [-r <path>] [-e|-z] [-P <repo>[#<branch>]] [-E <repo>[#<branch>]] [-S <repo>[#<branch>]] [-b <strategy>] [-t <url>] [-h]
+#   .\install.ps1 [--yes] [--cn] [--official] [--keep-toolchain <yes|no>] [--python [path]] [--env-root <path>] [--en|--zh] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--touch-env-url <url>] [-h]
 #
 # Options:
 # 选项:
-#   -y, --yes, --auto    Auto-install without prompts
+#   --yes, --auto        Auto-install without prompts
 #                        自动安装，无提示
-#   -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)
+#   --cn, --gitee        Use China mirror (Gitee, PyPI TUNA)
 #                        使用中国镜像（Gitee, PyPI TUNA）
-#   -o, --official       Force use official source
+#   --official           Force use official source
 #                        强制使用官方源
-#   -d, --pyocd          Install pyocd for debugging
-#                        安装 pyocd（用于调试）
-#   -r, --env-root <path> Set custom install directory
+#   --keep-toolchain <yes|no>  Keep toolchains (local_pkgs) and config when reinstalling (default: yes)
+#                        重装时保留工具链（local_pkgs）与配置（默认：yes）
+#   --env-root <path>    Set custom install directory
 #                        设置自定义安装目录
-#   -e, --en, --english  Force English messages
+#   --en, --english      Force English messages
 #                        强制显示英文信息
-#   -z, --zh, --chinese  Force Chinese messages
+#   --zh, --chinese      Force Chinese messages
 #                        强制显示中文信息
-#   -p, --python [path]  Force install portable Python, install directory is path (default: D:\Tools\Python)
+#   --python [path]      Force install portable Python, install directory is path (default: D:\Tools\Python)
 #                        安装便携式 Python, 安装目录为 path（默认：D:\Tools\Python）
-#   -P, --packages <repo>[#<branch>]  Specify custom packages repository and branch
+#   --packages <repo>[#<branch>]  Specify custom packages repository and branch
 #                        指定 packages 仓库地址和分支
 #                        格式: url[#branch]
-#   -E, --env <repo>[#<branch>]  Specify custom env repository and branch
+#   --env <repo>[#<branch>]  Specify custom env repository and branch
 #                        指定 env 仓库地址和分支
 #                        格式: url[#branch]
-#   -S, --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
+#   --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
 #                        指定 sdk 仓库地址和分支
 #                        格式: url[#branch]
-#   -b, --backup <strategy>  Backup strategy when ENV exists:
-#                        当 ENV 已存在时的备份策略：
-#                          preserve: Keep .config and local_pkgs, restore and delete backup
-#                                    保留 .config 和 local_pkgs，恢复后删除备份
-#                          delete_all: Backup then delete everything, no restore
-#                                    备份后删除所有内容，不恢复
-#                          delete_all_now: Delete everything immediately, no backup
-#                                    立即删除所有内容，不备份
-#                          backup_all: Keep backup with hardlink restore
-#                                    保留备份，用硬链接恢复本地包
-#   -t, --touch-env-url <url> Specify touch_env.py download URL
+#   --touch-env-url <url> Specify touch_env.py download URL
 #                        指定 touch_env.py 下载 URL
 #   -h, --help           Show this help message
 #                        显示此帮助信息
@@ -135,11 +125,10 @@ function Parse-Arguments {
         HelpMode         = $false
         CnMode           = $false
         OfficialMode     = $false
-        PyocdMode        = $false
         PythonPath       = ""
         EnMode           = $false
         ZhMode           = $false
-        BackupStrategy   = ""
+        KeepToolchain    = ""
         EnvRoot          = ""
         CustomPackages   = ""
         CustomEnv        = ""
@@ -150,37 +139,23 @@ function Parse-Arguments {
     for ($i = 0; $i -lt $Arguments.Count; $i++) {
         $arg = $Arguments[$i]
         switch -CaseSensitive ($arg) {
-            "-y" { $result.AutoMode = $true }
             "--yes" { $result.AutoMode = $true }
             "--auto" { $result.AutoMode = $true }
             "-h" { $result.HelpMode = $true }
             "--help" { $result.HelpMode = $true }
-            "-c" { $result.CnMode = $true }
             "--cn" { $result.CnMode = $true }
             "--gitee" { $result.CnMode = $true }
-            "-o" { $result.OfficialMode = $true }
             "--official" { $result.OfficialMode = $true }
-            "-d" { $result.PyocdMode = $true }
-            "--pyocd" { $result.PyocdMode = $true }
-            "-p" { $result.PythonPath = Read-OptionalArg -Arguments $Arguments -Index $i }
             "--python" { $result.PythonPath = Read-OptionalArg -Arguments $Arguments -Index $i }
-            "-E" { $result.CustomEnv = $Arguments[++$i] }
             "--env" { $result.CustomEnv = $Arguments[++$i] }
-            "-e" { $result.EnMode = $true }
             "--en" { $result.EnMode = $true }
             "--english" { $result.EnMode = $true }
-            "-z" { $result.ZhMode = $true }
             "--zh" { $result.ZhMode = $true }
             "--chinese" { $result.ZhMode = $true }
-            "-r" { $result.EnvRoot = $Arguments[++$i] }
             "--env-root" { $result.EnvRoot = $Arguments[++$i] }
-            "-P" { $result.CustomPackages = $Arguments[++$i] }
             "--packages" { $result.CustomPackages = $Arguments[++$i] }
-            "-S" { $result.CustomSdk = $Arguments[++$i] }
             "--sdk" { $result.CustomSdk = $Arguments[++$i] }
-            "-b" { $result.BackupStrategy = $Arguments[++$i] }
-            "--backup" { $result.BackupStrategy = $Arguments[++$i] }
-            "-t" { $result.TouchEnvUrlValue = $Arguments[++$i] }
+            "--keep-toolchain" { $result.KeepToolchain = $Arguments[++$i] }
             "--touch-env-url" { $result.TouchEnvUrlValue = $Arguments[++$i] }
         }
     }
@@ -238,26 +213,21 @@ function Print-Help {
         Write-Host "用法: .\install.ps1 [选项]"
         Write-Host ""
         Write-Host "选项:"
-        Write-Host "  -y, --yes, --auto    自动安装，无需提示"
-        Write-Host "  -c, --cn, --gitee    使用中国镜像（Gitee，清华 PyPI）"
-        Write-Host "  -o, --official       强制使用官方源"
-        Write-Host "  -d, --pyocd          安装 pyocd（用于调试）"
-        Write-Host "  -p, --python [path]  安装便携式 Python, 安装目录为 path（默认：D:\Tools\Python）"
-        Write-Host "  -r, --env-root [path] 设置自定义安装目录"
-        Write-Host "  -e, --en, --english  强制显示英文信息"
-        Write-Host "  -z, --zh, --chinese  强制显示中文信息"
-        Write-Host "  -P, --packages [repo] 指定 packages 仓库地址和分支"
+        Write-Host "  --yes, --auto        自动安装，无需提示"
+        Write-Host "  --cn, --gitee        使用中国镜像（Gitee，清华 PyPI）"
+        Write-Host "  --official           强制使用官方源"
+        Write-Host "  --keep-toolchain [yes|no] 重装时保留工具链（local_pkgs）与配置（默认：yes）"
+        Write-Host "  --python [path]      安装便携式 Python, 安装目录为 path（默认：D:\Tools\Python）"
+        Write-Host "  --env-root [path]    设置自定义安装目录"
+        Write-Host "  --en, --english      强制显示英文信息"
+        Write-Host "  --zh, --chinese      强制显示中文信息"
+        Write-Host "  --packages [repo]    指定 packages 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
-        Write-Host "  -E, --env [repo]     指定 env 仓库地址和分支"
+        Write-Host "  --env [repo]         指定 env 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
-        Write-Host "  -S, --sdk [repo]     指定 sdk 仓库地址和分支"
+        Write-Host "  --sdk [repo]         指定 sdk 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
-        Write-Host "  -b, --backup [strategy] 备份策略 (preserve/delete_all/delete_all_now/backup_all)"
-        Write-Host "                          preserve: 保留 .config 和 local_pkgs，恢复后删除备份"
-        Write-Host "                          delete_all: 备份后删除所有内容，不恢复"
-        Write-Host "                          delete_all_now: 立即删除所有内容，不备份"
-        Write-Host "                          backup_all: 保留备份，用硬链接恢复本地包"
-        Write-Host "  -t, --touch-env-url [url] 指定 touch_env.py 下载 URL"
+        Write-Host "  --touch-env-url [url] 指定 touch_env.py 下载 URL"
         Write-Host "  -h, --help           显示此帮助信息"
         Write-Host ""
     }
@@ -267,26 +237,21 @@ function Print-Help {
         Write-Host "Usage: .\install.ps1 [OPTIONS]"
         Write-Host ""
         Write-Host "Options:"
-        Write-Host "  -y, --yes, --auto    Auto-install without prompts"
-        Write-Host "  -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)"
-        Write-Host "  -o, --official       Force use official source"
-        Write-Host "  -d, --pyocd          Install pyocd for debugging"
-        Write-Host "  -p, --python [path]  Force install portable Python, install directory is path (default: D:\Tools\Python)"
-        Write-Host "  -r, --env-root [path] Set custom install directory"
-        Write-Host "  -e, --en, --english  Force English messages"
-        Write-Host "  -z, --zh, --chinese  Force Chinese messages"
-        Write-Host "  -P, --packages [repo] Specify custom packages repository and branch"
+        Write-Host "  --yes, --auto        Auto-install without prompts"
+        Write-Host "  --cn, --gitee        Use China mirror (Gitee, PyPI TUNA)"
+        Write-Host "  --official           Force use official source"
+        Write-Host "  --keep-toolchain [yes|no] Keep toolchains (local_pkgs) and config when reinstalling (default: yes)"
+        Write-Host "  --python [path]      Force install portable Python, install directory is path (default: D:\Tools\Python)"
+        Write-Host "  --env-root [path]    Set custom install directory"
+        Write-Host "  --en, --english      Force English messages"
+        Write-Host "  --zh, --chinese      Force Chinese messages"
+        Write-Host "  --packages [repo]    Specify custom packages repository and branch"
         Write-Host "                        Format: url[#branch]"
-        Write-Host "  -E, --env [repo]     Specify custom env repository and branch"
+        Write-Host "  --env [repo]         Specify custom env repository and branch"
         Write-Host "                        Format: url[#branch]"
-        Write-Host "  -S, --sdk [repo]     Specify custom sdk repository and branch"
+        Write-Host "  --sdk [repo]         Specify custom sdk repository and branch"
         Write-Host "                        Format: url[#branch]"
-        Write-Host "  -b, --backup [strategy] Backup strategy (preserve/delete_all/delete_all_now/backup_all)"
-        Write-Host "                          preserve: Keep .config and local_pkgs, restore and delete backup"
-        Write-Host "                          delete_all: Backup then delete everything, no restore"
-        Write-Host "                          delete_all_now: Delete everything immediately, no backup"
-        Write-Host "                          backup_all: Keep backup with hardlink restore"
-        Write-Host "  -t, --touch-env-url [url] Specify touch_env.py download URL"
+        Write-Host "  --touch-env-url [url] Specify touch_env.py download URL"
         Write-Host "  -h, --help           Show this help message"
         Write-Host ""
     }
@@ -1514,7 +1479,6 @@ function Build-TouchEnvArgs {
     if ($script:Config.UseCN) { $pythonArgs += "--use-cn" }
     $pythonArgs += "--language", $script:Config.LangCurrent
     if ($script:Config.AutoMode) { $pythonArgs += "--auto-mode" }
-    if ($script:Config.InstallPyocd) { $pythonArgs += "--install-pyocd" }
 
     # Pass custom repositories with branch info in URL fragment
     if ($script:Config.CustomEnv) {
@@ -1529,9 +1493,9 @@ function Build-TouchEnvArgs {
         $pythonArgs += "--repo-sdk", $script:Config.CustomSdk
     }
 
-    # Pass backup strategy
-    if ($script:Config.BackupStrategy) {
-        $pythonArgs += "--backup", $script:Config.BackupStrategy
+    # Pass keep-toolchain decision
+    if ($script:Config.KeepToolchain) {
+        $pythonArgs += "--keep-toolchain", $script:Config.KeepToolchain
     }
 
     return $pythonArgs
@@ -2043,10 +2007,9 @@ function Init-Config {
         LangCurrent    = ""
         UseCN          = $false
         UseCNSet       = $false
-        InstallPyocd   = $false
+        KeepToolchain  = ""
         AutoMode       = $false
         NeedHelp       = $false
-        BackupStrategy = ""
         IsAdmin        = $false
         CustomPackages = ""
         CustomEnv      = ""
@@ -2064,10 +2027,9 @@ function Init-Config {
     $script:Config.LangCurrent = if ($ParsedArgs.ZhMode) { "zh" } elseif ($ParsedArgs.EnMode) { "en" } else { Get-SystemLanguage }
     $script:Config.UseCN = $ParsedArgs.CnMode
     $script:Config.UseCNSet = $ParsedArgs.CnMode -or $ParsedArgs.OfficialMode
-    $script:Config.InstallPyocd = $ParsedArgs.PyocdMode
     $script:Config.AutoMode = $ParsedArgs.AutoMode
     $script:Config.NeedHelp = $ParsedArgs.HelpMode
-    $script:Config.BackupStrategy = $ParsedArgs.BackupStrategy
+    $script:Config.KeepToolchain = $ParsedArgs.KeepToolchain
     $script:Config.CustomPackages = $ParsedArgs.CustomPackages
     $script:Config.CustomEnv = $ParsedArgs.CustomEnv
     $script:Config.CustomSdk = $ParsedArgs.CustomSdk

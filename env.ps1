@@ -1,62 +1,23 @@
-if ([string]::IsNullOrWhiteSpace($env:ENV_ROOT)) {
-    $EnvRoot = $PSScriptRoot
-} else {
-    $EnvRoot = $env:ENV_ROOT
-}
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
 
-$env:ENV_ROOT = $EnvRoot
-$VenvRoot = Join-Path $EnvRoot ".venv"
-$ScriptsRoot = Join-Path $EnvRoot "tools\scripts"
-$BootstrapScript = Join-Path $ScriptsRoot "env_venv.py"
-$VenvPython = Join-Path $VenvRoot "Scripts\python.exe"
-$ActivateScript = Join-Path $VenvRoot "Scripts\Activate.ps1"
-$BootstrapStatus = 0
-$ActivateStatus = 0
+# Overridden by $env:ENV_ROOT environment variable
+$env:ENV_ROOT = $PSScriptRoot
 
-if (Test-Path -Path $VenvPython -PathType Leaf) {
-    $BootstrapPython = $VenvPython
-} elseif (Get-Command python -ErrorAction SilentlyContinue) {
-    $BootstrapPython = "python"
-} else {
-    $BootstrapPython = $null
-}
+# Virtual environment directory name
+$RT_VENV_DIR = "$env:ENV_ROOT\venv\rt-env"
 
-if ($null -eq $BootstrapPython) {
-    Write-Error "Cannot prepare the RT-Thread Env venv: Python 3 was not found."
-    $BootstrapStatus = 1
-} elseif (-not (Test-Path -Path $BootstrapScript -PathType Leaf)) {
-    Write-Error "Cannot prepare the RT-Thread Env venv: $BootstrapScript was not found."
-    $BootstrapStatus = 1
-} else {
-    & $BootstrapPython $BootstrapScript `
-        --venv $VenvRoot `
-        --source $ScriptsRoot `
-        --activation-script (Join-Path $EnvRoot "env.ps1")
-    $BootstrapStatus = $LASTEXITCODE
-}
-
-if (Test-Path -Path $ActivateScript -PathType Leaf) {
-    try {
-        . $ActivateScript
-    } catch {
-        Write-Error "Failed to activate the RT-Thread Env Python venv: $_"
-        $ActivateStatus = 1
-    }
+if (Test-Path "$RT_VENV_DIR\Scripts\Activate.ps1") {
+    . "$RT_VENV_DIR\Scripts\Activate.ps1"
 
     # Show welcome message using rt-env command
     if (Get-Command rt-env -ErrorAction SilentlyContinue) {
         rt-env --info
     }
-} else {
-    Write-Error "Cannot activate the RT-Thread Env Python venv: $ActivateScript was not found."
-    $ActivateStatus = 1
+}
+else {
+    Write-Host "Virtual environment($RT_VENV_DIR\Scripts\Activate.ps1) not found. Please run the installation `RT-Thread ENV` first."
+    exit 1
 }
 
-$env:PATHEXT = ".PS1;$env:PATHEXT"
-
-if ($BootstrapStatus -ne 0) {
-    Write-Warning "The Env venv preparation failed, but activation was still attempted."
-}
-if ($ActivateStatus -ne 0) {
-    Write-Warning "The Env Python venv is not active."
-}
+$env:pathext = ".PS1;$env:pathext"

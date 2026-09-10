@@ -170,9 +170,9 @@ def get_env_root():
     env_root = os.getenv("ENV_ROOT")
     if env_root is None:
         if platform.system() != 'Windows':
-            env_root = os.path.join(os.getenv('HOME'), '.env')
+            env_root = os.path.join(os.getenv('HOME'), '.rt-env')
         else:
-            env_root = os.path.join(os.getenv('USERPROFILE'), '.env')
+            env_root = os.path.join(os.getenv('USERPROFILE'), '.rt-env')
     return env_root
 
 

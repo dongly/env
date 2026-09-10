@@ -27,29 +27,21 @@
 # Supports: English / 中文
 #
 # Usage:
-#   ./install.sh [-y] [-c] [-o] [-d] [-r <path>] [-e|-z] [-P <repo>[#<branch>]] [-E <repo>[#<branch>]] [-S <repo>[#<branch>]] [-b <strategy>] [-t <url>] [-h]
+#   ./install.sh [--yes] [--cn] [--official] [--keep-toolchain <yes|no>] [--env-root <path>] [--en|--zh] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--touch-env-url <url>] [--help]
 #
 # Options:
-#   -y, --yes, --auto    Auto-install without prompts
-#   -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)
-#   -o, --official       Force use official source
-#   -d, --pyocd          Install pyocd for debugging
-#   -r, --env-root <path> Set custom install directory
-#   -e, --en, --english  Force English messages
-#   -z, --zh, --chinese  Force Chinese messages
-#   -P, --packages <repo>[#<branch>]  Specify custom packages repository and branch
-#   -E, --env <repo>[#<branch>]  Specify custom env repository and branch
-#   -S, --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
-#   -b, --backup <strategy> Backup strategy when ENV exists:
-#                          preserve: Keep .config and local_pkgs, restore and delete backup
-#                                    保留 .config 和 local_pkgs，恢复后删除备份
-#                          delete_all: Backup then delete everything, no restore
-#                                    备份后删除所有内容，不恢复
-#                          delete_all_now: Delete everything immediately, no backup
-#                                    立即删除所有内容，不备份
-#                          backup_all: Keep backup with hardlink restore
-#                                    保留备份，用硬链接恢复工具链
-#   -t, --touch-env-url <url> Specify touch_env.py download URL
+#   --yes, --auto        Auto-install without prompts
+#   --cn, --gitee        Use China mirror (Gitee, PyPI TUNA)
+#   --official           Force use official source
+#   --keep-toolchain <yes|no>  Keep toolchains (local_pkgs) and config when reinstalling (default: yes)
+#                              重装时保留工具链（local_pkgs）与配置（默认：是）
+#   --env-root <path>    Set custom install directory
+#   --en, --english      Force English messages
+#   --zh, --chinese      Force Chinese messages
+#   --packages <repo>[#<branch>]  Specify custom packages repository and branch
+#   --env <repo>[#<branch>]  Specify custom env repository and branch
+#   --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
+#   --touch-env-url <url> Specify touch_env.py download URL
 #   -h, --help           Show this help message
 #
 
@@ -66,7 +58,6 @@ fi
 # Global configuration variables (like $script:Config in PowerShell)
 CONFIG_AUTO_MODE=false
 CONFIG_HELP_MODE=false
-CONFIG_PYOCD_MODE=false
 CONFIG_ENV_ROOT=""
 CONFIG_LANG="en"
 CONFIG_USE_CN_SET=false
@@ -74,7 +65,7 @@ CONFIG_USE_CN=false
 CONFIG_CUSTOM_PACKAGES_REPO=""
 CONFIG_CUSTOM_ENV_REPO=""
 CONFIG_CUSTOM_SDK_REPO=""
-CONFIG_BACKUP_STRATEGY=""
+CONFIG_KEEP_TOOLCHAIN=""
 CONFIG_TOUCH_ENV_URL_VALUE=""
 
 # Global variables for user context (initialized in init_environment)
@@ -371,12 +362,8 @@ run_touch_env() {
         python_args+=("--auto-mode")
     fi
 
-    if [ -n "$CONFIG_BACKUP_STRATEGY" ]; then
-        python_args+=("--backup" "$CONFIG_BACKUP_STRATEGY")
-    fi
-
-    if [ "$CONFIG_PYOCD_MODE" = "true" ]; then
-        python_args+=("--install-pyocd")
+    if [ -n "$CONFIG_KEEP_TOOLCHAIN" ]; then
+        python_args+=("--keep-toolchain" "$CONFIG_KEEP_TOOLCHAIN")
     fi
 
     # Custom repositories (pass full URL, touch_env.py parses branch if present)
@@ -421,26 +408,18 @@ print_help() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  -y, --yes, --auto    Auto-install without prompts"
-    echo "  -c, --cn, --gitee    Use China mirror (Gitee, PyPI TUNA)"
-    echo "  -o, --official       Force use official source"
-    echo "  -d, --pyocd          Install pyocd for debugging"
-    echo "  -r, --env-root <path> Set custom install directory"
-    echo "  -e, --en, --english  Force English messages"
-    echo "  -z, --zh, --chinese  Force Chinese messages"
-    echo "  -P, --packages <repo>[#<branch>]  Specify custom packages repository and branch"
-    echo "  -E, --env <repo>[#<branch>]  Specify custom env repository and branch"
-    echo "  -S, --sdk <repo>[#<branch>]  Specify custom sdk repository and branch"
-    echo "  -b, --backup <strategy> Backup strategy (preserve/delete_all/delete_all_now/backup_all)"
-    echo "                          preserve: Keep .config and local_pkgs, restore and delete backup"
-    echo "                                    保留 .config 和 local_pkgs，恢复后删除备份"
-    echo "                          delete_all: Backup then delete everything, no restore"
-    echo "                                    备份后删除所有内容，不恢复"
-    echo "                          delete_all_now: Delete everything immediately, no backup"
-    echo "                                    立即删除所有内容，不备份"
-    echo "                          backup_all: Keep backup with hardlink restore"
-    echo "                                    保留备份，用硬链接恢复工具链"
-    echo "  -t, --touch-env-url <url> Specify touch_env.py download URL"
+    echo "  --yes, --auto        Auto-install without prompts"
+    echo "  --cn, --gitee        Use China mirror (Gitee, PyPI TUNA)"
+    echo "  --official           Force use official source"
+    echo "  --keep-toolchain <yes|no>  Keep toolchains (local_pkgs) and config when reinstalling (default: yes)"
+    echo "                              重装时保留工具链（local_pkgs）与配置（默认：是）"
+    echo "  --env-root <path>    Set custom install directory"
+    echo "  --en, --english      Force English messages"
+    echo "  --zh, --chinese      Force Chinese messages"
+    echo "  --packages <repo>[#<branch>]  Specify custom packages repository and branch"
+    echo "  --env <repo>[#<branch>]  Specify custom env repository and branch"
+    echo "  --sdk <repo>[#<branch>]  Specify custom sdk repository and branch"
+    echo "  --touch-env-url <url> Specify touch_env.py download URL"
     echo "  -h, --help           Show this help message"
     echo ""
 }
@@ -500,54 +479,51 @@ parse_args() {
             -h|--help)
                 CONFIG_HELP_MODE="true"
                 ;;
-            -y|--yes|--auto)
+            --yes|--auto)
                 CONFIG_AUTO_MODE="true"
                 ;;
-            -e|--en|--english)
+            --en|--english)
                 CONFIG_EN_MODE="true"
                 CONFIG_LANG="en"
                 CONFIG_LANG_SET="true"
                 ;;
-            -z|--zh|--chinese)
+            --zh|--chinese)
                 CONFIG_ZH_MODE="true"
                 CONFIG_LANG="zh"
                 CONFIG_LANG_SET="true"
                 ;;
-            -r|--env-root)
+            --env-root)
                 shift
                 CONFIG_ENV_ROOT="$1"
                 ENV_ROOT="$1"
                 ;;
-            -P|--packages)
+            --packages)
                 shift
                 CONFIG_CUSTOM_PACKAGES_REPO="$1"
                 ;;
-            -E|--env)
+            --env)
                 shift
                 CONFIG_CUSTOM_ENV_REPO="$1"
                 ;;
-            -S|--sdk)
+            --sdk)
                 shift
                 CONFIG_CUSTOM_SDK_REPO="$1"
                 ;;
-            -c|--cn|--gitee)
+            --cn|--gitee)
                 CONFIG_CN_MODE="true"
                 CONFIG_USE_CN_SET="true"
                 CONFIG_USE_CN="true"
                 CONFIG_LANG="zh"
                 ;;
-            -o|--official)
+            --official)
                 CONFIG_OFFICIAL_MODE="true"
                 CONFIG_USE_CN_SET="true"
                 ;;
-            -d|--pyocd)
-                CONFIG_PYOCD_MODE="true"
-                ;;
-            -b|--backup)
+            --keep-toolchain)
                 shift
-                CONFIG_BACKUP_STRATEGY="$1"
+                CONFIG_KEEP_TOOLCHAIN="$1"
                 ;;
-            -t|--touch-env-url)
+            --touch-env-url)
                 shift
                 CONFIG_TOUCH_ENV_URL_VALUE="$1"
                 ;;

@@ -200,33 +200,23 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 | 参数 | 描述 |
 |------|------|
 | **基础参数**||
-| `-y`, `--yes`, `--auto` | 自动安装，无交互 |
+| `--yes`, `--auto` | 自动安装，无交互 |
 | `-h`, `--help` | 显示帮助信息 |
 |**源设置**||
-| `-c`, `--cn`, `--gitee` | 使用中国镜像源（Gitee、PyPI TUNA） |
-| `-o`, `--official` | 强制使用官方源 |
+| `--cn`, `--gitee` | 使用中国镜像源（Gitee、PyPI TUNA） |
+| `--official` | 强制使用官方源 |
 | **仓库配置**||
-| `-P`, `--packages <repo>[#<branch>]` | 指定 packages 仓库地址和分支 |
-| `-E`, `--env <repo>[#<branch>]` | 指定 env 仓库地址和分支 |
-| `-S`, `--sdk <repo>[#<branch>]` | 指定 sdk 仓库地址和分支 |
-| `-t`, `--touch-env-url <url>` | 指定 touch_env.py 下载 URL |
+| `--packages <repo>[#<branch>]` | 指定 packages 仓库地址和分支 |
+| `--env <repo>[#<branch>]` | 指定 env 仓库地址和分支 |
+| `--sdk <repo>[#<branch>]` | 指定 sdk 仓库地址和分支 |
+| `--touch-env-url <url>` | 指定 touch_env.py 下载 URL |
 |**路径与安装**||
-| `-r`, `--env-root <path>` | 设置自定义 .rt-env 目录路径（默认：`~/.rt-env`） |
-| `-p`, `--python [path]` | 安装便携式 Python，安装目录为 path（仅 Windows，默认：D:\Tools\Python） |
+| `--env-root <path>` | 设置自定义 .rt-env 目录路径（默认：`~/.rt-env`） |
+| `--python [path]` | 安装便携式 Python，安装目录为 path（仅 Windows，默认：D:\Tools\Python） |
 |**其他选项**||
-| `-d`, `--pyocd` | 安装 pyocd（用于调试） |
-| `-e`, `--en`, `--english` | 强制英文显示 |
-| `-z`, `--zh`, `--chinese` | 强制中文显示 |
-| `-b`, `--backup <strategy>` | 备份策略 |
-
-### 备份策略
-
-| 策略 | 说明 |
-|------|------|
-| **preserve** (默认) | 保留配置文件（.config）和工具链（local_pkgs），删除其他内容 |
-| **delete_all** | 备份后删除现有 ENV 目录 |
-| **delete_all_now** | 立即删除现有 ENV 目录，不备份 |
-| **backup_all** | 创建完整备份，保留所有内容 |
+| `--en`, `--english` | 强制英文显示 |
+| `--zh`, `--chinese` | 强制中文显示 |
+| `--keep-toolchain <yes\|no>` | 重装时保留工具链（local_pkgs）与配置（默认：`yes`，未指定时交互询问） |
 
 ### 使用示例
 
@@ -238,16 +228,16 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 .\install.ps1
 
 # 使用中国镜像 + 自动安装
-.\install.ps1 -c -y
+.\install.ps1 --cn --yes
 
 # 安装便携式 Python + 自定义路径
-.\install.ps1 -p "D:\Tools\Python" -r "D:\RT-Env"
+.\install.ps1 --python "D:\Tools\Python" --env-root "D:\RT-Env"
 
 # 指定自定义 env 仓库分支
-.\install.ps1 -E "https://github.com/RT-Thread/env.git#master"
+.\install.ps1 --env "https://github.com/RT-Thread/env.git#master"
 
-# 安装 pyocd + 使用官方源
-.\install.ps1 -d -o
+# 官方源 + 全新安装（删除已有工具链）
+.\install.ps1 --official --keep-toolchain no
 ```
 
 </details>
@@ -260,16 +250,16 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 ./install.sh
 
 # 使用中国镜像 + 自动安装
-./install.sh -c -y
+./install.sh --cn --yes
 
 # 指定自定义 packages 仓库
-./install.sh -P "https://gitee.com/RT-Thread/packages.git#master"
+./install.sh --packages "https://gitee.com/RT-Thread-Mirror/packages.git#master"
 
-# 使用备份策略
-./install.sh -b preserve
+# 重装时保留已有工具链
+./install.sh --keep-toolchain yes
 
 # 指定自定义 sdk 仓库
-./install.sh -S "https://github.com/RT-Thread/sdk.git#master"
+./install.sh --sdk "https://github.com/RT-Thread/sdk.git#master"
 ```
 
 </details>
@@ -322,12 +312,12 @@ sdk
 | `sdk` | 🛠️ 工具链管理器 | 安装开发工具链 |
 | `scons` | 🔨 编译项目 | 构建项目 |
 
-### 步骤 4️⃣：额外工具（可选）
+### 步骤 4️⃣：额外工具
 
-**pyocd** - 用于调试 Cortex-M 设备：
+**pyocd** - 用于调试 Cortex-M 设备，已随环境默认安装（无需手动步骤）。如需手动升级：
 
 ```bash
-pip install pyocd
+pip install --upgrade pyocd
 ```
 
 ### 📚 详细文档
