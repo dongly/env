@@ -13,6 +13,7 @@ python tools/tests/test_touch_env_args.py              # touch_env.py 参数面
 python tools/tests/test_touch_env_behavior.py          # touch_env.py 核心行为
 bash tools/tests/test_touch_env_install.sh             # touch_env.py 真实安装（离线 E2E）
 pwsh -NoProfile -File tools/tests/test_install_ps1.ps1 # install.ps1 编排层
+pwsh -NoProfile -File tools/tests/test_install_ps1_install.ps1  # install.ps1 真实安装
 ```
 
 一键全跑（离线）：
@@ -22,7 +23,8 @@ bash tools/tests/test_install_sh.sh && \
   python tools/tests/test_touch_env_args.py && \
   python tools/tests/test_touch_env_behavior.py && \
   bash tools/tests/test_touch_env_install.sh && \
-  pwsh -NoProfile -File tools/tests/test_install_ps1.ps1
+  pwsh -NoProfile -File tools/tests/test_install_ps1.ps1 && \
+  pwsh -NoProfile -File tools/tests/test_install_ps1_install.ps1
 ```
 
 全量真实安装（需网络，真依赖 + pyocd + 真运行工具）：
@@ -40,11 +42,12 @@ RT_ENV_TEST_FULL=1 bash tools/tests/test_touch_env_install.sh
 | `test_touch_env_behavior.py` | touch_env.py：`--keep-sdk` 三态决策（P0 回归）、`show_next_steps` 输出、`parse_repo_url`、安全删除、消息查找 | 任意 | 15 tests OK |
 | `test_touch_env_install.sh` | **真实安装端到端**：离线模式（本地 bare 三源克隆 → venv → editable 元数据）；`RT_ENV_TEST_FULL=1` 全量模式（真依赖 + pyocd + 真运行 rt-env -v/--info/--help） | Linux / macOS / Git Bash | 离线 8 PASS；全量 12 PASS |
 | `test_install_ps1.ps1` | install.ps1：parser、帮助断言、`--lang` 生效、清理接线；参数转发经 `RT_ENV_PS1_STUB_URL` 启用 | Windows | 10 PASS / 0 FAIL / 1 SKIP |
+| `test_install_ps1_install.ps1` | **install.ps1 真实安装端到端**：本地 bare 三源 + 本地 HTTP 服务提供 touch_env.py；离线模式（PIP_NO_DEPS）；`RT_ENV_TEST_FULL=1` 全量（真依赖 + pyocd + 真运行 rt-env） | Windows | 离线 8 PASS；全量 12 PASS |
 
 ### 约定
 
 - 输出 `PASS/FAIL/SKIP` 行；有 `FAIL` 时退出码非 0。`SKIP` 表示前置条件缺失（无可用 `python3`、未配置 HTTP stub、未开启 FULL 模式等），**不算失败**。
-- 负向验证：曾分别注入 `mktemp --suffix`（macOS 缺陷）、`--keep-sdk no` 字符串真值（P0）、损坏的 `VENV_DIR_RELATIVE`（安装产物路径）三处缺陷，确认对应套件正确变红，恢复后回到全绿。
+- 负向验证：曾分别注入 `mktemp --suffix`（macOS 缺陷）、`--keep-sdk no` 字符串真值（P0）、损坏的 `VENV_DIR_RELATIVE`（touch_env 与 install.ps1 两条真实安装链各一次）共四处缺陷，确认对应套件正确变红，恢复后回到全绿。
 - 行尾（`.gitattributes`）：`*.sh` 用 **LF**；`*.ps1` 用 **CRLF + UTF-8 BOM**（PowerShell 5.1 中文输出需要）；其余文本默认 **LF**。
 
 ---
@@ -345,16 +348,39 @@ Get-ChildItem $env:TEMP -Filter 'touch_env_*.py'   # 安装结束后预期为空
 
 | 测试 | 自动化脚本 | Windows Git Bash | Linux | macOS | 说明 |
 |---|---|---|---|---|---|
-| 一键全跑（离线） | 五个脚本全跑 | ⚠️ 需 pwsh | ✅ | ✅ | 改动后推荐 |
+| 一键全跑（离线） | 六个脚本全跑 | ✅ 需 pwsh | ✅ | ✅ | 改动后推荐 |
 | 语法与帮助 | `test_install_sh.sh` §1–2、`test_install_ps1.ps1` §1–2 | ✅ | ✅ | ✅ | 安全，每次改动必跑 |
 | sh 参数转发（stub） | `test_install_sh.sh` §4 | ⚠️ 自动建 python3 shim | ✅ | ✅ | 需 git + python3 + curl/wget |
 | ps1 参数转发 | `test_install_ps1.ps1` §4（`RT_ENV_PS1_STUB_URL`） | ⚠️ 需管理员 | — | — | 仅 Windows |
 | 清理回归 | `test_install_sh.sh` §3+§5、`test_install_ps1.ps1` §3 | ✅ | ✅ | ✅ | macOS 关键回归点 |
 | 参数面与行为 | `test_touch_env_args.py` + `test_touch_env_behavior.py` | ✅ | ✅ | ✅ | AST + 行为，无副作用 |
-| 真实安装（离线） | `test_touch_env_install.sh` | ✅ | ✅ | ✅ | 本地 bare 三源，无网络 |
-| 真实安装（全量） | `test_touch_env_install.sh`（`RT_ENV_TEST_FULL=1`） | ✅ | ✅ | ✅ | 需网络：真依赖 + pyocd + 真运行 |
+| 真实安装（离线） | `test_touch_env_install.sh`、`test_install_ps1_install.ps1` | ✅ | ✅ | ✅ | 本地 bare 三源，无网络 |
+| 真实安装（全量） | 上述两个脚本 + `RT_ENV_TEST_FULL=1` | ✅ | ✅ | ✅ | 需网络：真依赖 + pyocd + 真运行 |
 
-> 本机实测（2026-09-10）：sh 套件 12 PASS/0 FAIL；args 套件 13 OK；behavior 套件 15 OK；install 套件 离线 8 PASS、全量 12 PASS；ps1 套件 10 PASS/0 FAIL/1 SKIP（参数转发需管理员）。三处负向验证通过（注入缺陷 → 变红，恢复 → 全绿）。
+> 本机实测（2026-09-10）：sh 套件 12 PASS/0 FAIL；args 套件 13 OK；behavior 套件 15 OK；install 套件（touch_env）离线 8 PASS、全量 12 PASS；install 套件（install.ps1）离线 8 PASS、全量 12 PASS；ps1 套件 10 PASS/0 FAIL/1 SKIP（参数转发需管理员）。四处负向验证通过（注入缺陷 → 变红，恢复 → 全绿）。
+
+### 5.6 install.ps1 真实安装端到端（自动化）
+
+`test_install_ps1_install.ps1` 真跑 `install.ps1` 完整流程，隔离、默认离线：
+
+1. 本地 bare 三源（env 由本仓库 push，packages/sdk 为空仓库）
+2. 本地 HTTP 服务提供真实 `touch_env.py`（`Invoke-WebRequest` 不支持 `file://`）
+3. `install.ps1 --touch-env <url> --env-root <tmp> --yes --keep-sdk yes --env/--packages/--sdk <file://...>`
+4. 断言：退出码 0、三仓库克隆、`venv/rt-env`、`rt-env.exe`、editable 元数据（`rt-env 2.0.2`）
+
+```powershell
+pwsh -NoProfile -File tools/tests/test_install_ps1_install.ps1
+# 全量（真依赖 + pyocd + 真运行 rt-env -v/--info/--help，需网络）
+$env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/test_install_ps1_install.ps1
+```
+
+要点：
+- **参数名**：install.ps1 收 `--env/--packages/--sdk`（转发给 touch_env.py 时才变成 `--repo-*`）；传错名会被静默忽略并回落到默认镜像源
+- **提权**：仅当执行策略或长路径需更改时才要求管理员。本机两者已满足，免提权。若你的机器需提权，可用 Windows 内置 `sudo`：
+  ```powershell
+  sudo pwsh -NoProfile -File tools/tests/test_install_ps1_install.ps1
+  ```
+- 全程在临时 `ENV_ROOT` 内，结束自动清理（含 HTTP 服务作业）
 
 > macOS 提示：完整安装必须验证语法/转发/清理——此前的 `mktemp --suffix` 缺陷会让 macOS 安装直接失败。
 
