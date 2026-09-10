@@ -1,6 +1,8 @@
 <div align="center">
 
-# RT-Thread Env Python 脚本
+<img src="assets/env.png" alt="RT-Thread Env" width="406">
+
+# RT-Thread Env 开发环境
 
 [![License: GPL-2.0](https://img.shields.io/badge/License-GPL--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.6+-green.svg)](https://www.python.org/)
