@@ -17,6 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
+# 'rt-env' doubles as the argparse prog in env.py init_argparse()
 rt-env = "env.env:main"
 menuconfig = "env.env:menuconfig"
 pkgs = "env.env:pkgs"
