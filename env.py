@@ -81,11 +81,14 @@ def show_version_warning(is_show_version=True):
 
 
 def init_argparse():
-    parser = argparse.ArgumentParser(description=__doc__)
+    # 'rt-env' mirrors the [project.scripts] entry in pyproject.toml
+    parser = argparse.ArgumentParser(prog='rt-env', description=__doc__)
     subs = parser.add_subparsers()
 
-    # Override -v to show welcome message instead of version
-    parser.add_argument('-v', '--version', action='store_true', help='Show environment information')
+    rt_env_name, rt_env_ver = get_rt_env_version()
+    env_ver_str = '%s %s' % (rt_env_name, rt_env_ver)
+    parser.add_argument('-v', '--version', action='version', version=env_ver_str)
+    parser.add_argument('--info', action='store_true', help='Show environment information')
 
     cmd_system.add_parser(subs)
     cmd_menuconfig.add_parser(subs)
@@ -232,8 +235,8 @@ def exec_arg(arg):
     args.func(args)
 
 
-def cmd_version(args):
-    """Handle version display."""
+def cmd_env_info(args):
+    """Handle environment information display."""
     show_version()
     show_version_warning(False)
     sys.exit(0)
@@ -243,8 +246,8 @@ def main():
     parser = init_argparse()
     args = parser.parse_args()
 
-    if args.version:
-        cmd_version(args)
+    if args.info:
+        cmd_env_info(args)
 
     # Check if any subcommand was provided
     if not hasattr(args, 'func'):
