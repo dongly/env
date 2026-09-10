@@ -211,14 +211,13 @@ After adding, the environment will be automatically activated each time you log 
 | `--packages <repo>[#<branch>]` | Specify packages repository address and branch |
 | `--env <repo>[#<branch>]` | Specify env repository address and branch |
 | `--sdk <repo>[#<branch>]` | Specify sdk repository address and branch |
-| `--touch-env-url <url>` | Specify touch_env.py download URL |
+| `--touch-env <url>` | Specify touch_env.py download URL |
 |**Path & Installation**||
 | `--env-root <path>` | Set custom .rt-env directory path (default: `~/.rt-env`) |
 | `--python [path]` | Install portable Python, installation directory is path (Windows only, default: D:\Tools\Python) |
 |**Other Options**||
-| `--en`, `--english` | Force English display |
-| `--zh`, `--chinese` | Force Chinese display |
-| `--keep-toolchain <yes\|no>` | Keep toolchains (local_pkgs) and config when reinstalling (default: `yes`, prompt if omitted) |
+| `--lang <en\|zh>` | Force message language |
+| `--keep-sdk <yes\|no>` | Keep toolchains (local_pkgs) and config when reinstalling (default: `yes`, prompt if omitted) |
 
 ### Usage Examples
 
@@ -239,7 +238,7 @@ After adding, the environment will be automatically activated each time you log 
 .\install.ps1 --env "https://github.com/RT-Thread/env.git#master"
 
 # Official source + fresh install (remove existing toolchains)
-.\install.ps1 --official --keep-toolchain no
+.\install.ps1 --official --keep-sdk no
 ```
 
 </details>
@@ -258,7 +257,7 @@ After adding, the environment will be automatically activated each time you log 
 ./install.sh --packages "https://gitee.com/RT-Thread-Mirror/packages.git#master"
 
 # Keep existing toolchains while reinstalling
-./install.sh --keep-toolchain yes
+./install.sh --keep-sdk yes
 
 # Specify custom sdk repository
 ./install.sh --sdk "https://github.com/RT-Thread/sdk.git#master"

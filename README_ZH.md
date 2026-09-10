@@ -211,14 +211,13 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 | `--packages <repo>[#<branch>]` | 指定 packages 仓库地址和分支 |
 | `--env <repo>[#<branch>]` | 指定 env 仓库地址和分支 |
 | `--sdk <repo>[#<branch>]` | 指定 sdk 仓库地址和分支 |
-| `--touch-env-url <url>` | 指定 touch_env.py 下载 URL |
+| `--touch-env <url>` | 指定 touch_env.py 下载 URL |
 |**路径与安装**||
 | `--env-root <path>` | 设置自定义 .rt-env 目录路径（默认：`~/.rt-env`） |
 | `--python [path]` | 安装便携式 Python，安装目录为 path（仅 Windows，默认：D:\Tools\Python） |
 |**其他选项**||
-| `--en`, `--english` | 强制英文显示 |
-| `--zh`, `--chinese` | 强制中文显示 |
-| `--keep-toolchain <yes\|no>` | 重装时保留工具链（local_pkgs）与配置（默认：`yes`，未指定时交互询问） |
+| `--lang <en\|zh>` | 强制消息语言 |
+| `--keep-sdk <yes\|no>` | 重装时保留工具链（local_pkgs）与配置（默认：`yes`，未指定时交互询问） |
 
 ### 使用示例
 
@@ -239,7 +238,7 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 .\install.ps1 --env "https://github.com/RT-Thread/env.git#master"
 
 # 官方源 + 全新安装（删除已有工具链）
-.\install.ps1 --official --keep-toolchain no
+.\install.ps1 --official --keep-sdk no
 ```
 
 </details>
@@ -258,7 +257,7 @@ echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
 ./install.sh --packages "https://gitee.com/RT-Thread-Mirror/packages.git#master"
 
 # 重装时保留已有工具链
-./install.sh --keep-toolchain yes
+./install.sh --keep-sdk yes
 
 # 指定自定义 sdk 仓库
 ./install.sh --sdk "https://github.com/RT-Thread/sdk.git#master"
