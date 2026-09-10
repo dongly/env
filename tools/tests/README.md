@@ -11,6 +11,7 @@
 bash tools/tests/test_install_sh.sh                    # install.sh 编排层
 python tools/tests/test_touch_env_args.py              # touch_env.py 参数面
 python tools/tests/test_touch_env_behavior.py          # touch_env.py 核心行为
+bash tools/tests/test_touch_env_install.sh             # touch_env.py 真实安装（离线 E2E）
 pwsh -NoProfile -File tools/tests/test_install_ps1.ps1 # install.ps1 编排层
 ```
 
@@ -20,6 +21,7 @@ pwsh -NoProfile -File tools/tests/test_install_ps1.ps1 # install.ps1 编排层
 bash tools/tests/test_install_sh.sh && \
   python tools/tests/test_touch_env_args.py && \
   python tools/tests/test_touch_env_behavior.py && \
+  bash tools/tests/test_touch_env_install.sh && \
   pwsh -NoProfile -File tools/tests/test_install_ps1.ps1
 ```
 
@@ -31,6 +33,7 @@ bash tools/tests/test_install_sh.sh && \
 | `test_touch_env_args.py` | touch_env.py：参数面（AST + `--help`）、中英消息对称、常量 | 任意 | 12 tests OK |
 | `test_touch_env_behavior.py` | touch_env.py：`--keep-sdk` 三态决策（P0 回归）、`parse_repo_url`、安全删除、消息查找 | 任意 | 14 tests OK |
 | `test_install_ps1.ps1` | install.ps1：parser、帮助断言、清理接线；参数转发经 `RT_ENV_PS1_STUB_URL` 启用 | Windows | 8 PASS / 0 FAIL / 1 SKIP |
+| `test_touch_env_install.sh` | **真实安装端到端**（离线）：本地 bare 三源克隆 → venv 创建 → editable 安装 → metadata 解析 | Linux / macOS / Git Bash | 8 PASS / 0 FAIL |
 
 ### 约定
 
@@ -139,6 +142,23 @@ bash tools/install.sh --env-root <tmp> --keep-sdk no --auto --touch-env file:///
 ```
 
 预期：`install.sh --help` 无任何单字母短参数；上述参数原样传递给 `touch_env.py`。
+
+### 1.6 真实安装端到端（离线，自动化）
+
+`test_touch_env_install.sh` 真跑完整安装流程，全程隔离、无需网络：
+
+1. 在临时目录创建三个本地 bare 仓库（env 由本仓库 `push` 生成，packages/sdk 为空仓库并把 HEAD 指向 master）
+2. 以 `--repo-env/--repo-packages/--repo-sdk` 指向本地源、`--auto-mode --keep-sdk yes` 运行 `touch_env.py`
+3. 断言产物：三个仓库克隆到位、`venv/rt-env` 创建、`rt-env` 入口存在、`importlib.metadata` 解析出 `rt-env 2.0.2`
+
+```bash
+bash tools/tests/test_touch_env_install.sh
+```
+
+要点：
+- 设 `PIP_NO_DEPS=1` 使 venv 引导不下载第三方依赖（editable 元数据仍可解析），保证离线可跑
+- 全程在临时 `ENV_ROOT` 内，绝不触碰真实 `~/.rt-env`；结束自动清理
+- 空仓库的 `HEAD` 需显式指向被推入的分支（`git symbolic-ref HEAD refs/heads/master`），否则 `git clone` 得到空工作树
 
 ---
 
