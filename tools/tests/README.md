@@ -3,7 +3,7 @@
 本目录包含安装器、编排脚本与 CLI 的自动化测试脚本和手工测试步骤。
 
 > 所有测试请在**临时目录**进行，勿使用真实 `~/.rt-env`。
-> 测试脚本不会执行真实安装：参数转发测试一律用 stub 替换 `touch_env.py`。
+> 编排脚本（install.sh/install.ps1）的参数转发测试一律用 stub 替换 `touch_env.py`；安装器本体的真实安装由 `test_touch_env_install.sh` 在隔离 `ENV_ROOT` 内覆盖。
 
 ## 自动化测试（推荐，改动后必跑）
 
@@ -15,7 +15,7 @@ bash tools/tests/test_touch_env_install.sh             # touch_env.py 真实安�
 pwsh -NoProfile -File tools/tests/test_install_ps1.ps1 # install.ps1 编排层
 ```
 
-一键全跑：
+一键全跑（离线）：
 
 ```bash
 bash tools/tests/test_install_sh.sh && \
@@ -25,20 +25,26 @@ bash tools/tests/test_install_sh.sh && \
   pwsh -NoProfile -File tools/tests/test_install_ps1.ps1
 ```
 
+全量真实安装（需网络，真依赖 + pyocd + 真运行工具）：
+
+```bash
+RT_ENV_TEST_FULL=1 bash tools/tests/test_touch_env_install.sh
+```
+
 ### 覆盖映射
 
 | 脚本 | 覆盖 | 平台 | 本机实测 |
 |---|---|---|---|
-| `test_install_sh.sh` | install.sh：语法、帮助断言、`mktemp` 可移植性、参数转发、临时文件清理、`--lang` 生效 | Linux / macOS / Git Bash | 11 PASS / 0 FAIL |
-| `test_touch_env_args.py` | touch_env.py：参数面（AST + `--help`）、中英消息对称、常量 | 任意 | 12 tests OK |
-| `test_touch_env_behavior.py` | touch_env.py：`--keep-sdk` 三态决策（P0 回归）、`parse_repo_url`、安全删除、消息查找 | 任意 | 14 tests OK |
-| `test_install_ps1.ps1` | install.ps1：parser、帮助断言、清理接线；参数转发经 `RT_ENV_PS1_STUB_URL` 启用 | Windows | 8 PASS / 0 FAIL / 1 SKIP |
-| `test_touch_env_install.sh` | **真实安装端到端**：离线模式（本地 bare 三源克隆 → venv → editable 元数据）；`RT_ENV_TEST_FULL=1` 全量模式（真依赖 + pyocd + 真运行 rt-env） | Linux / macOS / Git Bash | 离线 8 PASS；全量 12 PASS |
+| `test_install_sh.sh` | install.sh：语法、帮助断言、`mktemp` 可移植性、参数转发（含 `--official`/`--env`/`--sdk`）、临时文件清理、`--lang` 生效 | Linux / macOS / Git Bash | 12 PASS / 0 FAIL |
+| `test_touch_env_args.py` | touch_env.py：参数面（AST + `--help`）、中英消息对称、i18n 孤儿键检测、常量 | 任意 | 13 tests OK |
+| `test_touch_env_behavior.py` | touch_env.py：`--keep-sdk` 三态决策（P0 回归）、`show_next_steps` 输出、`parse_repo_url`、安全删除、消息查找 | 任意 | 15 tests OK |
+| `test_touch_env_install.sh` | **真实安装端到端**：离线模式（本地 bare 三源克隆 → venv → editable 元数据）；`RT_ENV_TEST_FULL=1` 全量模式（真依赖 + pyocd + 真运行 rt-env -v/--info/--help） | Linux / macOS / Git Bash | 离线 8 PASS；全量 12 PASS |
+| `test_install_ps1.ps1` | install.ps1：parser、帮助断言、`--lang` 生效、清理接线；参数转发经 `RT_ENV_PS1_STUB_URL` 启用 | Windows | 10 PASS / 0 FAIL / 1 SKIP |
 
 ### 约定
 
-- 输出 `PASS/FAIL/SKIP` 行；有 `FAIL` 时退出码非 0。`SKIP` 表示前置条件缺失（无可用 `python3`、未配置 HTTP stub 等），**不算失败**。
-- 负向验证：曾分别注入 `mktemp --suffix`（macOS 缺陷）与 `--keep-sdk no` 字符串真值缺陷（P0），确认套件正确变红，恢复后回到全绿。
+- 输出 `PASS/FAIL/SKIP` 行；有 `FAIL` 时退出码非 0。`SKIP` 表示前置条件缺失（无可用 `python3`、未配置 HTTP stub、未开启 FULL 模式等），**不算失败**。
+- 负向验证：曾分别注入 `mktemp --suffix`（macOS 缺陷）、`--keep-sdk no` 字符串真值（P0）、损坏的 `VENV_DIR_RELATIVE`（安装产物路径）三处缺陷，确认对应套件正确变红，恢复后回到全绿。
 - 行尾（`.gitattributes`）：`*.sh` 用 **LF**；`*.ps1` 用 **CRLF + UTF-8 BOM**（PowerShell 5.1 中文输出需要）；其余文本默认 **LF**。
 
 ---
@@ -143,9 +149,9 @@ bash tools/install.sh --env-root <tmp> --keep-sdk no --auto --touch-env file:///
 
 预期：`install.sh --help` 无任何单字母短参数；上述参数原样传递给 `touch_env.py`。
 
-### 1.6 真实安装端到端（离线，自动化）
+### 1.6 真实安装端到端（自动化）
 
-`test_touch_env_install.sh` 真跑完整安装流程，全程隔离、无需网络：
+`test_touch_env_install.sh` 真跑完整安装流程，全程隔离；默认离线，全量模式走网络：
 
 1. 在临时目录创建三个本地 bare 仓库（env 由本仓库 `push` 生成，packages/sdk 为空仓库并把 HEAD 指向 master）
 2. 以 `--repo-env/--repo-packages/--repo-sdk` 指向本地源、`--auto-mode --keep-sdk yes` 运行 `touch_env.py`
@@ -339,15 +345,16 @@ Get-ChildItem $env:TEMP -Filter 'touch_env_*.py'   # 安装结束后预期为空
 
 | 测试 | 自动化脚本 | Windows Git Bash | Linux | macOS | 说明 |
 |---|---|---|---|---|---|
-| 一键全跑 | 四个脚本全跑 | ⚠️ 需 pwsh | ✅ | ✅ | 改动后推荐 |
+| 一键全跑（离线） | 五个脚本全跑 | ⚠️ 需 pwsh | ✅ | ✅ | 改动后推荐 |
 | 语法与帮助 | `test_install_sh.sh` §1–2、`test_install_ps1.ps1` §1–2 | ✅ | ✅ | ✅ | 安全，每次改动必跑 |
 | sh 参数转发（stub） | `test_install_sh.sh` §4 | ⚠️ 自动建 python3 shim | ✅ | ✅ | 需 git + python3 + curl/wget |
 | ps1 参数转发 | `test_install_ps1.ps1` §4（`RT_ENV_PS1_STUB_URL`） | ⚠️ 需管理员 | — | — | 仅 Windows |
 | 清理回归 | `test_install_sh.sh` §3+§5、`test_install_ps1.ps1` §3 | ✅ | ✅ | ✅ | macOS 关键回归点 |
 | 参数面与行为 | `test_touch_env_args.py` + `test_touch_env_behavior.py` | ✅ | ✅ | ✅ | AST + 行为，无副作用 |
-| 完整真实安装 | —（手工） | ⚠️ 需管理员+网络 | ✅ | ✅ | 建议在受控环境跑 |
+| 真实安装（离线） | `test_touch_env_install.sh` | ✅ | ✅ | ✅ | 本地 bare 三源，无网络 |
+| 真实安装（全量） | `test_touch_env_install.sh`（`RT_ENV_TEST_FULL=1`） | ✅ | ✅ | ✅ | 需网络：真依赖 + pyocd + 真运行 |
 
-> 本机实测（2026-09-10）：sh 套件 11 PASS/0 FAIL；args 套件 12 OK；behavior 套件 14 OK；ps1 套件 8 PASS/0 FAIL/1 SKIP（参数转发需管理员）。两处负向验证通过（注入缺陷 → 变红，恢复 → 全绿）。
+> 本机实测（2026-09-10）：sh 套件 12 PASS/0 FAIL；args 套件 13 OK；behavior 套件 15 OK；install 套件 离线 8 PASS、全量 12 PASS；ps1 套件 10 PASS/0 FAIL/1 SKIP（参数转发需管理员）。三处负向验证通过（注入缺陷 → 变红，恢复 → 全绿）。
 
 > macOS 提示：完整安装必须验证语法/转发/清理——此前的 `mktemp --suffix` 缺陷会让 macOS 安装直接失败。
 
