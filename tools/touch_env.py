@@ -49,7 +49,7 @@
 #                              语言：'en' 或 'zh'
 #   --auto-mode                Auto-install without prompts
 #                              自动安装，无提示
-#   --keep-toolchain <yes|no>  Keep downloaded toolchains (local_pkgs) and config
+#   --keep-sdk <yes|no>  Keep downloaded toolchains (local_pkgs) and config
 #                              when ENV_ROOT exists (default: yes; prompt if omitted)
 #                              当 ENV 已存在时保留已下载的工具链（local_pkgs）与配置
 #                              （默认：yes；未指定时交互询问）
@@ -67,7 +67,7 @@
 #   python touch_env.py
 #   python touch_env.py --env-root /path/to/env
 #   python touch_env.py --repo-env https://github.com/user/env.git#branch1
-#   python touch_env.py --keep-toolchain no --repo-packages https://github.com/user/packages.git#my-branch
+#   python touch_env.py --keep-sdk no --repo-packages https://github.com/user/packages.git#my-branch
 #
 
 import os
@@ -172,7 +172,7 @@ class TouchEnvConfig:
         self.use_cn = args.use_cn
         self.language = args.language
         self.auto_mode = args.auto_mode
-        self.keep_toolchain = args.keep_toolchain
+        self.keep_sdk = args.keep_sdk
         self.custom_repos = args.custom_repos
 
         # Compute internal paths
@@ -721,7 +721,7 @@ def fix_guiconfig_import(config):
 
 def check_existing_env(config):
     """
-    Handle an existing ENV installation based on the keep-toolchain decision
+    Handle an existing ENV installation based on the keep-sdk decision
 
     Args:
         config: TouchEnvConfig instance
@@ -736,7 +736,7 @@ def check_existing_env(config):
     print()
 
     # Decide whether to keep toolchains: argument first, then prompt, auto-mode defaults to keep
-    keep = config.keep_toolchain
+    keep = config.keep_sdk
     if keep is None:
         if config.auto_mode:
             keep = True
@@ -744,6 +744,8 @@ def check_existing_env(config):
         else:
             response = input(get_message('toolchain_keep_prompt')).strip().lower()
             keep = response not in ('n', 'no')
+    else:
+        keep = (keep == 'yes')
 
     if keep:
         log_info('toolchain_kept')
@@ -1066,7 +1068,7 @@ def parse_arguments():
         help='Auto-install without prompts'
     )
     parser.add_argument(
-        '--keep-toolchain',
+        '--keep-sdk',
         choices=['yes', 'no'],
         default=None,
         help='Keep downloaded toolchains (local_pkgs) and config when ENV_ROOT exists (default: yes; prompt if omitted)'
@@ -1127,7 +1129,7 @@ def run_touch_env(args):
         # Step 1: Interactive mode: prompt for env-root if needed
         prompt_env_root_if_needed(config, args)
 
-        # Step 2: Handle existing ENV (--keep-toolchain decision)
+        # Step 2: Handle existing ENV (--keep-sdk decision)
         check_existing_env(config)
 
         # Step 3: Setup repositories

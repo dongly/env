@@ -36,7 +36,7 @@
 #
 # Usage:
 # 用法:
-#   .\install.ps1 [--yes] [--cn] [--official] [--keep-toolchain <yes|no>] [--python [path]] [--env-root <path>] [--en|--zh] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--touch-env-url <url>] [-h]
+#   .\install.ps1 [--yes] [--cn] [--official] [--keep-sdk <yes|no>] [--python [path]] [--env-root <path>] [--lang <en|zh>] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--touch-env <url>] [-h]
 #
 # Options:
 # 选项:
@@ -46,14 +46,12 @@
 #                        使用中国镜像（Gitee, PyPI TUNA）
 #   --official           Force use official source
 #                        强制使用官方源
-#   --keep-toolchain <yes|no>  Keep toolchains (local_pkgs) and config when reinstalling (default: yes)
+#   --keep-sdk <yes|no>  Keep toolchains (local_pkgs) and config when reinstalling (default: yes)
 #                        重装时保留工具链（local_pkgs）与配置（默认：yes）
 #   --env-root <path>    Set custom install directory
 #                        设置自定义安装目录
-#   --en, --english      Force English messages
-#                        强制显示英文信息
-#   --zh, --chinese      Force Chinese messages
-#                        强制显示中文信息
+#   --lang <en|zh>       Force message language
+#                        强制消息语言
 #   --python [path]      Force install portable Python, install directory is path (default: D:\Tools\Python)
 #                        安装便携式 Python, 安装目录为 path（默认：D:\Tools\Python）
 #   --packages <repo>[#<branch>]  Specify custom packages repository and branch
@@ -65,7 +63,7 @@
 #   --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
 #                        指定 sdk 仓库地址和分支
 #                        格式: url[#branch]
-#   --touch-env-url <url> Specify touch_env.py download URL
+#   --touch-env <url> Specify touch_env.py download URL
 #                        指定 touch_env.py 下载 URL
 #   -h, --help           Show this help message
 #                        显示此帮助信息
@@ -126,9 +124,8 @@ function Parse-Arguments {
         CnMode           = $false
         OfficialMode     = $false
         PythonPath       = ""
-        EnMode           = $false
-        ZhMode           = $false
-        KeepToolchain    = ""
+        LangChoice       = ""
+        KeepSdk    = ""
         EnvRoot          = ""
         CustomPackages   = ""
         CustomEnv        = ""
@@ -148,15 +145,12 @@ function Parse-Arguments {
             "--official" { $result.OfficialMode = $true }
             "--python" { $result.PythonPath = Read-OptionalArg -Arguments $Arguments -Index $i }
             "--env" { $result.CustomEnv = $Arguments[++$i] }
-            "--en" { $result.EnMode = $true }
-            "--english" { $result.EnMode = $true }
-            "--zh" { $result.ZhMode = $true }
-            "--chinese" { $result.ZhMode = $true }
+            "--lang" { $result.LangChoice = $Arguments[++$i] }
             "--env-root" { $result.EnvRoot = $Arguments[++$i] }
             "--packages" { $result.CustomPackages = $Arguments[++$i] }
             "--sdk" { $result.CustomSdk = $Arguments[++$i] }
-            "--keep-toolchain" { $result.KeepToolchain = $Arguments[++$i] }
-            "--touch-env-url" { $result.TouchEnvUrlValue = $Arguments[++$i] }
+            "--keep-sdk" { $result.KeepSdk = $Arguments[++$i] }
+            "--touch-env" { $result.TouchEnvUrlValue = $Arguments[++$i] }
         }
     }
 
@@ -216,18 +210,17 @@ function Print-Help {
         Write-Host "  --yes, --auto        自动安装，无需提示"
         Write-Host "  --cn, --gitee        使用中国镜像（Gitee，清华 PyPI）"
         Write-Host "  --official           强制使用官方源"
-        Write-Host "  --keep-toolchain [yes|no] 重装时保留工具链（local_pkgs）与配置（默认：yes）"
+        Write-Host "  --keep-sdk [yes|no] 重装时保留工具链（local_pkgs）与配置（默认：yes）"
         Write-Host "  --python [path]      安装便携式 Python, 安装目录为 path（默认：D:\Tools\Python）"
         Write-Host "  --env-root [path]    设置自定义安装目录"
-        Write-Host "  --en, --english      强制显示英文信息"
-        Write-Host "  --zh, --chinese      强制显示中文信息"
+        Write-Host "  --lang [en|zh]       强制消息语言"
         Write-Host "  --packages [repo]    指定 packages 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
         Write-Host "  --env [repo]         指定 env 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
         Write-Host "  --sdk [repo]         指定 sdk 仓库地址和分支"
         Write-Host "                        格式: url[#branch]"
-        Write-Host "  --touch-env-url [url] 指定 touch_env.py 下载 URL"
+        Write-Host "  --touch-env [url] 指定 touch_env.py 下载 URL"
         Write-Host "  -h, --help           显示此帮助信息"
         Write-Host ""
     }
@@ -240,18 +233,17 @@ function Print-Help {
         Write-Host "  --yes, --auto        Auto-install without prompts"
         Write-Host "  --cn, --gitee        Use China mirror (Gitee, PyPI TUNA)"
         Write-Host "  --official           Force use official source"
-        Write-Host "  --keep-toolchain [yes|no] Keep toolchains (local_pkgs) and config when reinstalling (default: yes)"
+        Write-Host "  --keep-sdk [yes|no] Keep toolchains (local_pkgs) and config when reinstalling (default: yes)"
         Write-Host "  --python [path]      Force install portable Python, install directory is path (default: D:\Tools\Python)"
         Write-Host "  --env-root [path]    Set custom install directory"
-        Write-Host "  --en, --english      Force English messages"
-        Write-Host "  --zh, --chinese      Force Chinese messages"
+        Write-Host "  --lang [en|zh]       Force message language"
         Write-Host "  --packages [repo]    Specify custom packages repository and branch"
         Write-Host "                        Format: url[#branch]"
         Write-Host "  --env [repo]         Specify custom env repository and branch"
         Write-Host "                        Format: url[#branch]"
         Write-Host "  --sdk [repo]         Specify custom sdk repository and branch"
         Write-Host "                        Format: url[#branch]"
-        Write-Host "  --touch-env-url [url] Specify touch_env.py download URL"
+        Write-Host "  --touch-env [url] Specify touch_env.py download URL"
         Write-Host "  -h, --help           Show this help message"
         Write-Host ""
     }
@@ -1457,7 +1449,7 @@ function Save-TouchEnvToFile {
         [string]$ScriptContent
     )
 
-    $touchEnvTempFile = Join-Path $env:TEMP "touch_env.py"
+    $touchEnvTempFile = Join-Path $env:TEMP ("touch_env_" + [guid]::NewGuid().ToString("N") + ".py")
     Add-TempFile -FilePath $touchEnvTempFile
     Set-Content -Path $touchEnvTempFile -Value $ScriptContent -Encoding UTF8
     return $touchEnvTempFile
@@ -1493,9 +1485,9 @@ function Build-TouchEnvArgs {
         $pythonArgs += "--repo-sdk", $script:Config.CustomSdk
     }
 
-    # Pass keep-toolchain decision
-    if ($script:Config.KeepToolchain) {
-        $pythonArgs += "--keep-toolchain", $script:Config.KeepToolchain
+    # Pass keep-sdk decision
+    if ($script:Config.KeepSdk) {
+        $pythonArgs += "--keep-sdk", $script:Config.KeepSdk
     }
 
     return $pythonArgs
@@ -1520,6 +1512,7 @@ function Invoke-TouchEnv {
         [string]$ScriptContent
     )
 
+    $touchEnvFile = $null
     try {
         # Save touch_env.py to temp file
         $touchEnvFile = Save-TouchEnvToFile -ScriptContent $ScriptContent
@@ -1543,6 +1536,11 @@ function Invoke-TouchEnv {
     catch {
         Write-LogError "touch_env_download_failed" $_.Exception.Message
         exit 1
+    }
+    finally {
+        if ($touchEnvFile -and (Test-Path $touchEnvFile)) {
+            Remove-Item $touchEnvFile -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
@@ -2007,7 +2005,7 @@ function Init-Config {
         LangCurrent    = ""
         UseCN          = $false
         UseCNSet       = $false
-        KeepToolchain  = ""
+        KeepSdk  = ""
         AutoMode       = $false
         NeedHelp       = $false
         IsAdmin        = $false
@@ -2024,12 +2022,12 @@ function Init-Config {
     Register-CleanupHandler
 
     # Set config from parsed arguments
-    $script:Config.LangCurrent = if ($ParsedArgs.ZhMode) { "zh" } elseif ($ParsedArgs.EnMode) { "en" } else { Get-SystemLanguage }
+    $script:Config.LangCurrent = if ($ParsedArgs.LangChoice) { $ParsedArgs.LangChoice } else { Get-SystemLanguage }
     $script:Config.UseCN = $ParsedArgs.CnMode
     $script:Config.UseCNSet = $ParsedArgs.CnMode -or $ParsedArgs.OfficialMode
     $script:Config.AutoMode = $ParsedArgs.AutoMode
     $script:Config.NeedHelp = $ParsedArgs.HelpMode
-    $script:Config.KeepToolchain = $ParsedArgs.KeepToolchain
+    $script:Config.KeepSdk = $ParsedArgs.KeepSdk
     $script:Config.CustomPackages = $ParsedArgs.CustomPackages
     $script:Config.CustomEnv = $ParsedArgs.CustomEnv
     $script:Config.CustomSdk = $ParsedArgs.CustomSdk

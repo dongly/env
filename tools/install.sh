@@ -27,21 +27,21 @@
 # Supports: English / 中文
 #
 # Usage:
-#   ./install.sh [--yes] [--cn] [--official] [--keep-toolchain <yes|no>] [--env-root <path>] [--en|--zh] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--touch-env-url <url>] [--help]
+#   ./install.sh [--yes] [--cn] [--official] [--keep-sdk <yes|no>] [--env-root <path>] [--lang <en|zh>] [--packages <repo>[#<branch>]] [--env <repo>[#<branch>]] [--sdk <repo>[#<branch>]] [--touch-env <url>] [--help]
 #
 # Options:
 #   --yes, --auto        Auto-install without prompts
 #   --cn, --gitee        Use China mirror (Gitee, PyPI TUNA)
 #   --official           Force use official source
-#   --keep-toolchain <yes|no>  Keep toolchains (local_pkgs) and config when reinstalling (default: yes)
+#   --keep-sdk <yes|no>  Keep toolchains (local_pkgs) and config when reinstalling (default: yes)
 #                              重装时保留工具链（local_pkgs）与配置（默认：是）
 #   --env-root <path>    Set custom install directory
-#   --en, --english      Force English messages
-#   --zh, --chinese      Force Chinese messages
+#   --lang <en|zh>       Force message language
+#                        强制消息语言
 #   --packages <repo>[#<branch>]  Specify custom packages repository and branch
 #   --env <repo>[#<branch>]  Specify custom env repository and branch
 #   --sdk <repo>[#<branch>]  Specify custom sdk repository and branch
-#   --touch-env-url <url> Specify touch_env.py download URL
+#   --touch-env <url> Specify touch_env.py download URL
 #   -h, --help           Show this help message
 #
 
@@ -65,7 +65,7 @@ CONFIG_USE_CN=false
 CONFIG_CUSTOM_PACKAGES_REPO=""
 CONFIG_CUSTOM_ENV_REPO=""
 CONFIG_CUSTOM_SDK_REPO=""
-CONFIG_KEEP_TOOLCHAIN=""
+CONFIG_KEEP_SDK=""
 CONFIG_TOUCH_ENV_URL_VALUE=""
 
 # Global variables for user context (initialized in init_environment)
@@ -266,9 +266,9 @@ log_error() {
 # ============================================================================
 
 download_and_run_touch_env() {
-    # Create temp file
+    # Create temp file (portable: BSD/macOS mktemp rejects GNU-only --suffix)
     local touch_env_dest
-    touch_env_dest=$(mktemp --suffix=.py)
+    touch_env_dest=$(mktemp)
 
     # Track temp file for cleanup
     TEMP_FILES+=("$touch_env_dest")
@@ -362,8 +362,8 @@ run_touch_env() {
         python_args+=("--auto-mode")
     fi
 
-    if [ -n "$CONFIG_KEEP_TOOLCHAIN" ]; then
-        python_args+=("--keep-toolchain" "$CONFIG_KEEP_TOOLCHAIN")
+    if [ -n "$CONFIG_KEEP_SDK" ]; then
+        python_args+=("--keep-sdk" "$CONFIG_KEEP_SDK")
     fi
 
     # Custom repositories (pass full URL, touch_env.py parses branch if present)
@@ -383,7 +383,10 @@ run_touch_env() {
 
     # Execute touch_env.py as REAL_USER
     if [ -n "$SUDO_USER" ]; then
-        su "$REAL_USER" -c "python3 '$touch_env_dest' ${python_args[*]}"
+        # mktemp creates a 0600 root-owned file; grant read so the invoking user can run it,
+        # and pass the argument array without a shell re-parse (no word splitting)
+        chmod a+r "$touch_env_dest"
+        sudo -u "$REAL_USER" python3 "$touch_env_dest" "${python_args[@]}"
     else
         python3 "$touch_env_dest" "${python_args[@]}"
     fi
@@ -411,15 +414,15 @@ print_help() {
     echo "  --yes, --auto        Auto-install without prompts"
     echo "  --cn, --gitee        Use China mirror (Gitee, PyPI TUNA)"
     echo "  --official           Force use official source"
-    echo "  --keep-toolchain <yes|no>  Keep toolchains (local_pkgs) and config when reinstalling (default: yes)"
+    echo "  --keep-sdk <yes|no>  Keep toolchains (local_pkgs) and config when reinstalling (default: yes)"
     echo "                              重装时保留工具链（local_pkgs）与配置（默认：是）"
     echo "  --env-root <path>    Set custom install directory"
-    echo "  --en, --english      Force English messages"
-    echo "  --zh, --chinese      Force Chinese messages"
+    echo "  --lang <en|zh>       Force message language"
+    echo "                      强制消息语言"
     echo "  --packages <repo>[#<branch>]  Specify custom packages repository and branch"
     echo "  --env <repo>[#<branch>]  Specify custom env repository and branch"
     echo "  --sdk <repo>[#<branch>]  Specify custom sdk repository and branch"
-    echo "  --touch-env-url <url> Specify touch_env.py download URL"
+    echo "  --touch-env <url> Specify touch_env.py download URL"
     echo "  -h, --help           Show this help message"
     echo ""
 }
@@ -437,7 +440,7 @@ check_git() {
 
 detect_china() {
     # Check if user is in China (by IP or system locale)
-    # Only set CONFIG_USE_CN, don't override CONFIG_LANG (which may be set by --en/--zh)
+    # Only set CONFIG_USE_CN, don't override CONFIG_LANG (which may be set by --lang)
     if [ "$CONFIG_USE_CN_SET" = "true" ]; then
         return  # User explicitly set mirror, skip detection
     fi
@@ -482,14 +485,9 @@ parse_args() {
             --yes|--auto)
                 CONFIG_AUTO_MODE="true"
                 ;;
-            --en|--english)
-                CONFIG_EN_MODE="true"
-                CONFIG_LANG="en"
-                CONFIG_LANG_SET="true"
-                ;;
-            --zh|--chinese)
-                CONFIG_ZH_MODE="true"
-                CONFIG_LANG="zh"
+            --lang)
+                shift
+                CONFIG_LANG="$1"
                 CONFIG_LANG_SET="true"
                 ;;
             --env-root)
@@ -519,11 +517,11 @@ parse_args() {
                 CONFIG_OFFICIAL_MODE="true"
                 CONFIG_USE_CN_SET="true"
                 ;;
-            --keep-toolchain)
+            --keep-sdk)
                 shift
-                CONFIG_KEEP_TOOLCHAIN="$1"
+                CONFIG_KEEP_SDK="$1"
                 ;;
-            --touch-env-url)
+            --touch-env)
                 shift
                 CONFIG_TOUCH_ENV_URL_VALUE="$1"
                 ;;
