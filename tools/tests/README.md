@@ -99,6 +99,30 @@ $env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/windows/test_install_
   sudo pwsh -NoProfile -File tools/tests/windows/test_install_ps1_install.ps1
   ```
 
+### 3.3 真实 GitHub 源安装（手工，需网络）
+
+测试套件用本地 bare 源保证离线可控；下列命令**直接使用 GitHub 官方仓库**做一次完整真实安装（隔离 `ENV_ROOT`，不触碰 `~/.rt-env`），用于验证默认下载路径与官方源可用性：
+
+Linux / macOS / Git Bash：
+
+```bash
+bash -c "$(wget -qO- https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.sh)" -- \
+  --env-root /tmp/rt-env-github-test --yes
+```
+
+Windows PowerShell：
+
+```powershell
+irm https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.ps1 -OutFile install.ps1; `
+  .\install.ps1 --env-root $env:TEMP\rt-env-github-test --yes; Remove-Item install.ps1
+```
+
+要点：
+- 不传 `--env/--packages/--sdk`，即从 GitHub 官方源克隆三个仓库；`--touch-env` 留空则从 GitHub 下载真实 `touch_env.py`
+- 完整网络安装（含全部依赖与 pyocd 下载），耗时数分钟；国内网络可加 `--cn` 走 Gitee 镜像
+- 装完验证后删除隔离目录：`rm -rf /tmp/rt-env-github-test`（或 `Remove-Item -Recurse -Force $env:TEMP\rt-env-github-test`）
+- 想测自定义 fork：加 `--env https://github.com/<user>/env.git#<branch>`
+
 ## 4. 手工测试（辅助验证）
 
 自动化套件覆盖了绝大多数断言，下列步骤用于**需要人工观察行为**的场景。
