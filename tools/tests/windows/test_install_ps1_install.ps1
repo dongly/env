@@ -27,10 +27,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Continue'
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$toolsDir = Split-Path -Parent $scriptDir
-$repoRoot = Split-Path -Parent $toolsDir
-$installPs1 = Join-Path $toolsDir 'install.ps1'
-$touchEnv = Join-Path $toolsDir 'touch_env.py'
+$repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptDir))
+$installPs1 = Join-Path $repoRoot 'tools\install.ps1'
+$touchEnv = Join-Path $repoRoot 'tools\touch_env.py'
 
 $script:Pass = 0
 $script:Fail = 0

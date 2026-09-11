@@ -18,8 +18,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Continue'
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$toolsDir = Split-Path -Parent $scriptDir
-$installPs1 = Join-Path $toolsDir 'install.ps1'
+$repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptDir))
+$installPs1 = Join-Path $repoRoot 'tools\install.ps1'
 
 $script:Pass = 0
 $script:Fail = 0

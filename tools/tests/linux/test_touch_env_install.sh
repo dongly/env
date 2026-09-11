@@ -10,16 +10,16 @@
 # third-party dependencies and pyocd (network required), then actually run
 # the installed rt-env (version, info, help) from the fresh venv.
 #
-# Usage: bash tools/tests/test_touch_env_install.sh
-#        RT_ENV_TEST_FULL=1 bash tools/tests/test_touch_env_install.sh
+# Usage: bash tools/tests/linux/test_touch_env_install.sh
+#        RT_ENV_TEST_FULL=1 bash tools/tests/linux/test_touch_env_install.sh
 # Needs: bash, git, python (with venv + pip); network only in FULL mode.
 
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TOOLS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-TOUCH_ENV="$TOOLS_DIR/touch_env.py"
-REPO_ROOT="$(cd "$TOOLS_DIR/.." && pwd)"
+TOOLS_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+TOUCH_ENV="$TOOLS_DIR/tools/touch_env.py"
+REPO_ROOT="$TOOLS_DIR"
 
 PASS=0
 FAIL=0

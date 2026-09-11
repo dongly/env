@@ -1,32 +1,39 @@
 # RT-Thread ENV 测试指南
 
-本目录的测试覆盖安装器（`touch_env.py`）、编排脚本（`install.sh` / `install.ps1`）、激活器（`env.sh` / `env.ps1`）与 CLI（`rt-env`）。
+本目录的测试覆盖安装器（`touch_env.py`）、编排脚本（`install.sh` / `install.ps1`）、激活器（`env.sh` / `env.ps1`）与 CLI（`rt-env`）。按平台分层组织：
+
+```
+tools/tests/
+├── common/    跨平台测试（Python，任何平台可跑）
+├── linux/     POSIX 侧（bash：install.sh 编排 + touch_env.py 真实安装）
+└── windows/   Windows 侧（PowerShell：install.ps1 编排 + 真实安装）
+```
 
 > 所有测试均在**临时目录**进行，绝不触碰真实 `~/.rt-env`。
 
 ## 1. 快速开始
 
 ```bash
-# POSIX 侧（install.sh + touch_env.py）——Linux / macOS / Git Bash
-bash tools/tests/run_all.sh
+# Linux / macOS / Git Bash —— POSIX 侧
+bash tools/tests/linux/run_all.sh
 
-# Windows 侧（install.ps1）
-pwsh -NoProfile -File tools/tests/run_all_ps1.ps1
+# Windows —— PowerShell 侧
+pwsh -NoProfile -File tools/tests/windows/run_all.ps1
 
 # 全量真实安装（需网络：真依赖 + pyocd + 真运行工具）
-RT_ENV_TEST_FULL=1 bash tools/tests/run_all.sh
-# 或：$env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/run_all_ps1.ps1
+RT_ENV_TEST_FULL=1 bash tools/tests/linux/run_all.sh
+# 或：$env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/windows/run_all.ps1
 ```
 
 逐个运行（等价于 run_all 的内容）：
 
 ```bash
-bash tools/tests/test_install_sh.sh                     # install.sh 编排层（stub）
-python tools/tests/test_touch_env_args.py               # touch_env.py 参数面
-python tools/tests/test_touch_env_behavior.py           # touch_env.py 核心行为
-bash tools/tests/test_touch_env_install.sh              # touch_env.py 真实安装 E2E
-pwsh -NoProfile -File tools/tests/test_install_ps1.ps1  # install.ps1 编排层（stub）
-pwsh -NoProfile -File tools/tests/test_install_ps1_install.ps1  # install.ps1 真实安装 E2E
+bash tools/tests/linux/test_install_sh.sh                 # install.sh 编排层（stub）
+python tools/tests/common/test_touch_env_args.py          # touch_env.py 参数面
+python tools/tests/common/test_touch_env_behavior.py      # touch_env.py 核心行为
+bash tools/tests/linux/test_touch_env_install.sh          # touch_env.py 真实安装 E2E
+pwsh -NoProfile -File tools/tests/windows/test_install_ps1.ps1        # install.ps1 编排层（stub）
+pwsh -NoProfile -File tools/tests/windows/test_install_ps1_install.ps1  # install.ps1 真实安装 E2E
 ```
 
 > 每个脚本输出 `PASS/FAIL/SKIP` 行；存在 `FAIL` 时退出码非 0。`SKIP` 表示前置条件缺失，不算失败。
@@ -52,8 +59,8 @@ pwsh -NoProfile -File tools/tests/test_install_ps1_install.ps1  # install.ps1 �
 | `RT_ENV_TEST_FULL=1` | ✅ 全装 | ✅ | ✅ `-v`/`--info`/`--help` | 需要 |
 
 ```bash
-bash tools/tests/test_touch_env_install.sh               # 离线
-RT_ENV_TEST_FULL=1 bash tools/tests/test_touch_env_install.sh  # 全量
+bash tools/tests/linux/test_touch_env_install.sh               # 离线
+RT_ENV_TEST_FULL=1 bash tools/tests/linux/test_touch_env_install.sh  # 全量
 ```
 
 ## 3. 真实安装测试（E2E，核心）
@@ -63,7 +70,7 @@ RT_ENV_TEST_FULL=1 bash tools/tests/test_touch_env_install.sh  # 全量
 ### 3.1 `test_touch_env_install.sh`（touch_env.py 直接安装）
 
 ```bash
-bash tools/tests/test_touch_env_install.sh
+bash tools/tests/linux/test_touch_env_install.sh
 ```
 
 1. 临时目录建三个本地 bare 仓库（env 由本仓库 push；packages/sdk 空仓库，HEAD 指向 master）
@@ -77,8 +84,8 @@ bash tools/tests/test_touch_env_install.sh
 ### 3.2 `test_install_ps1_install.ps1`（install.ps1 完整编排链）
 
 ```powershell
-pwsh -NoProfile -File tools/tests/test_install_ps1_install.ps1
-$env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/test_install_ps1_install.ps1
+pwsh -NoProfile -File tools/tests/windows/test_install_ps1_install.ps1
+$env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/windows/test_install_ps1_install.ps1
 ```
 
 1. 本地 bare 三源 + 本地 HTTP 服务提供真实 `touch_env.py`（`Invoke-WebRequest` 不支持 `file://`）
@@ -89,7 +96,7 @@ $env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/test_install_ps1_inst
 - **参数名**：install.ps1 收 `--env/--packages/--sdk`（转发给 touch_env.py 时才变 `--repo-*`）；传错名会被静默忽略并回落到默认镜像源
 - **提权**：仅当执行策略或长路径需修改时才要求管理员。本机两者已满足，免提权。需提权时：
   ```powershell
-  sudo pwsh -NoProfile -File tools/tests/test_install_ps1_install.ps1
+  sudo pwsh -NoProfile -File tools/tests/windows/test_install_ps1_install.ps1
   ```
 
 ## 4. 手工测试（辅助验证）

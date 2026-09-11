@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Tests for tools/install.sh (orchestrator script).
 #
-# Usage:  bash tools/tests/test_install_sh.sh
+# Usage:  bash tools/tests/linux/test_install_sh.sh
 # Needs:  bash; python3 (a wrapper is synthesized when only `python` works,
 #         e.g. the Microsoft Store python3 stub on Windows); curl or wget.
 #
-# Covers tools/tests/README.md section 5.1 / 5.2 / 5.4 (sh side).
+# Covers tools/tests/README.md section 4.5 (install.sh side).
 
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TOOLS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-INSTALL_SH="$TOOLS_DIR/install.sh"
+TOOLS_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+INSTALL_SH="$TOOLS_DIR/tools/install.sh"
 
 PASS=0
 FAIL=0

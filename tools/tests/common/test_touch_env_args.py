@@ -4,8 +4,7 @@ Covers the parameter surface and i18n table described in tools/tests/README.md
 section 1.  Static analysis only (AST) plus one ``--help`` subprocess call;
 no installer side effects.
 
-Run:  python -m unittest tools/tests/test_touch_env_args.py
-   or python tools/tests/test_touch_env_args.py
+Run:  python tools/tests/common/test_touch_env_args.py
 """
 
 import ast
@@ -15,7 +14,7 @@ import sys
 import unittest
 from pathlib import Path
 
-TOOLS_DIR = Path(__file__).resolve().parents[1]
+TOOLS_DIR = Path(__file__).resolve().parents[3] / "tools"
 TOUCH_ENV = TOOLS_DIR / "touch_env.py"
 
 _removed_options = ("--install-pyocd", "--backup", "--restore-config")

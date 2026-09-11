@@ -5,7 +5,7 @@ helpers (parse_repo_url, safe removal, message lookup). These tests exist
 because a P0 bug ("--keep-sdk no" treated as truthy string) slipped
 through when only the parameter surface was tested.
 
-Run:  python tools/tests/test_touch_env_behavior.py
+Run:  python tools/tests/common/test_touch_env_behavior.py
 """
 
 import importlib.util
@@ -19,7 +19,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-TOOLS_DIR = Path(__file__).resolve().parents[1]
+TOOLS_DIR = Path(__file__).resolve().parents[3] / "tools"
 TOUCH_ENV = TOOLS_DIR / "touch_env.py"
 
 
