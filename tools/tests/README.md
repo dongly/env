@@ -101,20 +101,26 @@ $env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/windows/test_install_
 
 ### 3.3 真实 GitHub 源安装（手工，需网络）
 
-测试套件用本地 bare 源保证离线可控；下列命令**直接使用 GitHub 官方仓库**做一次完整真实安装（隔离 `ENV_ROOT`，不触碰 `~/.rt-env`），用于验证默认下载路径与官方源可用性：
+测试套件用本地 bare 源保证离线可控；下列命令**直接使用 GitHub 真实仓库**做一次完整真实安装（隔离 `ENV_ROOT`，不触碰 `~/.rt-env`），用于验证真实下载路径。示例使用自定义 fork（`dongly/env` 的 `install-unified` 分支）；把仓库地址换成 `RT-Thread/env` 的 `master` 即为官方源安装。
 
 Linux / macOS / Git Bash：
 
 ```bash
-bash -c "$(wget -qO- https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.sh)" -- \
+repo=https://raw.githubusercontent.com/dongly/env/refs/heads/install-unified
+bash -c "$(wget -qO- $repo/tools/install.sh)" -- \
+  --touch-env "$repo/tools/touch_env.py" \
+  --env 'https://github.com/dongly/env.git#install-unified' \
   --env-root /tmp/rt-env-github-test --yes
 ```
 
 Windows PowerShell：
 
 ```powershell
-irm https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.ps1 -OutFile install.ps1; `
-  .\install.ps1 --env-root $env:TEMP\rt-env-github-test --yes; Remove-Item install.ps1
+$repo = 'https://raw.githubusercontent.com/dongly/env/refs/heads/install-unified'
+irm "$repo/tools/install.ps1" -OutFile install.ps1; `
+  .\install.ps1 --touch-env "$repo/tools/touch_env.py" `
+    --env 'https://github.com/dongly/env.git#install-unified' `
+    --env-root d:\rt-env-test; Remove-Item install.ps1
 ```
 
 要点：
