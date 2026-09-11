@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Run all offline test suites for tools/.
+# Run the POSIX-side offline test suites for tools/ (install.sh + touch_env.py).
+# Windows-side suites (install.ps1) live in run_all_ps1.ps1.
 # Usage: bash tools/tests/run_all.sh
-#        RT_ENV_TEST_FULL=1 bash tools/tests/run_all.sh   # full real installs (network)
+#        RT_ENV_TEST_FULL=1 bash tools/tests/run_all.sh   # full real install (network)
 
 set -u
 
@@ -19,17 +20,15 @@ run() {
     fi
 }
 
-run 'install.sh (stub)'        'bash tools/tests/test_install_sh.sh'
-run 'touch_env.py args'        'python tools/tests/test_touch_env_args.py'
-run 'touch_env.py behavior'    'python tools/tests/test_touch_env_behavior.py'
+run 'install.sh (stub)'         'bash tools/tests/test_install_sh.sh'
+run 'touch_env.py args'         'python tools/tests/test_touch_env_args.py'
+run 'touch_env.py behavior'     'python tools/tests/test_touch_env_behavior.py'
 run 'touch_env.py real install' 'bash tools/tests/test_touch_env_install.sh'
-run 'install.ps1 (stub)'       'pwsh -NoProfile -File tools/tests/test_install_ps1.ps1'
-run 'install.ps1 real install' 'pwsh -NoProfile -File tools/tests/test_install_ps1_install.ps1'
 
 printf '\n===== SUMMARY =====\n'
 if [ "$FAILED" -eq 0 ]; then
-    echo 'ALL SUITES PASSED'
+    echo 'ALL POSIX SUITES PASSED'
 else
-    echo "$FAILED suite(s) FAILED"
+    echo "$FAILED POSIX suite(s) FAILED"
     exit 1
 fi

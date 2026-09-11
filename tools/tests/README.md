@@ -7,14 +7,18 @@
 ## 1. 快速开始
 
 ```bash
-# 一键全跑（离线，无需网络）
+# POSIX 侧（install.sh + touch_env.py）——Linux / macOS / Git Bash
 bash tools/tests/run_all.sh
+
+# Windows 侧（install.ps1）
+pwsh -NoProfile -File tools/tests/run_all_ps1.ps1
 
 # 全量真实安装（需网络：真依赖 + pyocd + 真运行工具）
 RT_ENV_TEST_FULL=1 bash tools/tests/run_all.sh
+# 或：$env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/run_all_ps1.ps1
 ```
 
-逐个运行（等价于 run_all.sh 的内容）：
+逐个运行（等价于 run_all 的内容）：
 
 ```bash
 bash tools/tests/test_install_sh.sh                     # install.sh 编排层（stub）
