@@ -106,28 +106,31 @@ $env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/windows/test_install_
 Linux / macOS / Git Bash：
 
 ```bash
-repo=https://raw.githubusercontent.com/dongly/env/refs/heads/install-unified
+repo=https://raw.githubusercontent.com/dongly/env/refs/heads/install-unified   # raw 内容
+git=https://github.com/dongly/env.git#install-unified                          # git 克隆
 bash -c "$(wget -qO- $repo/tools/install.sh)" -- \
   --touch-env "$repo/tools/touch_env.py" \
-  --env 'https://github.com/dongly/env.git#install-unified' \
+  --env "$git" \
   --env-root /tmp/rt-env-github-test --yes
 ```
 
 Windows PowerShell：
 
 ```powershell
-$repo = 'https://raw.githubusercontent.com/dongly/env/refs/heads/install-unified'
+$repo = 'https://raw.githubusercontent.com/dongly/env/refs/heads/install-unified'  # raw 内容
+$git  = 'https://github.com/dongly/env.git#install-unified'                       # git 克隆
 irm "$repo/tools/install.ps1" -OutFile install.ps1; `
   .\install.ps1 --touch-env "$repo/tools/touch_env.py" `
-    --env 'https://github.com/dongly/env.git#install-unified' `
+    --env "$git" `
     --env-root d:\rt-env-test; Remove-Item install.ps1
 ```
 
 要点：
-- 不传 `--env/--packages/--sdk`，即从 GitHub 官方源克隆三个仓库；`--touch-env` 留空则从 GitHub 下载真实 `touch_env.py`
+- `$repo`（raw）供下载脚本文件：`install.sh/ps1` 与 `touch_env.py`；`$git`（clone）供 `--env` 克隆仓库——两种地址形态不同，不能混用
+- 三个仓库源均可省略：不传 `--env/--packages/--sdk` 时按网络区域自动选择 GitHub/Gitee 官方源
 - 完整网络安装（含全部依赖与 pyocd 下载），耗时数分钟；国内网络可加 `--cn` 走 Gitee 镜像
 - 装完验证后删除隔离目录：`rm -rf /tmp/rt-env-github-test`（或 `Remove-Item -Recurse -Force $env:TEMP\rt-env-github-test`）
-- 想测自定义 fork：加 `--env https://github.com/<user>/env.git#<branch>`
+- 切换官方源：`repo=.../RT-Thread/env/refs/heads/master`、`git=https://github.com/RT-Thread/env.git`
 
 ## 4. 手工测试（辅助验证）
 
