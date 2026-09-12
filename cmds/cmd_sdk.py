@@ -21,6 +21,7 @@
 # Change Logs:
 # Date           Author          Notes
 # 2024-04-04     bernard         the first version
+# 2026-09-13     Dongly          Save the sdk selection to $ENV_ROOT/sdk.config
 
 import os
 import json
@@ -38,27 +39,47 @@ def cmd(args):
     from cmds.cmd_package import package_update
 
     # change to sdk root directory
-    tools_kconfig_path = os.path.join(Import('env_root'), 'tools', 'scripts')
+    env_root = Import('env_root')
+    tools_kconfig_path = os.path.join(env_root, 'tools', 'scripts')
     beforepath = os.getcwd()
     os.chdir(tools_kconfig_path)
 
     # set HOSTOS
     os.environ['HOSTOS'] = platform.system()
 
+    # the sdk selection persists in $ENV_ROOT/sdk.config (read by sdk_manager),
+    # not in a .config left in the working directory
+    sdk_config = os.path.join(env_root, 'sdk.config')
+
     # change bsp root to sdk root
     bsp_root = tools_kconfig_path
     before_bsp_root = Import('bsp_root')
     Export('bsp_root')
 
-    # do menuconfig
-    sys.argv = ['menuconfig', 'Kconfig']
-    menuconfig._main()
+    try:
+        # do menuconfig; kconfiglib resolves the config file from KCONFIG_CONFIG
+        before_config_env = os.environ.get('KCONFIG_CONFIG')
+        os.environ['KCONFIG_CONFIG'] = sdk_config
+        try:
+            sys.argv = ['menuconfig', 'Kconfig']
+            menuconfig._main()
+        finally:
+            if before_config_env is None:
+                os.environ.pop('KCONFIG_CONFIG', None)
+            else:
+                os.environ['KCONFIG_CONFIG'] = before_config_env
 
-    # update package
-    package_update()
+        # update package
+        package_update(config_file=sdk_config)
 
-    # update sdk list information
-    packages = get_packages()
+        # update sdk list information
+        packages = get_packages(config_file=sdk_config)
+    finally:
+        os.chdir(beforepath)
+
+        # restore the old bsp_root
+        bsp_root = before_bsp_root
+        Export('bsp_root')
 
     sdk_packages = []
     for item in packages:
@@ -71,13 +92,6 @@ def cmd(args):
     # write sdk_packages to sdk_list.json
     with open(os.path.join(tools_kconfig_path, 'sdk_list.json'), 'w', encoding='utf-8') as f:
         json.dump(sdk_packages, f, ensure_ascii=False, indent=4)
-
-    # restore the old directory
-    os.chdir(beforepath)
-
-    # restore the old bsp_root
-    bsp_root = before_bsp_root
-    Export('bsp_root')
 
 
 def add_parser(sub):

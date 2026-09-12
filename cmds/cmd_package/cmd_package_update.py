@@ -24,6 +24,7 @@
 # 2020-04-13     SummerGift      refactoring
 # 2026-05-12     CYFS            share hal-sdk packages in libraries and create bridge SConscript for hal-sdk packages in BSP packages
 # 2026-09-12     Dongly      Read the env settings from $ENV_ROOT/rt-env.config
+# 2026-09-13     Dongly      Add an optional config_file argument to package_update
 #
 
 import json
@@ -837,21 +838,22 @@ def get_git_root_path(repo_path):
     return None
 
 
-def pre_package_update():
+def pre_package_update(config_file='.config'):
     """Make preparations before updating the software package."""
 
     logging.info("Begin prepare package update")
     bsp_root = Import('bsp_root')
     env_root = Import('env_root')
 
-    if not os.path.exists('.config'):
+    config_fn = config_file
+    if not os.path.exists(config_fn):
         if platform.system() == "Windows":
             os.system('chcp 65001  > nul')
 
-        print("\n\033[1;31;40m当前路径下没有发现 .config 文件，请确保当前目录为 BSP 根目录。\033[0m")
-        print("\033[1;31;40m如果确定当前目录为 BSP 根目录，请先使用 <menuconfig> 命令来生成 .config 文件。\033[0m\n")
+        print("\n\033[1;31;40m当前路径下没有发现 {0} 文件，请确保当前目录为 BSP 根目录。\033[0m".format(config_fn))
+        print("\033[1;31;40m如果确定当前目录为 BSP 根目录，请先使用 <menuconfig> 命令来生成 {0} 文件。\033[0m\n".format(config_fn))
 
-        print('No system configuration file : .config.')
+        print('No system configuration file : {0}.'.format(config_fn))
         print('You should use < menuconfig > command to config bsp first.')
 
         if platform.system() == "Windows":
@@ -890,7 +892,7 @@ def pre_package_update():
                     (pathname   TEXT  ,package  TEXT  ,md5  TEXT );'''
         pkgsdb.create_table(conn, sql)
 
-    fn = '.config'
+    fn = config_file
     pkgs = kconfig.parse(fn)
     newpkgs = pkgs
 
@@ -1230,7 +1232,7 @@ def install_packages(sys_value, force_update):
     return True
 
 
-def package_update(force_update=False):
+def package_update(force_update=False, config_file='.config'):
     """Update env's packages.
 
     Compare the old and new software package list and update the package.
@@ -1239,7 +1241,7 @@ def package_update(force_update=False):
     remind the user saved the modified file.
     """
 
-    sys_value = pre_package_update()
+    sys_value = pre_package_update(config_file)
     if not sys_value:
         return
 

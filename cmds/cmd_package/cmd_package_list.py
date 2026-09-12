@@ -21,6 +21,7 @@
 # Change Logs:
 # Date           Author          Notes
 # 2020-04-08     SummerGift      Optimize program structure
+# 2026-09-13     Dongly          Add an optional config_file argument
 #
 
 import os
@@ -30,20 +31,19 @@ from package import PackageOperation
 from vars import Import
 
 
-def get_packages():
+def get_packages(config_file='.config'):
     """Get the packages list in env.
 
-    Read the.config file in the BSP directory,
-    and return the version number of the selected package.
+    Read the config file (default .config) in the BSP directory, and
+    return the version number of the selected package.
     """
 
-    config_file = '.config'
     pkgs_root = Import('pkgs_root')
     packages = []
     if not os.path.isfile(config_file):
         print(
-            "\033[1;31;40mWarning: Can't find .config.\033[0m"
-            '\033[1;31;40mYou should use <menuconfig> command to config bsp first.\033[0m'
+            "\033[1;31;40mWarning: Can't find {0}.\033[0m".format(config_file)
+            + '\033[1;31;40mYou should use <menuconfig> command to config bsp first.\033[0m'
         )
 
         return packages
@@ -67,21 +67,20 @@ def get_packages():
     return packages
 
 
-def list_packages():
+def list_packages(config_file='.config'):
     """Print the packages list in env.
 
-    Read the.config file in the BSP directory,
-    and list the version number of the selected package.
+    Read the config file (default .config) in the BSP directory, and
+    list the version number of the selected package.
     """
 
-    config_file = '.config'
     pkgs_root = Import('pkgs_root')
 
     if not os.path.isfile(config_file):
         if platform.system() == "Windows":
             os.system('chcp 65001  > nul')
 
-        print("\033[1;31;40mWarning: Can't find .config.\033[0m")
+        print("\033[1;31;40mWarning: Can't find {0}.\033[0m".format(config_file))
         print('\033[1;31;40mYou should use <menuconfig> command to config bsp first.\033[0m')
 
         if platform.system() == "Windows":
