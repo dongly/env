@@ -1,13 +1,9 @@
 import json
 import os
 import unittest
-from pathlib import Path
 from unittest import mock
 
 import info
-
-
-REPOSITORY = Path(__file__).resolve().parents[2]
 
 
 def load_shipped_env_json():
@@ -17,7 +13,7 @@ def load_shipped_env_json():
 
 
 class DefaultsDriftTest(unittest.TestCase):
-    """Pin info.DEFAULTS to the shipped env.json (docs/adr/0003).
+    """Pin info.DEFAULTS to the shipped env.json.
 
     DEFAULTS intentionally has no mirror entries; every leaf it does define
     must exist in the shipped env.json with the same value, otherwise the
@@ -95,6 +91,18 @@ class InfoAccessorTest(unittest.TestCase):
     def test_unknown_api_raises(self):
         with mock.patch.object(info, 'load_env_json', return_value={}):
             self.assertRaises(KeyError, info.get_api_url, 'no-such-api')
+
+    def test_custom_repo_from_config(self):
+        config = {'repositories': {'mine': {'url': 'git@example.com:me/env.git', 'branch': 'dev'}}}
+        with mock.patch.object(info, 'load_env_json', return_value=config):
+            source = info.get_source('mine')
+        self.assertEqual(source.url, 'git@example.com:me/env.git')
+        self.assertEqual(source.branch, 'dev')
+
+    def test_custom_repo_without_url_raises(self):
+        config = {'repositories': {'mine': {'branch': 'dev'}}}
+        with mock.patch.object(info, 'load_env_json', return_value=config):
+            self.assertRaises(KeyError, info.get_source, 'mine')
 
     def test_submodule_mirror_template(self):
         with mock.patch.object(info, 'load_env_json', return_value={}):

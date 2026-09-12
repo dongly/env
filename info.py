@@ -33,7 +33,7 @@ from collections import namedtuple
 # Fallback snapshot of the shipped env.json, WITHOUT mirror entries: the
 # defaults only guarantee the primary source of each repository. A mirror is
 # an optional accelerator that comes from env.json alone — with no mirror
-# configured, the primary source is used (docs/adr/0003).
+# configured, the primary source is used.
 DEFAULTS = {
     'name': 'RT-Thread Env Tool',
     'version': 'v2.0.2',
@@ -64,7 +64,7 @@ DEFAULTS = {
 
 # A repository source is an atomic (url, branch) pair: selecting a mirror
 # switches the whole pair, so a primary URL can never be paired with a
-# mirror branch (docs/adr/0001).
+# mirror branch.
 Source = namedtuple('Source', ['url', 'branch'])
 
 
@@ -128,8 +128,8 @@ def get_source(repo, use_mirror=False, branch=None):
     # Priority: explicit branch argument > configured branch of that source
     # (a mirror without 'branch' inherits the primary branch) > DEFAULTS
     # branch. DEFAULTS never supplies a mirror: with no mirror url in
-    # env.json, the primary source is used. Unknown repository names raise
-    # KeyError — code bugs fail loudly (docs/adr/0003).
+    # env.json, the primary source is used. Unknown repository names and
+    # entries without a url raise KeyError — config problems fail loudly.
     raw_entry = _config_section('repositories').get(repo)
     if not isinstance(raw_entry, dict):
         raw_entry = {}
@@ -146,6 +146,8 @@ def get_source(repo, use_mirror=False, branch=None):
             url = mirror['url']
             resolved_branch = mirror.get('branch') or resolved_branch
 
+    if url is None:
+        raise KeyError("repository %r is configured without a 'url'" % (repo,))
     if branch is not None:
         resolved_branch = branch
     return Source(url=url, branch=resolved_branch)

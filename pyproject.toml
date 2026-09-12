@@ -5,7 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rt-env"
 dynamic = ["version", "description"]
-requires-python = ">=3.6"
+requires-python = ">=3.7"
+authors = [{ name = "RT-Thread Development Team", email = "rt-thread@rt-thread.org" }]
+keywords = ["rt-thread"]
+license = { text = "Apache License 2.0" }
+urls = { Homepage = "https://github.com/RT-Thread/env", Repository = "https://github.com/RT-Thread/env" }
 dependencies = [
     "SCons>=4.0.0",
     "requests",

@@ -24,6 +24,7 @@
 # 2019-1-16      SummerGift      Add chinese detection
 # 2020-4-13      SummerGift      refactoring
 # 2025-1-27      bernard         Add env.json for env information
+# 2026-09-12     Dongly      Add show_version banner with --info flag; migrate to info accessors
 
 import os
 import sys
@@ -253,7 +254,7 @@ def main():
     if not hasattr(args, 'func'):
         # No subcommand provided, show help
         parser.print_help()
-        exit(0)
+        sys.exit(0)
 
     show_version_warning()
     export_environment_variable()

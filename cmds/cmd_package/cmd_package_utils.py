@@ -21,6 +21,7 @@
 # Change Logs:
 # Date           Author          Notes
 # 2020-04-08     SummerGift      Optimize program structure
+# 2026-09-12     Dongly      Resolve mirror query endpoint via info.get_api_url
 #
 
 import json

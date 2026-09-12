@@ -23,6 +23,7 @@
 # 2020-04-08     SummerGift      Optimize program structure
 # 2020-04-13     SummerGift      refactoring
 # 2026-05-12     CYFS            share hal-sdk packages in libraries and create bridge SConscript for hal-sdk packages in BSP packages
+# 2026-09-12     Dongly      Resolve submodule mirror urls via info.get_submodule_mirror_url
 #
 
 import json

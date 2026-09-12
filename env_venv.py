@@ -126,7 +126,7 @@ def source_fingerprint(source_root):
 # NOTE: deliberately NOT using info.load_env_json() — this reads the SOURCE
 # tree being installed (the source_root parameter), not the running copy, and
 # env_venv must stay self-contained so degraded installs can still bootstrap.
-# See docs/adr/0002 decision 5 before "fixing" this duplication.
+# Do not "fix" this duplication without considering the reasons above.
 def read_env_version(source_root):
     path = _normalized(source_root) / 'env.json'
     try:

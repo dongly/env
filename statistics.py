@@ -21,6 +21,7 @@
 # Change Logs:
 # Date           Author          Notes
 # 2022-5-6      WuGenSheng      Add copyright information
+# 2026-09-12     Dongly      Resolve statistics endpoint via info.get_api_url
 #
 import os
 import uuid
