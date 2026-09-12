@@ -43,6 +43,7 @@ import kconfig
 import pkgsdb
 from package import PackageOperation, Bridge_SConscript
 from vars import Import, Export
+from info import get_submodule_mirror_url
 from .cmd_package_utils import (
     get_url_from_mirror_server,
     execute_command,
@@ -319,7 +320,7 @@ def get_mirror_giturl(submodule_name):
     Retrurn the download address of the submodule on the mirror server from the submod_name.
     """
 
-    mirror_url = 'https://gitee.com/RT-Thread-Mirror/submod_' + submodule_name + '.git'
+    mirror_url = get_submodule_mirror_url('rt-thread', submodule_name)
     return mirror_url
 
 
@@ -328,7 +329,7 @@ def get_esp_mirror_giturl(submodule_name):
         submodule_name = "CException"
     elif submodule_name == "unity":
         submodule_name = "Unity"
-    mirror_url = 'https://gitee.com/esp-submodules/' + submodule_name + '.git'
+    mirror_url = get_submodule_mirror_url('esp', submodule_name)
     return mirror_url
 
 
