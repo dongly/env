@@ -72,12 +72,10 @@ class CheckExistingEnvTest(unittest.TestCase):
         with redirect_stdout(io.StringIO()):
             self.module.check_existing_env(_config(self.root, keep, auto))
 
-    def test_keep_yes_preserves_local_pkgs_and_config(self):
+    def test_keep_yes_preserves_toolchains_and_config(self):
         _make_layout(self.root)
         self._run("yes")
-        self.assertTrue(
-            os.path.isfile(os.path.join(self.root, "local_pkgs", "tool.marker"))
-        )
+        self.assertFalse(os.path.exists(os.path.join(self.root, "local_pkgs")))
         new_cfg = os.path.join(self.root, "rt-env.config")
         self.assertTrue(os.path.isfile(new_cfg))
         with open(new_cfg, encoding="utf-8") as f:
@@ -105,9 +103,7 @@ class CheckExistingEnvTest(unittest.TestCase):
     def test_unspecified_auto_mode_defaults_to_keep(self):
         _make_layout(self.root)
         self._run(None, auto=True)
-        self.assertTrue(
-            os.path.isfile(os.path.join(self.root, "local_pkgs", "tool.marker"))
-        )
+        self.assertFalse(os.path.exists(os.path.join(self.root, "local_pkgs")))
 
     def test_missing_root_is_a_no_op(self):
         # A root that does not exist must simply return.
@@ -184,7 +180,7 @@ class GetMessageTest(unittest.TestCase):
     def test_known_key_returns_text(self):
         self.assertEqual(
             self.module.get_message("toolchain_kept"),
-            "Keeping toolchains (local_pkgs) and config",
+            "Keeping toolchains (toolchain/) and configs (rt-env.config, sdk.config)",
         )
 
     def test_unknown_key_returns_the_key(self):
@@ -195,7 +191,7 @@ class GetMessageTest(unittest.TestCase):
         try:
             self.assertEqual(
                 self.module.get_message("toolchain_kept"),
-                "保留工具链（local_pkgs）与配置",
+                "保留工具链（toolchain/）与配置（rt-env.config、sdk.config）",
             )
         finally:
             self.module.set_language("en")

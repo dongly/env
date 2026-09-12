@@ -52,9 +52,9 @@
 #                              语言：'en' 或 'zh'
 #   --auto-mode                Auto-install without prompts
 #                              自动安装，无提示
-#   --keep-sdk <yes|no>  Keep downloaded toolchains (local_pkgs) and config
+#   --keep-sdk <yes|no>  Keep toolchains (toolchain/) and configs (rt-env.config, sdk.config)
 #                              when ENV_ROOT exists (default: yes; prompt if omitted)
-#                              当 ENV 已存在时保留已下载的工具链（local_pkgs）与配置
+#                              当 ENV 已存在时保留工具链（toolchain/）与配置（rt-env.config、sdk.config）
 #                              （默认：yes；未指定时交互询问）
 #   --repo-env <url>           Custom env repository URL, e.g.:
 #                              自定义 env 仓库 URL,例如：
@@ -264,10 +264,10 @@ MESSAGES = {
         'env_json_defaults': 'Repository defaults loaded from env.json: {0}',
         'env_json_fallback': 'Cannot read repository defaults from {0}, using built-in sources',
         'env_root_exists': 'Existing RT-Thread ENV detected at: {0}',
-        'toolchain_keep_prompt': 'Keep downloaded toolchains (local_pkgs) and config? [Y/n]: ',
-        'toolchain_kept': 'Keeping toolchains (local_pkgs) and config',
+        'toolchain_keep_prompt': 'Keep toolchains (toolchain/) and configs (rt-env.config, sdk.config)? [Y/n]: ',
+        'toolchain_kept': 'Keeping toolchains (toolchain/) and configs (rt-env.config, sdk.config)',
         'toolchain_removed': 'Removing entire existing directory',
-        'auto_mode_preserving': 'Auto mode: keeping toolchains (local_pkgs) and config',
+        'auto_mode_preserving': 'Auto mode: keeping toolchains (toolchain/) and configs (rt-env.config, sdk.config)',
         'deleting_item': 'Removing: {0}',
         'installation_cancelled': 'Installation cancelled',
         'installation_failed': 'Installation failed: {0}',
@@ -330,10 +330,10 @@ MESSAGES = {
         'env_json_defaults': '仓库默认配置已从 env.json 加载: {0}',
         'env_json_fallback': '无法从 {0} 读取仓库默认配置，使用内置源',
         'env_root_exists': '检测到已存在的 RT-Thread ENV: {0}',
-        'toolchain_keep_prompt': '保留已下载的工具链（local_pkgs）与配置？[Y/n]: ',
-        'toolchain_kept': '保留工具链（local_pkgs）与配置',
+        'toolchain_keep_prompt': '保留工具链（toolchain/）与配置（rt-env.config、sdk.config）？[Y/n]: ',
+        'toolchain_kept': '保留工具链（toolchain/）与配置（rt-env.config、sdk.config）',
         'toolchain_removed': '删除整个现有目录',
-        'auto_mode_preserving': '自动模式：保留工具链（local_pkgs）与配置',
+        'auto_mode_preserving': '自动模式：保留工具链（toolchain/）与配置（rt-env.config、sdk.config）',
         'deleting_item': '正在移除: {0}',
         'installation_cancelled': '安装已取消',
         'installation_failed': '安装失败: {0}',
@@ -905,7 +905,7 @@ def check_existing_env(config):
     if keep:
         log_info('toolchain_kept')
 
-        # Preserve local_pkgs/, the env settings file and the SDK
+        # Preserve the env settings file and the SDK
         # payloads (toolchains, pkgs.json) directly under toolchain/ in place
         config_path = os.path.join(config.env_root, 'rt-env.config')
         legacy_config_path = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
@@ -956,7 +956,7 @@ def check_existing_env(config):
             except OSError:
                 pass
 
-        for rel in ('venv', '.venv', 'tools', 'packages/packages', 'packages/sdk', 'toolchain/.sdk-staging'):
+        for rel in ('venv', '.venv', 'tools', 'local_pkgs', 'packages/packages', 'packages/sdk', 'toolchain/.sdk-staging'):
             target = os.path.join(config.env_root, rel)
             if os.path.exists(target):
                 log_info('deleting_item', rel)
@@ -1267,7 +1267,7 @@ def parse_arguments():
         '--keep-sdk',
         choices=['yes', 'no'],
         default=None,
-        help='Keep downloaded toolchains (local_pkgs) and config when ENV_ROOT exists (default: yes; prompt if omitted)'
+        help='Keep toolchains (toolchain/) and configs (rt-env.config, sdk.config) when ENV_ROOT exists (default: yes; prompt if omitted)'
     )
     parser.add_argument(
         '--repo-env',

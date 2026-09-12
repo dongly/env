@@ -172,6 +172,12 @@ def get_rtt_root():
 def get_env_root():
     env_root = os.getenv("ENV_ROOT")
     if env_root is None:
+        # Script inside an installed tree? The env root sits two levels up
+        # from tools/scripts, mirroring the env.sh layout detection.
+        script_root = os.path.dirname(os.path.abspath(__file__))
+        if os.path.basename(script_root) == 'scripts' and \
+                os.path.basename(os.path.dirname(script_root)) == 'tools':
+            return os.path.dirname(os.path.dirname(script_root))
         if platform.system() != 'Windows':
             env_root = os.path.join(os.getenv('HOME'), '.rt-env')
         else:
