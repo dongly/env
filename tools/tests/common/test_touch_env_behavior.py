@@ -44,6 +44,13 @@ def _make_layout(root):
         f.write("CFG")
     os.makedirs(os.path.join(root, "venv", "rt-env", "Scripts"), exist_ok=True)
     os.makedirs(os.path.join(root, "packages", "packages"), exist_ok=True)
+    os.makedirs(os.path.join(root, "packages", "sdk"), exist_ok=True)
+    toolchain = os.path.join(root, "packages", "gcc-arm-1.0")
+    os.makedirs(toolchain, exist_ok=True)
+    with open(os.path.join(toolchain, "tool.marker"), "w", encoding="utf-8") as f:
+        f.write("keep-me")
+    with open(os.path.join(root, "packages", "pkgs.json"), "w", encoding="utf-8") as f:
+        f.write("{}")
     return marker, config
 
 
@@ -74,13 +81,18 @@ class CheckExistingEnvTest(unittest.TestCase):
         self.assertTrue(
             os.path.isfile(os.path.join(self.root, "tools", "scripts", "cmds", ".config"))
         )
+        self.assertTrue(
+            os.path.isfile(os.path.join(self.root, "packages", "gcc-arm-1.0", "tool.marker"))
+        )
+        self.assertTrue(os.path.isfile(os.path.join(self.root, "packages", "pkgs.json")))
 
     def test_keep_yes_rebuilds_venv_and_repos(self):
         _make_layout(self.root)
         self._run("yes")
         self.assertFalse(os.path.exists(os.path.join(self.root, "venv")))
         self.assertFalse(os.path.exists(os.path.join(self.root, ".venv")))
-        self.assertFalse(os.path.exists(os.path.join(self.root, "packages")))
+        self.assertFalse(os.path.exists(os.path.join(self.root, "packages", "packages")))
+        self.assertFalse(os.path.exists(os.path.join(self.root, "packages", "sdk")))
 
     def test_keep_no_wipes_entire_root(self):
         # P0 regression: "no" is a truthy string and must still mean "wipe".

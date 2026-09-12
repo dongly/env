@@ -905,7 +905,8 @@ def check_existing_env(config):
     if keep:
         log_info('toolchain_kept')
 
-        # Preserve local_pkgs/ and tools/scripts/cmds/.config in place
+        # Preserve local_pkgs/, tools/scripts/cmds/.config and the SDK
+        # payloads (toolchains, pkgs.json) directly under packages/ in place
         config_path = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
         config_saved = None
         if os.path.isfile(config_path):
@@ -915,7 +916,29 @@ def check_existing_env(config):
             except OSError:
                 config_saved = None
 
-        for rel in ('venv', '.venv', 'tools', 'packages'):
+        # SDK payloads used to live under tools/scripts/packages, which the
+        # wipe below deletes wholesale; rescue them into the packages root
+        # (survives rebuilds) before wiping. The installer owns this
+        # one-time migration so the CLI stays side-effect free.
+        legacy_packages = os.path.join(config.env_root, 'tools', 'scripts', 'packages')
+        packages_root = os.path.join(config.env_root, 'packages')
+        if os.path.isdir(legacy_packages):
+            os.makedirs(packages_root, exist_ok=True)
+            for name in os.listdir(legacy_packages):
+                source = os.path.join(legacy_packages, name)
+                target = os.path.join(packages_root, name)
+                if os.path.exists(target):
+                    continue
+                try:
+                    shutil.move(source, target)
+                except (OSError, shutil.Error):
+                    pass
+            try:
+                os.rmdir(legacy_packages)
+            except OSError:
+                pass
+
+        for rel in ('venv', '.venv', 'tools', 'packages/packages', 'packages/sdk', 'packages/.sdk-staging'):
             target = os.path.join(config.env_root, rel)
             if os.path.exists(target):
                 log_info('deleting_item', rel)
