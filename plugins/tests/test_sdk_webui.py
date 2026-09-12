@@ -21,6 +21,7 @@ class SdkManagerTest(unittest.TestCase):
         self.root = self.temporary.name
         self.scripts = os.path.join(self.root, "tools", "scripts")
         self.packages = os.path.join(self.root, "packages")
+        self.toolchain = os.path.join(self.root, "toolchain")
         os.makedirs(self.scripts)
         os.makedirs(os.path.join(self.packages, "sdk", "Linux", "demo-gcc"))
         os.makedirs(os.path.join(self.packages, "sdk", "Windows", "demo-gcc"))
@@ -148,16 +149,16 @@ endif
         self.assertIn("SDK 更新完成", task["message"])
         parsed = kconfig.parse(os.path.join(self.root, ".config"))
         self.assertEqual({item["name"]: item["ver"] for item in parsed}, {"DEMO_GCC": "v1"})
-        self.assertTrue(os.path.isdir(os.path.join(self.packages, "demo-gcc-v1")))
-        with open(os.path.join(self.packages, "pkgs.json"), "r", encoding="utf-8") as source:
+        self.assertTrue(os.path.isdir(os.path.join(self.toolchain, "demo-gcc-v1")))
+        with open(os.path.join(self.toolchain, "pkgs.json"), "r", encoding="utf-8") as source:
             self.assertEqual(json.load(source)[0]["ver"], "v1")
         with open(os.path.join(self.scripts, "sdk_list.json"), "r", encoding="utf-8") as source:
             self.assertEqual(json.load(source)[0]["path"], "demo-gcc-v1")
 
         task, plan = self._apply(self._selection(True, "v2"))
         self.assertEqual(task["status"], "succeeded")
-        self.assertFalse(os.path.exists(os.path.join(self.packages, "demo-gcc-v1")))
-        self.assertTrue(os.path.isdir(os.path.join(self.packages, "demo-gcc-v2")))
+        self.assertFalse(os.path.exists(os.path.join(self.toolchain, "demo-gcc-v1")))
+        self.assertTrue(os.path.isdir(os.path.join(self.toolchain, "demo-gcc-v2")))
         self.assertEqual(kconfig.parse(os.path.join(self.root, ".config"))[0]["ver"], "v2")
 
         remove_plan = self.manager.plan({"packages": self._selection(False)})
@@ -168,7 +169,7 @@ endif
         while self.manager.task(task["task_id"])["status"] in ("queued", "running"):
             time.sleep(0.01)
         self.assertEqual(self.manager.task(task["task_id"])["status"], "succeeded")
-        self.assertFalse(os.path.exists(os.path.join(self.packages, "demo-gcc-v2")))
+        self.assertFalse(os.path.exists(os.path.join(self.toolchain, "demo-gcc-v2")))
         self.assertEqual(kconfig.parse(os.path.join(self.root, ".config")), [])
         with open(metadata_path, "rb") as source:
             self.assertEqual(source.read(), metadata_before)
@@ -183,7 +184,7 @@ endif
         self.assertEqual(cfg[0]["name"], "demo-gcc")
         self.assertEqual(cfg[0]["ver"], "v1")
         self.assertEqual(
-            cfg[0]["path"], os.path.join(self.packages, "demo-gcc-v1")
+            cfg[0]["path"], os.path.join(self.toolchain, "demo-gcc-v1")
         )
 
     def test_extract_failure_preserves_previous_install_and_config(self):
@@ -197,8 +198,8 @@ endif
         self.assertEqual(task["operations"][0]["status"], "failed")
         self.assertEqual(task["stage"], "failed")
         self.assertIn("SDK 更新失败", task["message"])
-        self.assertTrue(os.path.isdir(os.path.join(self.packages, "demo-gcc-v1")))
-        self.assertFalse(os.path.exists(os.path.join(self.packages, "demo-gcc-v2")))
+        self.assertTrue(os.path.isdir(os.path.join(self.toolchain, "demo-gcc-v1")))
+        self.assertFalse(os.path.exists(os.path.join(self.toolchain, "demo-gcc-v2")))
         with open(os.path.join(self.root, ".config"), "rb") as source:
             self.assertEqual(source.read(), config_before)
         self.assertEqual(os.listdir(self.manager.staging_root), [])
@@ -251,8 +252,8 @@ endif
         finally:
             self.manager._write_state_files = original
         self.assertEqual(task["status"], "failed")
-        self.assertTrue(os.path.isdir(os.path.join(self.packages, "demo-gcc-v1")))
-        self.assertFalse(os.path.exists(os.path.join(self.packages, "demo-gcc-v2")))
+        self.assertTrue(os.path.isdir(os.path.join(self.toolchain, "demo-gcc-v1")))
+        self.assertFalse(os.path.exists(os.path.join(self.toolchain, "demo-gcc-v2")))
         with open(os.path.join(self.root, ".config"), "rb") as source:
             self.assertEqual(source.read(), config_before)
 
@@ -329,8 +330,8 @@ endif
         self.assertEqual(current["stage"], "cancelled")
         self.assertIn("已取消", current["message"])
         self.assertEqual(current["operations"][0]["status"], "cancelled")
-        self.assertTrue(os.path.isdir(os.path.join(self.packages, "demo-gcc-v1")))
-        self.assertFalse(os.path.exists(os.path.join(self.packages, "demo-gcc-v2")))
+        self.assertTrue(os.path.isdir(os.path.join(self.toolchain, "demo-gcc-v1")))
+        self.assertFalse(os.path.exists(os.path.join(self.toolchain, "demo-gcc-v2")))
         with open(os.path.join(self.root, ".config"), "rb") as source:
             self.assertEqual(source.read(), config_before)
         self.assertEqual(os.listdir(self.manager.staging_root), [])
@@ -343,7 +344,7 @@ endif
                 break
             time.sleep(0.01)
         self.assertEqual(current["status"], "succeeded")
-        self.assertTrue(os.path.isdir(os.path.join(self.packages, "demo-gcc-v2")))
+        self.assertTrue(os.path.isdir(os.path.join(self.toolchain, "demo-gcc-v2")))
 
     def test_invalid_apply_releases_update_lock(self):
         with self.assertRaises(SdkUsageError):

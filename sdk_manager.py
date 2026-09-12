@@ -102,7 +102,7 @@ class SdkManager(object):
         if self.hostos not in ("Linux", "Windows"):
             raise SdkUsageError("SDK management supports Linux and Windows hosts only")
         self.index_root = os.path.join(self.packages_root, "sdk", self.hostos)
-        self.package_state_root = self.packages_root
+        self.package_state_root = os.path.join(self.env_root, "toolchain")
         self.staging_root = os.path.join(self.package_state_root, ".sdk-staging")
         self.downloader = downloader or self._download
         self._apply_lock = threading.Lock()

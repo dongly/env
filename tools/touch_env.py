@@ -931,10 +931,12 @@ def check_existing_env(config):
                 pass
 
         legacy_packages = os.path.join(config.env_root, 'tools', 'scripts', 'packages')
-        packages_root = os.path.join(config.env_root, 'packages')
+        packages_root = os.path.join(config.env_root, 'toolchain')
         if os.path.isdir(legacy_packages):
             os.makedirs(packages_root, exist_ok=True)
             for name in os.listdir(legacy_packages):
+                if name == 'sdk':
+                    continue  # legacy index domain; the 'tools' wipe removes it
                 source = os.path.join(legacy_packages, name)
                 target = os.path.join(packages_root, name)
                 if os.path.exists(target):
@@ -948,7 +950,7 @@ def check_existing_env(config):
             except OSError:
                 pass
 
-        for rel in ('venv', '.venv', 'tools', 'packages/packages', 'packages/sdk', 'packages/.sdk-staging'):
+        for rel in ('venv', '.venv', 'tools', 'packages/packages', 'packages/sdk', 'toolchain/.sdk-staging'):
             target = os.path.join(config.env_root, rel)
             if os.path.exists(target):
                 log_info('deleting_item', rel)

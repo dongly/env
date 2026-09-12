@@ -45,11 +45,11 @@ def _make_layout(root):
     os.makedirs(os.path.join(root, "venv", "rt-env", "Scripts"), exist_ok=True)
     os.makedirs(os.path.join(root, "packages", "packages"), exist_ok=True)
     os.makedirs(os.path.join(root, "packages", "sdk"), exist_ok=True)
-    toolchain = os.path.join(root, "packages", "gcc-arm-1.0")
+    toolchain = os.path.join(root, "toolchain", "gcc-arm-1.0")
     os.makedirs(toolchain, exist_ok=True)
     with open(os.path.join(toolchain, "tool.marker"), "w", encoding="utf-8") as f:
         f.write("keep-me")
-    with open(os.path.join(root, "packages", "pkgs.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(root, "toolchain", "pkgs.json"), "w", encoding="utf-8") as f:
         f.write("{}")
     return marker, config
 
@@ -90,9 +90,9 @@ class CheckExistingEnvTest(unittest.TestCase):
             self.assertEqual(f.read(), "SDK")
         self.assertFalse(os.path.exists(legacy_cfg))
         self.assertTrue(
-            os.path.isfile(os.path.join(self.root, "packages", "gcc-arm-1.0", "tool.marker"))
+            os.path.isfile(os.path.join(self.root, "toolchain", "gcc-arm-1.0", "tool.marker"))
         )
-        self.assertTrue(os.path.isfile(os.path.join(self.root, "packages", "pkgs.json")))
+        self.assertTrue(os.path.isfile(os.path.join(self.root, "toolchain", "pkgs.json")))
 
     def test_keep_yes_rebuilds_venv_and_repos(self):
         _make_layout(self.root)
