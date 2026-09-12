@@ -41,6 +41,20 @@ class _FakeMenuconfig:
         self.calls.append((os.getcwd(), os.environ.get("KCONFIG_CONFIG"), list(sys.argv)))
 
 
+class _FakeSdkManager:
+    """Stands in for the sdk_manager module's SdkManager class."""
+
+    constructed = []
+    rebuild_calls = []
+
+    def __init__(self, env_root=None, **kwargs):
+        self.env_root = env_root
+        _FakeSdkManager.constructed.append(self)
+
+    def rebuild_state_files(self):
+        _FakeSdkManager.rebuild_calls.append(self)
+
+
 class SdkCmdTest(unittest.TestCase):
     def setUp(self):
         self.env_root = tempfile.mkdtemp(prefix="rt-env-sdk-")
@@ -58,6 +72,14 @@ class SdkCmdTest(unittest.TestCase):
         module_patcher = mock.patch.dict(sys.modules, {"menuconfig": menuconfig_mod})
         module_patcher.start()
         self.addCleanup(module_patcher.stop)
+
+        _FakeSdkManager.constructed = []
+        _FakeSdkManager.rebuild_calls = []
+        sdk_manager_mod = types.ModuleType("sdk_manager")
+        sdk_manager_mod.SdkManager = _FakeSdkManager
+        sdk_manager_patcher = mock.patch.dict(sys.modules, {"sdk_manager": sdk_manager_mod})
+        sdk_manager_patcher.start()
+        self.addCleanup(sdk_manager_patcher.stop)
 
         self.package_calls = []
 
@@ -169,6 +191,29 @@ class SdkCmdTest(unittest.TestCase):
         cmd_sdk.cmd([])
 
         self.assertEqual(os.environ["KCONFIG_CONFIG"], "/preset/config")
+
+    def test_legacy_payloads_migrated_to_toolchain(self):
+        legacy_packages = os.path.join(self.env_root, "tools", "scripts", "packages")
+        os.makedirs(legacy_packages, exist_ok=True)
+        demo_dir = os.path.join(legacy_packages, "demo-gcc-v1")
+        os.makedirs(demo_dir)
+        with open(os.path.join(legacy_packages, "pkgs.json"), "w") as f:
+            f.write("[]")
+
+        cmd_sdk.cmd([])
+
+        toolchain = os.path.join(self.env_root, "toolchain")
+        self.assertTrue(os.path.isdir(os.path.join(toolchain, "demo-gcc-v1")))
+        self.assertFalse(os.path.isdir(os.path.join(legacy_packages, "demo-gcc-v1")))
+        self.assertTrue(os.path.isfile(os.path.join(legacy_packages, "pkgs.json")))
+
+    def test_rebuild_state_files_called(self):
+        cmd_sdk.cmd([])
+
+        self.assertEqual(len(_FakeSdkManager.constructed), 1)
+        self.assertEqual(_FakeSdkManager.constructed[0].env_root, self.env_root)
+        self.assertEqual(len(_FakeSdkManager.rebuild_calls), 1)
+        self.assertIs(_FakeSdkManager.rebuild_calls[0], _FakeSdkManager.constructed[0])
 
 
 if __name__ == "__main__":

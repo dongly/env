@@ -25,6 +25,7 @@
 # 2026-05-12     CYFS            share hal-sdk packages in libraries and create bridge SConscript for hal-sdk packages in BSP packages
 # 2026-09-12     Dongly      Read the env settings from $ENV_ROOT/rt-env.config
 # 2026-09-13     Dongly      Add an optional config_file argument to package_update
+# 2026-09-13     Dongly      Redirect sdk payloads to $ENV_ROOT/toolchain
 #
 
 import json
@@ -596,7 +597,12 @@ def install_package(env_root, pkgs_root, bsp_root, package_info, force_update):
 
     result = True
     local_pkgs_path = os.path.join(env_root, 'local_pkgs')
-    bsp_package_path = os.path.join(bsp_root, 'packages')
+    # sdk toolchains install into $ENV_ROOT/toolchain (the payload root the
+    # upstream build reads via GetSDKPath); BSP packages stay under bsp_root
+    if _normalize_package_index_path(package_info).startswith('sdk/'):
+        bsp_package_path = os.path.join(env_root, 'toolchain')
+    else:
+        bsp_package_path = os.path.join(bsp_root, 'packages')
 
     package = PackageOperation()
     pkg_path = package_info['path']

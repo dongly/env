@@ -22,10 +22,12 @@
 # Date           Author          Notes
 # 2024-04-04     bernard         the first version
 # 2026-09-13     Dongly          Save the sdk selection to $ENV_ROOT/sdk.config
+# 2026-09-13     Dongly          Install sdk payloads under $ENV_ROOT/toolchain
 
 import os
 import json
 import platform
+import shutil
 import sys
 from vars import Import, Export
 
@@ -50,6 +52,20 @@ def cmd(args):
     # the sdk selection persists in $ENV_ROOT/sdk.config (read by sdk_manager),
     # not in a .config left in the working directory
     sdk_config = os.path.join(env_root, 'sdk.config')
+
+    # migrate payloads installed by the legacy sdk flow
+    # (tools/scripts/packages/<name>-<ver>) to the toolchain root
+    legacy_packages = os.path.join(tools_kconfig_path, 'packages')
+    toolchain_root = os.path.join(env_root, 'toolchain')
+    if os.path.isdir(legacy_packages):
+        for name in os.listdir(legacy_packages):
+            source = os.path.join(legacy_packages, name)
+            if not os.path.isdir(source):
+                continue  # pkgs.json / SConscript / dbsqlite are files, stay
+            target = os.path.join(toolchain_root, name)
+            if not os.path.exists(target):
+                os.makedirs(toolchain_root, exist_ok=True)
+                shutil.move(source, target)
 
     # change bsp root to sdk root
     bsp_root = tools_kconfig_path
@@ -92,6 +108,15 @@ def cmd(args):
     # write sdk_packages to sdk_list.json
     with open(os.path.join(tools_kconfig_path, 'sdk_list.json'), 'w', encoding='utf-8') as f:
         json.dump(sdk_packages, f, ensure_ascii=False, indent=4)
+
+    # refresh the derived state files (pkgs.json/sdk_list.json/sdk_cfg.json)
+    # so the upstream build finds the payloads under toolchain/
+    try:
+        from sdk_manager import SdkManager
+
+        SdkManager(env_root=env_root).rebuild_state_files()
+    except Exception as e:
+        print("Warning: could not rebuild the SDK state files: {0}".format(e))
 
 
 def add_parser(sub):
