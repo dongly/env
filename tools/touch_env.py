@@ -906,7 +906,7 @@ def check_existing_env(config):
         log_info('toolchain_kept')
 
         # Preserve local_pkgs/, tools/scripts/cmds/.config and the SDK
-        # payloads (toolchains, pkgs.json) directly under packages/ in place
+        # payloads (toolchains, pkgs.json) directly under toolchain/ in place
         config_path = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
         config_saved = None
         if os.path.isfile(config_path):

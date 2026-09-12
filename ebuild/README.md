@@ -118,7 +118,7 @@ env.DefineGroup('my_component', src, depend=depend, CPPPATH=CPPPATH, CPPDEFINES=
 
 EBuild 支持多种工具链配置方式：
 
-1. **自动检测** - 从 `~/.env/tools/scripts/packages` 自动检测
+1. **自动检测** - 从 `~/.env/toolchain`（旧版 `~/.env/tools/scripts/packages`）自动检测
 2. **proj_config.py** - 设置 `EXEC_PATH` 和 `CC_PREFIX`
 3. **命令行参数** - 使用 `--cross-compile`、`--cpu` 等
 
