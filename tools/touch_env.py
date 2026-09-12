@@ -30,7 +30,10 @@
 # 此脚本在仓库克隆后处理 RT-Thread ENV 的设置。
 # It performs the installation process:
 # 执行安装过程：
-# 1. Setup repositories (clone packages, sdk, env) - 设置仓库（克隆 packages, sdk, env）
+# 1. Setup repositories (clone env, then packages and sdk) - 设置仓库（先克隆 env，再克隆 packages 与 sdk）
+#    Default packages/sdk sources come from the downloaded env's env.json;
+#    built-in constants are only a bootstrap fallback.
+#    packages/sdk 的默认源来自已下载 env 的 env.json；内置常量仅作引导兜底。
 # 2. Create Python virtual environment - 创建 Python 虚拟环境
 # 3. Install Python packages - 安装 Python 包
 # 4. Show next steps - 显示后续步骤
@@ -84,7 +87,14 @@ from datetime import datetime
 # Configuration Constants
 # ============================================================================
 
-# GitHub official sources
+# Bootstrap fallback sources.
+# The downloaded env's env.json (repositories.*) is the canonical default for
+# packages/sdk; these constants only apply when env.json cannot be read.
+# The env repository itself is the bootstrap (chicken-and-egg) and always
+# uses these constants unless overridden via --repo-env.
+# 引导兜底源。已下载 env 的 env.json（repositories.*）是 packages/sdk 的
+# 规范默认源；仅当 env.json 无法读取时才使用以下常量。env 仓库自身是
+# 引导起点（先有鸡还是先有蛋），除 --repo-env 覆盖外始终使用这些常量。
 REPO_PACKAGES_GITHUB = "https://github.com/RT-Thread/packages.git"
 REPO_ENV_GITHUB = "https://github.com/RT-Thread/env.git"
 REPO_SDK_GITHUB = "https://github.com/RT-Thread/sdk.git"
@@ -249,6 +259,8 @@ MESSAGES = {
         'fix_guiconfig_failed': 'Failed to fix guiconfig.py: {0}',
         'using_custom_repo': 'Using custom repository: {0}',
         'using_custom_repo_branch': 'Using custom repository: {0} (branch: {1})',
+        'env_json_defaults': 'Repository defaults loaded from env.json: {0}',
+        'env_json_fallback': 'Cannot read repository defaults from {0}, using built-in sources',
         'env_root_exists': 'Existing RT-Thread ENV detected at: {0}',
         'toolchain_keep_prompt': 'Keep downloaded toolchains (local_pkgs) and config? [Y/n]: ',
         'toolchain_kept': 'Keeping toolchains (local_pkgs) and config',
@@ -311,6 +323,8 @@ MESSAGES = {
         'fix_guiconfig_failed': '修复 guiconfig.py 失败: {0}',
         'using_custom_repo': '使用自定义仓库: {0}',
         'using_custom_repo_branch': '使用自定义仓库: {0} (分支: {1})',
+        'env_json_defaults': '仓库默认配置已从 env.json 加载: {0}',
+        'env_json_fallback': '无法从 {0} 读取仓库默认配置，使用内置源',
         'env_root_exists': '检测到已存在的 RT-Thread ENV: {0}',
         'toolchain_keep_prompt': '保留已下载的工具链（local_pkgs）与配置？[Y/n]: ',
         'toolchain_kept': '保留工具链（local_pkgs）与配置',
@@ -446,9 +460,65 @@ def clone_repository(config, repo_name, url, dest_rel, branch='', depth=1):
         raise RuntimeError(f"Failed to clone {url}") from e
 
 
+def load_repo_defaults(config):
+    """
+    Load default packages/sdk sources from the downloaded env's env.json
+
+    Args:
+        config: TouchEnvConfig instance
+
+    Returns:
+        dict: {'packages': {...}, 'sdk': {...}}, each entry with
+              'url', 'branch', 'mirror_url', 'mirror_branch';
+              built-in constants where env.json provides nothing
+    """
+    env_json_path = os.path.join(
+        config.env_root, 'tools', 'scripts', 'env.json')
+
+    defaults = {
+        'packages': {
+            'url': REPO_PACKAGES_GITHUB,
+            'branch': '',
+            'mirror_url': REPO_PACKAGES_GITEE,
+            'mirror_branch': '',
+        },
+        'sdk': {
+            'url': REPO_SDK_GITHUB,
+            'branch': '',
+            'mirror_url': REPO_SDK_GITEE,
+            'mirror_branch': '',
+        },
+    }
+
+    try:
+        with open(env_json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        repositories = data.get('repositories', {})
+        for repo_name in ('packages', 'sdk'):
+            entry = repositories.get(repo_name)
+            if not isinstance(entry, dict) or not entry.get('url'):
+                continue
+            source = defaults[repo_name]
+            source['url'] = entry['url']
+            source['branch'] = entry.get('branch', '')
+            mirror = entry.get('mirror') or {}
+            if mirror.get('url'):
+                source['mirror_url'] = mirror['url']
+                # a mirror without its own branch inherits the primary branch
+                source['mirror_branch'] = mirror.get('branch') or source['branch']
+        log_info('env_json_defaults', env_json_path)
+    except (OSError, ValueError):
+        log_warning('env_json_fallback', env_json_path)
+
+    return defaults
+
+
 def setup_repositories(config):
     """
-    Setup all repositories (packages, sdk, env)
+    Setup all repositories (env, packages, sdk)
+
+    The env repository is cloned first: the env.json it carries provides
+    the default sources for packages and sdk.
 
     Args:
         config: TouchEnvConfig instance
@@ -456,31 +526,35 @@ def setup_repositories(config):
     Raises:
         RuntimeError: If any repository setup fails
     """
-    # Base repositories
-    github_repos = {
-        'packages': REPO_PACKAGES_GITHUB,
-        'env': REPO_ENV_GITHUB,
-        'sdk': REPO_SDK_GITHUB
-    }
-
-    gitee_repos = {
-        'packages': REPO_PACKAGES_GITEE,
-        'env': REPO_ENV_GITEE,
-        'sdk': REPO_SDK_GITEE
-    }
-
-    # Select mirror
-    repos_base = gitee_repos if config.use_cn else github_repos
-
     # Repository destinations
     repo_dests = {
-        'packages': 'packages/packages',
         'env': 'tools/scripts',
+        'packages': 'packages/packages',
         'sdk': 'packages/sdk'
     }
 
-    # Clone all repositories
-    for repo_name in ['packages', 'env', 'sdk']:
+    # Clone env first (bootstrap). Its own source cannot come from its
+    # env.json (chicken-and-egg), so use built-in constants or --repo-env.
+    if config.custom_repos and 'env' in config.custom_repos:
+        env_repo = config.custom_repos['env']
+        url = env_repo['url']
+        branch = env_repo.get('branch', '')
+
+        if branch:
+            log_info('using_custom_repo_branch', url, branch)
+        else:
+            log_info('using_custom_repo', url)
+    else:
+        url = REPO_ENV_GITEE if config.use_cn else REPO_ENV_GITHUB
+        branch = ''
+
+    clone_repository(config, 'env', url, repo_dests['env'], branch)
+
+    # Default packages/sdk sources from the env just cloned
+    repo_defaults = load_repo_defaults(config)
+
+    # Clone the remaining repositories
+    for repo_name in ('packages', 'sdk'):
         # Check for custom repository
         if config.custom_repos and repo_name in config.custom_repos:
             repo_info = config.custom_repos[repo_name]
@@ -492,8 +566,13 @@ def setup_repositories(config):
             else:
                 log_info('using_custom_repo', url)
         else:
-            url = repos_base[repo_name]
-            branch = ''
+            source = repo_defaults[repo_name]
+            if config.use_cn:
+                url = source['mirror_url']
+                branch = source['mirror_branch']
+            else:
+                url = source['url']
+                branch = source['branch']
 
         clone_repository(config, repo_name, url, repo_dests[repo_name], branch)
 
