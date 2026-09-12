@@ -923,7 +923,7 @@ def check_existing_env(config):
         # The SDK selection .config also lived under the managed env repo;
         # rescue it to the env root (same survival rule as the payloads).
         legacy_config = os.path.join(config.env_root, 'tools', 'scripts', '.config')
-        root_config = os.path.join(config.env_root, '.config')
+        root_config = os.path.join(config.env_root, 'sdk.cfg')
         if os.path.isfile(legacy_config) and not os.path.exists(root_config):
             try:
                 shutil.move(legacy_config, root_config)

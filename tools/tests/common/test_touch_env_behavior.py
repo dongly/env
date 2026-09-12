@@ -84,7 +84,7 @@ class CheckExistingEnvTest(unittest.TestCase):
         self.assertTrue(
             os.path.isfile(os.path.join(self.root, "tools", "scripts", "cmds", ".config"))
         )
-        rescued_cfg = os.path.join(self.root, ".config")
+        rescued_cfg = os.path.join(self.root, "sdk.cfg")
         self.assertTrue(os.path.isfile(rescued_cfg))
         with open(rescued_cfg, encoding="utf-8") as f:
             self.assertEqual(f.read(), "SDK")
