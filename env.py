@@ -38,11 +38,11 @@ sys.path.insert(0, mpath)
 
 from cmds import *
 from vars import Export
-from version import get_rt_env_version
+from info import get_name, get_version
 
 def show_version():
     rtt_ver = get_rtt_verion()
-    rt_env_name, rt_env_ver = get_rt_env_version()
+    rt_env_name, rt_env_ver = get_name(), get_version()
     
     print('\033[1;36m===================================================================\033[0m')
     print('\033[1;36m    Welcome to %s %s\033[0m' % (rt_env_name, rt_env_ver))
@@ -85,7 +85,7 @@ def init_argparse():
     parser = argparse.ArgumentParser(prog='rt-env', description=__doc__)
     subs = parser.add_subparsers()
 
-    rt_env_name, rt_env_ver = get_rt_env_version()
+    rt_env_name, rt_env_ver = get_name(), get_version()
     env_ver_str = '%s %s' % (rt_env_name, rt_env_ver)
     parser.add_argument('-v', '--version', action='version', version=env_ver_str)
     parser.add_argument('--info', action='store_true', help='Show environment information')
