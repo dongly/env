@@ -1,6 +1,6 @@
 """Unit tests for the post-upgrade root activator regeneration.
 
-Covers cmds.cmd_package.cmd_package_upgrade._write_root_activator: thin
+Covers cmds.cmd_upgrade._write_root_activator: thin
 delegator when the upgraded env script understands RT_ENV_ROOT, verbatim
 copy for legacy scripts, and a no-op when the inner script is missing.
 
@@ -14,7 +14,7 @@ import sys
 import tempfile
 import unittest
 
-from cmds.cmd_package import cmd_package_upgrade
+from cmds import cmd_upgrade
 
 
 class WriteRootActivatorTest(unittest.TestCase):
@@ -29,7 +29,7 @@ class WriteRootActivatorTest(unittest.TestCase):
             f.write(content)
 
     def _run(self):
-        cmd_package_upgrade._write_root_activator(self.root, self.scripts)
+        cmd_upgrade._write_root_activator(self.root, self.scripts)
 
     def _read_root(self):
         with open(os.path.join(self.root, "env.sh"), encoding="utf-8") as f:
