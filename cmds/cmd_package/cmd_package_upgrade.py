@@ -21,11 +21,8 @@
 # Change Logs:
 # Date           Author          Notes
 # 2020-04-08     SummerGift      Optimize program structure
-# 2026-09-12     Dongly      Resolve packages/env repo URLs and statistics endpoint
-#                             via env.json (info.get_source / info.get_api_url); logical
-#                             repos no longer query the mirror server
-# 2026-09-12     Dongly      Refresh rt-env editable install and regenerate the
-#                             root activator after env repo upgrades
+# 2026-09-12     Dongly          Resolve repo URLs via env.json, host the env
+#                                upgrade chain in cmds/cmd_upgrade
 #
 
 import os

@@ -19,10 +19,9 @@
 #  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # Change Logs:
-# 2026-09-12     Dongly          Read the env settings from $ENV_ROOT/rt-env.config instead of the cwd-relative path
 # Date           Author          Notes
 # 2022-5-6      WuGenSheng      Add copyright information
-# 2026-09-12     Dongly      Resolve statistics endpoint via info.get_api_url
+# 2026-09-12     Dongly      Read the env settings from $ENV_ROOT/rt-env.config
 #
 import os
 import uuid

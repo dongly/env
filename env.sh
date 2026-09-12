@@ -1,19 +1,12 @@
 # ENV_ROOT resolution:
-#   1. $RT_ENV_ROOT - set by the thin root activator ($ENV_ROOT/env.sh)
-#      that delegates to this script, so this copy never guesses where
-#      the installation root is.
-#   2. Layout detection - when sourced directly from tools/scripts the
+#   1. Layout detection - when sourced directly from tools/scripts the
 #      installation root is two levels up.
-#   3. Otherwise this file's own directory (legacy full copy at $ENV_ROOT).
-if [ -n "$RT_ENV_ROOT" ]; then
-    ENV_ROOT="$RT_ENV_ROOT"
-else
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    case "$SCRIPT_DIR" in
-        */tools/scripts) ENV_ROOT="${SCRIPT_DIR%/tools/scripts}" ;;
-        *) ENV_ROOT="$SCRIPT_DIR" ;;
-    esac
-fi
+#   2. Otherwise this file's own directory (legacy full copy at $ENV_ROOT).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+case "$SCRIPT_DIR" in
+    */tools/scripts) ENV_ROOT="${SCRIPT_DIR%/tools/scripts}" ;;
+    *) ENV_ROOT="$SCRIPT_DIR" ;;
+esac
 export "ENV_ROOT=$ENV_ROOT"
 
 # Virtual environment: prefer the current layout (venv/rt-env),

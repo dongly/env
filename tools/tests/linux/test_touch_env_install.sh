@@ -225,7 +225,7 @@ else
     fail 'activator syntax (bash -n)'
 fi
 
-if grep -q 'RT_ENV_ROOT' "$ENV_ROOT/env.sh" &&
+if ! grep -q 'RT_ENV_ROOT=' "$ENV_ROOT/env.sh" &&
     grep -q 'tools/scripts/env.sh' "$ENV_ROOT/env.sh"; then
     pass 'root activator is a thin delegator'
 else
@@ -249,7 +249,7 @@ FALLBACK_ROOT="$WORK/fallback-root"
 mkdir -p "$FALLBACK_ROOT/.venv/bin" "$FALLBACK_ROOT/tools/scripts"
 cp "$ENV_ROOT/tools/scripts/env.sh" "$FALLBACK_ROOT/tools/scripts/env.sh"
 printf '# fake legacy venv\nexport RTT_FAKE_VENV=legacy\n' > "$FALLBACK_ROOT/.venv/bin/activate"
-FALLBACKED="$(RT_ENV_ROOT="$FALLBACK_ROOT" bash -c ". '$FALLBACK_ROOT/tools/scripts/env.sh' >/dev/null 2>&1; printf '%s|%s' \"\$RT_VENV_DIR\" \"\$RTT_FAKE_VENV\"")"
+FALLBACKED="$(env -u RT_ENV_ROOT -u ENV_ROOT bash -c ". '$FALLBACK_ROOT/tools/scripts/env.sh' >/dev/null 2>&1; printf '%s|%s' \"\$RT_VENV_DIR\" \"\$RTT_FAKE_VENV\"")"
 if [ "$FALLBACKED" = "$FALLBACK_ROOT/.venv|legacy" ]; then
     pass 'legacy .venv fallback activates'
 else

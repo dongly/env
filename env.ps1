@@ -1,12 +1,9 @@
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 
-# ENV_ROOT resolution (see env.sh): $env:RT_ENV_ROOT set by the thin root
-# activator > tools\scripts layout detection > this file's directory.
-if ($env:RT_ENV_ROOT) {
-    $env:ENV_ROOT = $env:RT_ENV_ROOT
-}
-elseif ($PSScriptRoot -like '*\tools\scripts') {
+# ENV_ROOT resolution (see env.sh): tools\scripts layout detection >
+# this file's directory.
+if ($PSScriptRoot -like '*\tools\scripts') {
     $env:ENV_ROOT = Split-Path (Split-Path $PSScriptRoot)
 }
 else {

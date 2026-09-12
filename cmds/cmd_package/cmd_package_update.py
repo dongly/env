@@ -19,12 +19,11 @@
 #  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # Change Logs:
-# 2026-09-12     Dongly          Read the env settings from $ENV_ROOT/rt-env.config
 # Date           Author          Notes
 # 2020-04-08     SummerGift      Optimize program structure
 # 2020-04-13     SummerGift      refactoring
 # 2026-05-12     CYFS            share hal-sdk packages in libraries and create bridge SConscript for hal-sdk packages in BSP packages
-# 2026-09-12     Dongly      Resolve submodule mirror urls via info.get_submodule_mirror_url
+# 2026-09-12     Dongly      Read the env settings from $ENV_ROOT/rt-env.config
 #
 
 import json

@@ -1,8 +1,9 @@
 """Unit tests for the post-upgrade root activator regeneration.
 
-Covers cmds.cmd_upgrade._write_root_activator: thin
-delegator when the upgraded env script understands RT_ENV_ROOT, verbatim
-copy for legacy scripts, and a no-op when the inner script is missing.
+Covers cmds.cmd_upgrade._write_root_activator: a relative-anchored thin
+delegator is always generated when the inner script exists, and a no-op
+when it is missing. Legacy verbatim copy was removed together with the
+RT_ENV_ROOT signal (upstream master never had it).
 
 Run from the repository root:
     python -m unittest plugins.tests.test_root_activator
@@ -10,7 +11,6 @@ Run from the repository root:
 
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 
@@ -35,17 +35,16 @@ class WriteRootActivatorTest(unittest.TestCase):
         with open(os.path.join(self.root, "env.sh"), encoding="utf-8") as f:
             return f.read()
 
-    def test_new_inner_produces_thin_delegator(self):
-        self._write_inner('if [ -n "$RT_ENV_ROOT" ]; then\nfi\n')
+    def test_generates_relative_anchored_delegator(self):
+        self._write_inner("# inner\n")
         self._run()
         content = self._read_root()
-        self.assertIn("RT_ENV_ROOT='%s'" % self.root, content)
-        self.assertIn(". '%s'" % os.path.join(self.scripts, "env.sh"), content)
-
-    def test_legacy_inner_is_copied_verbatim(self):
-        self._write_inner("SCRIPT_DIR=legacy\n")
-        self._run()
-        self.assertEqual(self._read_root(), "SCRIPT_DIR=legacy\n")
+        self.assertNotIn("RT_ENV_ROOT=", content)
+        self.assertIn(
+            '. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tools/scripts/env.sh"',
+            content,
+        )
+        self.assertNotIn(self.root, content)
 
     def test_missing_inner_is_a_no_op(self):
         self._run()
@@ -55,7 +54,7 @@ class WriteRootActivatorTest(unittest.TestCase):
         user = os.path.join(self.root, "env.user.sh")
         with open(user, "w", encoding="utf-8") as f:
             f.write("# mine\n")
-        self._write_inner("legacy\n")
+        self._write_inner("# inner\n")
         self._run()
         with open(user, encoding="utf-8") as f:
             self.assertEqual(f.read(), "# mine\n")
