@@ -920,6 +920,16 @@ def check_existing_env(config):
         # wipe below deletes wholesale; rescue them into the packages root
         # (survives rebuilds) before wiping. The installer owns this
         # one-time migration so the CLI stays side-effect free.
+        # The SDK selection .config also lived under the managed env repo;
+        # rescue it to the env root (same survival rule as the payloads).
+        legacy_config = os.path.join(config.env_root, 'tools', 'scripts', '.config')
+        root_config = os.path.join(config.env_root, '.config')
+        if os.path.isfile(legacy_config) and not os.path.exists(root_config):
+            try:
+                shutil.move(legacy_config, root_config)
+            except (OSError, shutil.Error):
+                pass
+
         legacy_packages = os.path.join(config.env_root, 'tools', 'scripts', 'packages')
         packages_root = os.path.join(config.env_root, 'packages')
         if os.path.isdir(legacy_packages):

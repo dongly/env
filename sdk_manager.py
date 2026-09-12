@@ -96,7 +96,7 @@ class SdkManager(object):
             packages_root = os.path.join(self.env_root, "packages")
         self.packages_root = os.path.abspath(packages_root)
         self.config_root = os.path.join(self.env_root, "tools", "scripts")
-        self.config_path = os.path.join(self.config_root, ".config")
+        self.config_path = os.path.join(self.env_root, ".config")
         self.kconfig_path = os.path.join(self.config_root, "Kconfig")
         self.hostos = platform_name or platform.system()
         if self.hostos not in ("Linux", "Windows"):
