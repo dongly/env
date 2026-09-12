@@ -905,9 +905,15 @@ def check_existing_env(config):
     if keep:
         log_info('toolchain_kept')
 
-        # Preserve local_pkgs/, tools/scripts/cmds/.config and the SDK
+        # Preserve local_pkgs/, the env settings file and the SDK
         # payloads (toolchains, pkgs.json) directly under toolchain/ in place
-        config_path = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
+        config_path = os.path.join(config.env_root, 'rt-env.config')
+        legacy_config_path = os.path.join(config.env_root, 'tools', 'scripts', 'cmds', '.config')
+        if not os.path.isfile(config_path) and os.path.isfile(legacy_config_path):
+            try:
+                shutil.move(legacy_config_path, config_path)
+            except (OSError, shutil.Error):
+                pass
         config_saved = None
         if os.path.isfile(config_path):
             try:

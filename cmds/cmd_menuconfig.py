@@ -184,6 +184,13 @@ def kconfiglib_fix_locale():
     if 'LANG' in os.environ and os.environ['LANG'] not in supported_locales:
         os.environ['LANG'] = 'C'
 
+def run_env_menuconfig(env_root):
+    """Run the env-settings menuconfig; saves to $ENV_ROOT/rt-env.config."""
+    from cmds.cmd_setting import run_env_settings
+
+    run_env_settings(env_root)
+
+
 def cmd(args):
     import menuconfig
     import defconfig
@@ -219,12 +226,7 @@ def cmd(args):
 
     # Env config, auto update packages and create mdk/iar project
     if args.menuconfig_setting:
-        env_kconfig_path = os.path.join(env_root, 'tools', 'scripts', 'cmds')
-        beforepath = os.getcwd()
-        os.chdir(env_kconfig_path)
-        sys.argv = ['menuconfig', 'Kconfig']
-        menuconfig._main()
-        os.chdir(beforepath)
+        run_env_menuconfig(env_root)
         return
 
     # generate rtconfig.h by .config.
@@ -263,8 +265,7 @@ def cmd(args):
         mk_rtconfig(".config")
 
     # update pkgs
-    env_kconfig_path = os.path.join(env_root, 'tools', 'scripts', 'cmds')
-    fn = os.path.join(env_kconfig_path, '.config')
+    fn = os.path.join(env_root, 'rt-env.config')
 
     if not os.path.isfile(fn):
         return

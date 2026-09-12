@@ -74,21 +74,15 @@ class CheckExistingEnvTest(unittest.TestCase):
 
     def test_keep_yes_preserves_local_pkgs_and_config(self):
         _make_layout(self.root)
-        legacy_cfg = os.path.join(self.root, "tools", "scripts", ".config")
-        with open(legacy_cfg, "w", encoding="utf-8") as f:
-            f.write("SDK")
         self._run("yes")
         self.assertTrue(
             os.path.isfile(os.path.join(self.root, "local_pkgs", "tool.marker"))
         )
-        self.assertTrue(
-            os.path.isfile(os.path.join(self.root, "tools", "scripts", "cmds", ".config"))
-        )
-        rescued_cfg = os.path.join(self.root, "sdk.config")
-        self.assertTrue(os.path.isfile(rescued_cfg))
-        with open(rescued_cfg, encoding="utf-8") as f:
-            self.assertEqual(f.read(), "SDK")
-        self.assertFalse(os.path.exists(legacy_cfg))
+        new_cfg = os.path.join(self.root, "rt-env.config")
+        self.assertTrue(os.path.isfile(new_cfg))
+        with open(new_cfg, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "CFG")
+        self.assertFalse(os.path.exists(os.path.join(self.root, "tools", "scripts", "cmds", ".config")))
         self.assertTrue(
             os.path.isfile(os.path.join(self.root, "toolchain", "gcc-arm-1.0", "tool.marker"))
         )

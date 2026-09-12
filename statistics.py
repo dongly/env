@@ -40,12 +40,10 @@ def get_mac_address():
 
 
 def Information_statistics():
-    # get the .config file from env
-    env_kconfig_path = os.path.join(os.getcwd(), 'tools', 'scripts', 'cmds')
-    env_config_file = os.path.join(env_kconfig_path, '.config')
+    # get the env config file from the env root
+    env_config_file = os.path.join(Import('env_root'), 'rt-env.config')
 
     mac_addr = get_mac_address()
-    env_config_file = os.path.join(env_kconfig_path, '.config')
 
     if not os.path.isfile(env_config_file):
         try:

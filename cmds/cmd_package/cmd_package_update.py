@@ -420,7 +420,7 @@ is_China_ip = None
 
 
 def should_confirm_delete_disabled_git_package():
-    env_config_file = os.path.join(Import('env_root'), 'tools', 'scripts', 'cmds', '.config')
+    env_config_file = os.path.join(Import('env_root'), 'rt-env.config')
     return os.path.isfile(env_config_file) and find_bool_macro_in_config(env_config_file, 'SYS_PKGS_CONFIRM_DELETE')
 
 
@@ -431,7 +431,7 @@ def need_using_mirror_download():
         return is_China_ip
 
     server_decision = ""
-    config_file = os.path.join(Import('env_root'), 'tools', 'scripts', 'cmds', '.config')
+    config_file = os.path.join(Import('env_root'), 'rt-env.config')
     if os.path.isfile(config_file) and find_bool_macro_in_config(config_file, 'SYS_DOWNLOAD_SERVER_GITHUB'):
         is_China_ip = False  # Github which means not China IP
         server_decision = "manually decision"

@@ -96,9 +96,8 @@ def get_mac_address():
 
 def Information_statistics():
     env_root = Import('env_root')
-    # get the .config file from env
-    env_kconfig_path = os.path.join(env_root, 'tools', 'scripts', 'cmds')
-    env_config_file = os.path.join(env_kconfig_path, '.config')
+    # get the config file from the env root
+    env_config_file = os.path.join(env_root, 'rt-env.config')
 
     if os.path.isfile(env_config_file) and find_bool_macro_in_config(env_config_file, 'SYS_PKGS_USING_STATISTICS'):
         mac_addr = get_mac_address()

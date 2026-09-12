@@ -97,6 +97,7 @@ def init_argparse():
     cmd_sdk.add_parser(subs)
     cmd_plugin.add_parser(subs)
     cmd_webui.add_parser(subs)
+    cmd_setting.add_parser(subs)
     cmd_upgrade.add_parser(subs)
 
     return parser
