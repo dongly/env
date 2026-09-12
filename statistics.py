@@ -19,6 +19,7 @@
 #  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # Change Logs:
+# 2026-09-12     Dongly          Read the env settings from $ENV_ROOT/rt-env.config instead of the cwd-relative path
 # Date           Author          Notes
 # 2022-5-6      WuGenSheng      Add copyright information
 # 2026-09-12     Dongly      Resolve statistics endpoint via info.get_api_url
@@ -40,12 +41,10 @@ def get_mac_address():
 
 
 def Information_statistics():
-    # get the .config file from env
-    env_kconfig_path = os.path.join(os.getcwd(), 'tools', 'scripts', 'cmds')
-    env_config_file = os.path.join(env_kconfig_path, '.config')
+    # get the env config file from the env root
+    env_config_file = os.path.join(Import('env_root'), 'rt-env.config')
 
     mac_addr = get_mac_address()
-    env_config_file = os.path.join(env_kconfig_path, '.config')
 
     if not os.path.isfile(env_config_file):
         try:
