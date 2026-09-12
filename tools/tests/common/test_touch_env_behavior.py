@@ -5,6 +5,11 @@ helpers (parse_repo_url, safe removal, message lookup). These tests exist
 because a P0 bug ("--keep-sdk no" treated as truthy string) slipped
 through when only the parameter surface was tested.
 
+Also covers persist_custom_repos (rt-env.config merge/upsert/clean of the
+--repo-* overrides) and the setup_repositories source priority
+(CLI custom_repos > rt-env.config persisted values > env.json/builtin
+defaults), per .omo/plans/persist-custom-repos.md section 3.4.
+
 Run:  python tools/tests/common/test_touch_env_behavior.py
 """
 
@@ -371,6 +376,219 @@ class SetupRepositoriesOrderTest(unittest.TestCase):
             self.module.setup_repositories(config)
         by_name = dict((name, (url, branch)) for name, url, branch in self.calls)
         self.assertEqual(by_name["packages"], ("https://custom.example/p.git", "x"))
+
+
+class ConfigStringSymbolTest(unittest.TestCase):
+    """Line-level .config parser behind the persisted-repo overrides."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.module = _load_module()
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="rt-env-sym-")
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def _write(self, text):
+        path = os.path.join(self.root, "rt-env.config")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+        return path
+
+    def test_quoted_value_is_returned_unquoted(self):
+        path = self._write('CONFIG_SYS_ENV_REPO_URL="https://example.com/env.git"\n')
+        self.assertEqual(
+            self.module._config_string_symbol(path, "SYS_ENV_REPO_URL"),
+            "https://example.com/env.git",
+        )
+
+    def test_absent_symbol_returns_none(self):
+        path = self._write("CONFIG_SYS_AUTO_UPDATE_PKGS=y\n")
+        self.assertIsNone(self.module._config_string_symbol(path, "SYS_ENV_REPO_URL"))
+
+    def test_missing_file_returns_none(self):
+        missing = os.path.join(self.root, "rt-env.config")
+        self.assertIsNone(self.module._config_string_symbol(missing, "SYS_ENV_REPO_URL"))
+
+
+class PersistedRepoOverridesTest(unittest.TestCase):
+    """rt-env.config -> {repo: {url, branch}} gate rules."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.module = _load_module()
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="rt-env-ovr-")
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def _write_config(self, lines):
+        with open(os.path.join(self.root, "rt-env.config"), "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
+    def _overrides(self):
+        config = types.SimpleNamespace(env_root=self.root)
+        return self.module._persisted_repo_overrides(config)
+
+    def test_url_without_branch_yields_empty_branch(self):
+        self._write_config(['CONFIG_SYS_ENV_REPO_URL="https://example.com/env.git"'])
+        self.assertEqual(
+            self._overrides(),
+            {"env": {"url": "https://example.com/env.git", "branch": ""}},
+        )
+
+    def test_empty_url_means_no_override(self):
+        self._write_config(['CONFIG_SYS_SDK_REPO_URL=""'])
+        self.assertEqual(self._overrides(), {})
+
+    def test_missing_file_means_no_overrides(self):
+        self.assertEqual(self._overrides(), {})
+
+
+class PersistCustomReposTest(unittest.TestCase):
+    """rt-env.config merge/upsert/clean semantics of persist_custom_repos."""
+
+    ALL_REPO_LINES = [
+        'CONFIG_SYS_ENV_REPO_URL="https://old.example/env.git"',
+        'CONFIG_SYS_ENV_REPO_BRANCH="old-env"',
+        'CONFIG_SYS_SDK_REPO_URL="https://old.example/sdk.git"',
+        'CONFIG_SYS_SDK_REPO_BRANCH="old-sdk"',
+        'CONFIG_SYS_PKGS_REPO_URL="https://old.example/packages.git"',
+        'CONFIG_SYS_PKGS_REPO_BRANCH="old-pkgs"',
+    ]
+    UNRELATED = "CONFIG_SYS_AUTO_UPDATE_PKGS=y"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.module = _load_module()
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="rt-env-persist-")
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def _config_path(self):
+        return os.path.join(self.root, "rt-env.config")
+
+    def _write_config(self, lines):
+        with open(self._config_path(), "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
+    def _read_config(self):
+        with open(self._config_path(), encoding="utf-8") as f:
+            return f.read()
+
+    def _persist(self, custom_repos):
+        config = types.SimpleNamespace(env_root=self.root, custom_repos=custom_repos)
+        with redirect_stdout(io.StringIO()):
+            self.module.persist_custom_repos(config)
+
+    def test_merge_updates_env_and_preserves_unrelated_lines(self):
+        self._write_config([
+            "CONFIG_SYS_DOWNLOAD_SERVER_GITHUB=y",
+            "CONFIG_SYS_AUTO_UPDATE_PKGS=y",
+            'CONFIG_SYS_ENV_REPO_URL="https://stale.example/env.git"',
+        ])
+        self._persist({"env": {"url": "https://example.com/env.git", "branch": "dev"}})
+        content = self._read_config()
+        self.assertEqual(
+            content,
+            "CONFIG_SYS_DOWNLOAD_SERVER_GITHUB=y\n"
+            "CONFIG_SYS_AUTO_UPDATE_PKGS=y\n"
+            'CONFIG_SYS_ENV_REPO_URL="https://example.com/env.git"\n'
+            'CONFIG_SYS_ENV_REPO_BRANCH="dev"\n',
+        )
+        self.assertNotIn("SYS_SDK_REPO", content)
+        self.assertNotIn("SYS_PKGS_REPO", content)
+
+    def test_unspecified_repos_are_cleared_per_repo(self):
+        self._write_config(self.ALL_REPO_LINES + [self.UNRELATED])
+        self._persist({"env": {"url": "https://new.example/env.git", "branch": "b"}})
+        self.assertEqual(
+            self._read_config(),
+            'CONFIG_SYS_ENV_REPO_URL="https://new.example/env.git"\n'
+            'CONFIG_SYS_ENV_REPO_BRANCH="b"\n'
+            "CONFIG_SYS_AUTO_UPDATE_PKGS=y\n",
+        )
+
+    def test_empty_custom_repos_clears_every_repo_line(self):
+        self._write_config(self.ALL_REPO_LINES + [self.UNRELATED])
+        self._persist({})
+        self.assertEqual(self._read_config(), "CONFIG_SYS_AUTO_UPDATE_PKGS=y\n")
+        self.assertTrue(os.path.isfile(self._config_path()))
+
+    def test_pure_create_writes_only_the_target_lines(self):
+        self._persist({"sdk": {"url": "u", "branch": "b"}})
+        self.assertTrue(os.path.isfile(self._config_path()))
+        self.assertEqual(
+            self._read_config(),
+            'CONFIG_SYS_SDK_REPO_URL="u"\nCONFIG_SYS_SDK_REPO_BRANCH="b"\n',
+        )
+
+    def test_no_file_and_no_custom_repos_is_a_no_op(self):
+        self._persist({})
+        self.assertFalse(os.path.exists(self._config_path()))
+
+
+class SetupRepositoriesPriorityTest(unittest.TestCase):
+    """Source priority: CLI custom_repos > rt-env.config > env.json/builtin."""
+
+    PERSISTED_LINES = [
+        'CONFIG_SYS_ENV_REPO_URL="https://persist.example/env.git"',
+        'CONFIG_SYS_ENV_REPO_BRANCH="p-env"',
+        'CONFIG_SYS_SDK_REPO_URL="https://persist.example/sdk.git"',
+        'CONFIG_SYS_SDK_REPO_BRANCH="p-sdk"',
+    ]
+
+    def setUp(self):
+        self.module = _load_module()
+        self.root = tempfile.mkdtemp(prefix="rt-env-prio-")
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.calls = []
+        self._orig_clone = self.module.clone_repository
+        self.module.clone_repository = self._fake_clone
+        self.addCleanup(setattr, self.module, "clone_repository", self._orig_clone)
+
+    def _fake_clone(self, config, repo_name, url, dest_rel, branch="", depth=1):
+        self.calls.append((repo_name, url, branch))
+        if repo_name == "env":
+            # the cloned env carries env.json with its own packages/sdk defaults
+            scripts = os.path.join(self.root, "tools", "scripts")
+            os.makedirs(scripts, exist_ok=True)
+            with open(os.path.join(scripts, "env.json"), "w", encoding="utf-8") as f:
+                json.dump({
+                    "repositories": {
+                        "packages": {"url": "https://envjson.example/packages.git", "branch": "ej-pkgs"},
+                        "sdk": {"url": "https://envjson.example/sdk.git", "branch": "ej-sdk"},
+                    },
+                }, f)
+
+    def _write_persisted(self):
+        with open(os.path.join(self.root, "rt-env.config"), "w", encoding="utf-8") as f:
+            f.write("\n".join(self.PERSISTED_LINES) + "\n")
+
+    def _run(self, custom_repos=None):
+        config = types.SimpleNamespace(
+            env_root=self.root, use_cn=False, custom_repos=custom_repos or {})
+        with redirect_stdout(io.StringIO()):
+            self.module.setup_repositories(config)
+        return dict((name, (url, branch)) for name, url, branch in self.calls)
+
+    def test_persisted_values_beat_defaults(self):
+        self._write_persisted()
+        by_name = self._run()
+        # env: persisted beats the built-in bootstrap constant
+        self.assertEqual(by_name["env"], ("https://persist.example/env.git", "p-env"))
+        # sdk: persisted beats the env.json default of the just-cloned env
+        self.assertEqual(by_name["sdk"], ("https://persist.example/sdk.git", "p-sdk"))
+        # packages has no persisted lines: the env.json default still applies
+        self.assertEqual(by_name["packages"], ("https://envjson.example/packages.git", "ej-pkgs"))
+
+    def test_cli_value_beats_persisted_value(self):
+        self._write_persisted()
+        by_name = self._run({"env": {"url": "https://cli.example/env.git", "branch": "cli"}})
+        self.assertEqual(by_name["env"], ("https://cli.example/env.git", "cli"))
+        # a repo the CLI does not name keeps its persisted value
+        self.assertEqual(by_name["sdk"], ("https://persist.example/sdk.git", "p-sdk"))
 
 
 class CopyEnvScriptsTest(unittest.TestCase):

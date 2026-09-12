@@ -23,6 +23,7 @@
 # Date           Author          Notes
 # 2026-01-30     dongly         Initial version
 # 2026-09-13     Dongly         Rebuild the SDK state files after a reinstall
+# 2026-09-13     Dongly         Persist --repo-* overrides to rt-env.config
 #
 # RT-Thread ENV Setup Script (Python)
 # RT-Thread ENV 安装脚本 (Python)
@@ -117,6 +118,17 @@ DEFAULT_ENV_ROOT = "~/.rt-env"
 
 # Portable Python directory name
 PORTABLE_PYTHON_DIR = "python"
+
+# Mapping of managed-repository keys to their rt-env.config symbol pairs
+# ($ENV_ROOT/rt-env.config, written by the settings menu and the installer
+# --repo-* options). A non-empty URL symbol marks a persisted custom source.
+# Mirrors info.CUSTOM_REPO_SYMBOLS (kept local: info.py is not importable
+# from tools/ before installation).
+CUSTOM_REPO_SYMBOLS = {
+    'env': ('SYS_ENV_REPO_URL', 'SYS_ENV_REPO_BRANCH'),
+    'sdk': ('SYS_SDK_REPO_URL', 'SYS_SDK_REPO_BRANCH'),
+    'packages': ('SYS_PKGS_REPO_URL', 'SYS_PKGS_REPO_BRANCH'),
+}
 
 # ============================================================================
 # Python Version Check
@@ -265,6 +277,9 @@ MESSAGES = {
         'using_custom_repo_branch': 'Using custom repository: {0} (branch: {1})',
         'env_json_defaults': 'Repository defaults loaded from env.json: {0}',
         'env_json_fallback': 'Cannot read repository defaults from {0}, using built-in sources',
+        'repo_settings_persisted': 'Persisted custom repository settings for {0}',
+        'repo_settings_cleared': 'Cleared persisted custom repository settings for {0}',
+        'repo_settings_persist_failed': 'Could not persist repository settings: {0}',
         'env_root_exists': 'Existing RT-Thread ENV detected at: {0}',
         'toolchain_keep_prompt': 'Keep toolchains (toolchain/) and configs (rt-env.config, sdk.config)? [Y/n]: ',
         'toolchain_kept': 'Keeping toolchains (toolchain/) and configs (rt-env.config, sdk.config)',
@@ -332,6 +347,9 @@ MESSAGES = {
         'using_custom_repo_branch': '使用自定义仓库: {0} (分支: {1})',
         'env_json_defaults': '仓库默认配置已从 env.json 加载: {0}',
         'env_json_fallback': '无法从 {0} 读取仓库默认配置，使用内置源',
+        'repo_settings_persisted': '已持久化自定义仓库设置: {0}',
+        'repo_settings_cleared': '已清除持久化的自定义仓库设置: {0}',
+        'repo_settings_persist_failed': '无法持久化仓库设置: {0}',
         'env_root_exists': '检测到已存在的 RT-Thread ENV: {0}',
         'toolchain_keep_prompt': '保留工具链（toolchain/）与配置（rt-env.config、sdk.config）？[Y/n]: ',
         'toolchain_kept': '保留工具链（toolchain/）与配置（rt-env.config、sdk.config）',
@@ -520,6 +538,119 @@ def load_repo_defaults(config):
     return defaults
 
 
+def _config_string_symbol(path, symbol):
+    # line-level parser for a kconfig .config file: return the value of the
+    # CONFIG_<symbol>="..." setting (quotes stripped) or None when the file
+    # is missing / the symbol is absent or unset. Mirrors info._config_string_symbol
+    # (kept local: info.py is not importable from tools/ before installation).
+    try:
+        with open(path, 'r') as config:
+            for line in config:
+                line = line.lstrip(' ').replace('\n', '').replace('\r', '')
+                if len(line) == 0 or line[0] == '#':
+                    continue
+                setting = line.split('=', 1)
+                if len(setting) >= 2 and setting[0] == 'CONFIG_' + symbol:
+                    return setting[1].strip('"')
+    except (IOError, OSError, ValueError):
+        return None
+    return None
+
+
+def _persisted_repo_overrides(config):
+    # Read custom-repo overrides from $ENV_ROOT/rt-env.config. Returns
+    # {'env': {'url', 'branch'}, ...} for every repo whose URL symbol is set
+    # to a non-empty string (empty = no override); branch is '' when its
+    # symbol is absent/unset. Mirrors info._persisted_repo_overrides (which
+    # returns Source tuples; a plain dict keeps the installer dependency-free).
+    config_path = os.path.join(config.env_root, 'rt-env.config')
+    if not os.path.isfile(config_path):
+        return {}
+
+    overrides = {}
+    for repo, (url_symbol, branch_symbol) in CUSTOM_REPO_SYMBOLS.items():
+        url = _config_string_symbol(config_path, url_symbol)
+        if url:
+            branch = _config_string_symbol(config_path, branch_symbol)
+            overrides[repo] = {'url': url, 'branch': branch or ''}
+    return overrides
+
+
+def persist_custom_repos(config):
+    # Persist --repo-* overrides into $ENV_ROOT/rt-env.config, merging with
+    # any existing settings (all other lines are preserved). Per-repo two-way
+    # handling: a repo named in config.custom_repos is upserted (URL + branch,
+    # the branch written as "" when absent to stay explicit); a repo NOT named
+    # is cleared (its URL/BRANCH lines removed) so an omitted --repo-* on a
+    # reinstall retracts the previous persist. No-op when there is neither a
+    # CLI override nor an existing config file (never create an empty file).
+    # Failures only log_warning and never fail the install.
+    config_path = os.path.join(config.env_root, 'rt-env.config')
+    if not config.custom_repos and not os.path.isfile(config_path):
+        return
+
+    symbol_repo = {}
+    target_symbols = {}
+    remove_symbols = set()
+    for repo, (url_symbol, branch_symbol) in CUSTOM_REPO_SYMBOLS.items():
+        symbol_repo[url_symbol] = repo
+        symbol_repo[branch_symbol] = repo
+        if repo in config.custom_repos:
+            info = config.custom_repos[repo]
+            target_symbols[url_symbol] = info['url']
+            target_symbols[branch_symbol] = info.get('branch', '')
+        else:
+            remove_symbols.add(url_symbol)
+            remove_symbols.add(branch_symbol)
+
+    def _line_symbol(line):
+        stripped = line.lstrip(' ')
+        idx = stripped.find('=')
+        if idx == -1:
+            return None
+        return stripped[:idx].rstrip(' ')
+
+    merged = []
+    written = set()
+    cleared_repos = set()
+    persisted_repos = set()
+
+    try:
+        if os.path.isfile(config_path):
+            with open(config_path, 'r', encoding='utf-8') as f:
+                for line in f.read().splitlines():
+                    key = _line_symbol(line)
+                    if key is None:
+                        merged.append(line)
+                        continue
+                    symbol = key[len('CONFIG_'):] if key.startswith('CONFIG_') else None
+                    if symbol in remove_symbols:
+                        cleared_repos.add(symbol_repo.get(symbol))
+                        continue
+                    if symbol in target_symbols:
+                        merged.append(key + '="' + target_symbols[symbol] + '"')
+                        written.add(symbol)
+                        persisted_repos.add(symbol_repo[symbol])
+                        continue
+                    merged.append(line)
+
+        for symbol, value in target_symbols.items():
+            if symbol not in written:
+                merged.append('CONFIG_' + symbol + '="' + value + '"')
+                persisted_repos.add(symbol_repo[symbol])
+
+        with open(config_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(merged) + ('\n' if merged else ''))
+
+        for repo, _ in CUSTOM_REPO_SYMBOLS.items():
+            if repo in persisted_repos:
+                log_info('repo_settings_persisted', repo)
+            elif repo in cleared_repos:
+                log_info('repo_settings_cleared', repo)
+    except (IOError, OSError, ValueError) as e:
+        log_warning('repo_settings_persist_failed', str(e))
+
+
 def setup_repositories(config):
     """
     Setup all repositories (env, packages, sdk)
@@ -542,10 +673,22 @@ def setup_repositories(config):
 
     # Clone env first (bootstrap). Its own source cannot come from its
     # env.json (chicken-and-egg), so use built-in constants or --repo-env.
+    # Source priority: CLI config.custom_repos > rt-env.config persisted
+    # values > built-in constants.
+    persisted = _persisted_repo_overrides(config)
+
     if config.custom_repos and 'env' in config.custom_repos:
         env_repo = config.custom_repos['env']
         url = env_repo['url']
         branch = env_repo.get('branch', '')
+
+        if branch:
+            log_info('using_custom_repo_branch', url, branch)
+        else:
+            log_info('using_custom_repo', url)
+    elif 'env' in persisted:
+        url = persisted['env']['url']
+        branch = persisted['env'].get('branch', '')
 
         if branch:
             log_info('using_custom_repo_branch', url, branch)
@@ -562,11 +705,19 @@ def setup_repositories(config):
 
     # Clone the remaining repositories
     for repo_name in ('packages', 'sdk'):
-        # Check for custom repository
+        # Check for custom repository (CLI > persisted > env.json/builtin)
         if config.custom_repos and repo_name in config.custom_repos:
             repo_info = config.custom_repos[repo_name]
             url = repo_info['url']
             branch = repo_info.get('branch', '')
+
+            if branch:
+                log_info('using_custom_repo_branch', url, branch)
+            else:
+                log_info('using_custom_repo', url)
+        elif repo_name in persisted:
+            url = persisted[repo_name]['url']
+            branch = persisted[repo_name].get('branch', '')
 
             if branch:
                 log_info('using_custom_repo_branch', url, branch)
@@ -1358,6 +1509,11 @@ def run_touch_env(args):
 
         # Step 2: Handle existing ENV (--keep-sdk decision)
         check_existing_env(config)
+
+        # Step 2.5: Persist custom repository sources to rt-env.config
+        # (merged; per-repo upsert/clear). Must run after check_existing_env
+        # so the keep path has already restored any preserved rt-env.config.
+        persist_custom_repos(config)
 
         # Step 3: Setup repositories
         setup_repositories(config)

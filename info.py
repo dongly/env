@@ -23,6 +23,7 @@
 # 2025-06-23     Dongly      Add get_rt_env_version function
 # 2026-09-10     Dongly      Add get_rt_env_description function, Extract load_env_json common helper
 # 2026-09-12     Dongly      Rename version.py to info.py; single access layer for env.json (metadata, repositories, submodule mirrors, service endpoints)
+# 2026-09-13     Dongly      Persist --repo-* overrides in get_source() (rt-env.config over env.json)
 
 import json
 import os
@@ -67,6 +68,15 @@ DEFAULTS = {
 # mirror branch.
 Source = namedtuple('Source', ['url', 'branch'])
 
+# Mapping of managed-repository keys to their rt-env.config symbol pairs
+# ($ENV_ROOT/rt-env.config, written by the settings menu and the installer
+# --repo-* options). A non-empty URL symbol marks a persisted custom source.
+CUSTOM_REPO_SYMBOLS = {
+    'env': ('SYS_ENV_REPO_URL', 'SYS_ENV_REPO_BRANCH'),
+    'sdk': ('SYS_SDK_REPO_URL', 'SYS_SDK_REPO_BRANCH'),
+    'packages': ('SYS_PKGS_REPO_URL', 'SYS_PKGS_REPO_BRANCH'),
+}
+
 
 def load_env_json():
     # try to read env.json to get information
@@ -102,6 +112,56 @@ def _config_section(section):
     return value if isinstance(value, dict) else {}
 
 
+def _config_string_symbol(path, symbol):
+    # line-level parser for a kconfig .config file (same approach as
+    # cmd_package_utils.find_string_in_config): return the quoted string
+    # value of CONFIG_<symbol>="..." and its bare value, stripping quotes;
+    # None when the file is missing or the symbol is absent/unset.
+    try:
+        with open(path, 'r') as config:
+            for line in config:
+                line = line.lstrip(' ').replace('\n', '').replace('\r', '')
+                if len(line) == 0 or line[0] == '#':
+                    continue
+                setting = line.split('=', 1)
+                if len(setting) >= 2 and setting[0] == 'CONFIG_' + symbol:
+                    return setting[1].strip('"')
+    except (IOError, OSError):
+        return None
+    return None
+
+
+def _persisted_repo_overrides():
+    # Read custom-repo overrides from $ENV_ROOT/rt-env.config.
+    #
+    # Returns {'env': Source(url, branch), ...} for every repo whose URL
+    # symbol is set to a non-empty string (empty = no override). The branch
+    # is None when its symbol is absent/unset, letting get_source() fall back
+    # to the env.json primary branch. ENV_ROOT is discovered with the same
+    # chain as load_env_json(): ENV_ROOT env var > HOME/.rt-env (or
+    # USERPROFILE/.rt-env on Windows). A missing ENV_ROOT or config file
+    # yields {}.
+    env_root = os.getenv("ENV_ROOT")
+    if env_root is None:
+        if platform.system() != 'Windows':
+            env_root = os.path.join(os.getenv('HOME'), '.rt-env')
+        else:
+            env_root = os.path.join(os.getenv('USERPROFILE'), '.rt-env')
+    if not env_root:
+        return {}
+    config_path = os.path.join(env_root, 'rt-env.config')
+    if not os.path.isfile(config_path):
+        return {}
+
+    overrides = {}
+    for repo, (url_symbol, branch_symbol) in CUSTOM_REPO_SYMBOLS.items():
+        url = _config_string_symbol(config_path, url_symbol)
+        if url:
+            branch = _config_string_symbol(config_path, branch_symbol)
+            overrides[repo] = Source(url=url, branch=branch or None)
+    return overrides
+
+
 def get_name():
     name = (load_env_json() or {}).get('name')
     if not isinstance(name, str):
@@ -135,6 +195,16 @@ def get_source(repo, use_mirror=False, branch=None):
         raw_entry = {}
     if repo not in DEFAULTS['repositories'] and not raw_entry:
         raise KeyError('unknown repository: %r' % (repo,))
+
+    override = _persisted_repo_overrides().get(repo)
+    if override is not None:
+        # A persisted custom URL is an explicit intent: it bypasses both the
+        # mirror decision and the DEFAULTS url. Branch priority: explicit
+        # branch argument > persisted branch > env.json primary branch.
+        resolved_branch = branch or override.branch
+        if resolved_branch is None:
+            resolved_branch = raw_entry.get('branch') or DEFAULTS['repositories'].get(repo, {}).get('branch')
+        return Source(url=override.url, branch=resolved_branch)
 
     default_entry = DEFAULTS['repositories'].get(repo, {})
     url = raw_entry.get('url') or default_entry.get('url')

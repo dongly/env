@@ -144,6 +144,19 @@ class MessagesTest(unittest.TestCase):
                 with self.subTest(key=key):
                     self.assertIn(key, table)
 
+    def test_repo_settings_keys_present(self):
+        # G5: persist_custom_repos MESSAGES keys must exist in BOTH tables;
+        # orphan coverage is automatic via MessageUsageTest.
+        en_keys, zh_keys = _messages_dicts()
+        for key in (
+            "repo_settings_persisted",
+            "repo_settings_cleared",
+            "repo_settings_persist_failed",
+        ):
+            with self.subTest(key=key):
+                self.assertIn(key, en_keys)
+                self.assertIn(key, zh_keys)
+
 
 class MessageUsageTest(unittest.TestCase):
     """G5: every defined i18n key must have at least one call site."""

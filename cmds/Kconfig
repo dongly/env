@@ -63,4 +63,37 @@ config SYS_PKGS_USING_STATISTICS
         Reads the user's mac address and returns it to the rt-thread official, 
         which is used to count the number of users
 
+menu "Custom repositories"
+
+    comment "Override the git sources for the managed repositories."
+    comment "Leave empty to use the built-in defaults (env.json)."
+
+    config SYS_ENV_REPO_URL
+        string "env repository URL"
+        default ""
+
+    config SYS_ENV_REPO_BRANCH
+        string "env repository branch"
+        default ""
+        depends on SYS_ENV_REPO_URL != ""
+
+    config SYS_SDK_REPO_URL
+        string "sdk repository URL"
+        default ""
+
+    config SYS_SDK_REPO_BRANCH
+        string "sdk repository branch"
+        default ""
+        depends on SYS_SDK_REPO_URL != ""
+
+    config SYS_PKGS_REPO_URL
+        string "packages repository URL"
+        default ""
+
+    config SYS_PKGS_REPO_BRANCH
+        string "packages repository branch"
+        default ""
+        depends on SYS_PKGS_REPO_URL != ""
+endmenu
+
 endmenu
