@@ -24,6 +24,7 @@
 # 2019-1-16      SummerGift      Add chinese detection
 # 2020-4-13      SummerGift      refactoring
 # 2025-1-27      bernard         Add env.json for env information
+# 2026-09-12     Dongly      Add show_version banner with --info flag; migrate to info accessors
 
 import os
 import sys
@@ -38,11 +39,11 @@ sys.path.insert(0, mpath)
 
 from cmds import *
 from vars import Export
-from version import get_rt_env_version
+from info import get_name, get_version
 
 def show_version():
     rtt_ver = get_rtt_verion()
-    rt_env_name, rt_env_ver = get_rt_env_version()
+    rt_env_name, rt_env_ver = get_name(), get_version()
     
     print('\033[1;36m===================================================================\033[0m')
     print('\033[1;36m    Welcome to %s %s\033[0m' % (rt_env_name, rt_env_ver))
@@ -85,7 +86,7 @@ def init_argparse():
     parser = argparse.ArgumentParser(prog='rt-env', description=__doc__)
     subs = parser.add_subparsers()
 
-    rt_env_name, rt_env_ver = get_rt_env_version()
+    rt_env_name, rt_env_ver = get_name(), get_version()
     env_ver_str = '%s %s' % (rt_env_name, rt_env_ver)
     parser.add_argument('-v', '--version', action='version', version=env_ver_str)
     parser.add_argument('--info', action='store_true', help='Show environment information')
@@ -253,7 +254,7 @@ def main():
     if not hasattr(args, 'func'):
         # No subcommand provided, show help
         parser.print_help()
-        exit(0)
+        sys.exit(0)
 
     show_version_warning()
     export_environment_variable()
