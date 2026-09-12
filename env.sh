@@ -2,7 +2,15 @@
 #   1. Layout detection - when sourced directly from tools/scripts the
 #      installation root is two levels up.
 #   2. Otherwise this file's own directory (legacy full copy at $ENV_ROOT).
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve this file's own path across shells: zsh exposes the sourced
+# file via the %x prompt escape, bash via $BASH_SOURCE, other shells
+# fall back to $0.
+if [ -n "${ZSH_VERSION:-}" ]; then
+    _RT_SELF="${(%):-%x}"
+else
+    _RT_SELF="${BASH_SOURCE:-$0}"
+fi
+SCRIPT_DIR="$(cd "$(dirname "$_RT_SELF")" && pwd)"
 case "$SCRIPT_DIR" in
     */tools/scripts) ENV_ROOT="${SCRIPT_DIR%/tools/scripts}" ;;
     *) echo "env.sh: not under tools/scripts (legacy layout at $SCRIPT_DIR); the installation is outdated or incomplete. Please reinstall the RT-Thread ENV." >&2; ENV_ROOT="$SCRIPT_DIR" ;;

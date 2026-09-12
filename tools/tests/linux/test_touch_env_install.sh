@@ -27,6 +27,7 @@ WORK="$(mktemp -d 2>/dev/null || mktemp -d -t rt-env-install)"
 
 pass() { printf '  PASS: %s\n' "$1"; PASS=$((PASS + 1)); }
 fail() { printf '  FAIL: %s\n' "$1"; FAIL=$((FAIL + 1)); }
+skip() { printf '  SKIP: %s\n' "$1"; }
 section() { printf '\n== %s ==\n' "$1"; }
 
 cleanup() {
@@ -245,6 +246,17 @@ else
     fail "delegation activates venv/rt-env (got: ${DELEGATED:-<empty>})"
 fi
 
+if command -v zsh >/dev/null 2>&1; then
+    ZSH_DELEGATED="$(zsh -c ". '$ENV_ROOT/env.sh' >/dev/null 2>&1; printf '%s' \"\$RT_VENV_DIR\"")"
+    if [ "$ZSH_DELEGATED" = "$VENV_DIR" ]; then
+        pass 'delegation activates venv/rt-env (zsh)'
+    else
+        fail "delegation activates venv/rt-env (zsh, got: ${ZSH_DELEGATED:-<empty>})"
+    fi
+else
+    skip 'delegation activates venv/rt-env (zsh): zsh not installed'
+fi
+
 FALLBACK_ROOT="$WORK/fallback-root"
 mkdir -p "$FALLBACK_ROOT/.venv/bin" "$FALLBACK_ROOT/tools/scripts"
 cp "$ENV_ROOT/tools/scripts/env.sh" "$FALLBACK_ROOT/tools/scripts/env.sh"
@@ -254,6 +266,17 @@ if [ "$FALLBACKED" = "$FALLBACK_ROOT/.venv|legacy" ]; then
     pass 'legacy .venv fallback activates'
 else
     fail "legacy .venv fallback activates (got: ${FALLBACKED:-<empty>})"
+fi
+
+if command -v zsh >/dev/null 2>&1; then
+    ZSH_FALLBACKED="$(env -u RT_ENV_ROOT -u ENV_ROOT zsh -c ". '$FALLBACK_ROOT/tools/scripts/env.sh' >/dev/null 2>&1; printf '%s|%s' \"\$RT_VENV_DIR\" \"\$RTT_FAKE_VENV\"")"
+    if [ "$ZSH_FALLBACKED" = "$FALLBACK_ROOT/.venv|legacy" ]; then
+        pass 'legacy .venv fallback activates (zsh)'
+    else
+        fail "legacy .venv fallback activates (zsh, got: ${ZSH_FALLBACKED:-<empty>})"
+    fi
+else
+    skip 'legacy .venv fallback activates (zsh): zsh not installed'
 fi
 
 section '5. cleanup bookkeeping'

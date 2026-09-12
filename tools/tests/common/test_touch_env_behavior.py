@@ -399,9 +399,10 @@ class CopyEnvScriptsTest(unittest.TestCase):
             content = f.read()
         self.assertNotIn("RT_ENV_ROOT=", content)
         self.assertIn(
-            '. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tools/scripts/env.sh"',
+            '. "$(cd "$(dirname "$_RT_SELF")" && pwd)/tools/scripts/env.sh"',
             content,
         )
+        self.assertIn('${ZSH_VERSION:-}', content)
         self.assertNotIn(self.root, content)
 
     def test_missing_inner_is_a_no_op(self):
