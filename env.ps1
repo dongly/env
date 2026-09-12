@@ -7,6 +7,7 @@ if ($PSScriptRoot -like '*\tools\scripts') {
     $env:ENV_ROOT = Split-Path (Split-Path $PSScriptRoot)
 }
 else {
+    Write-Warning "env.ps1 is not under tools\scripts (legacy layout at $PSScriptRoot); the installation is outdated or incomplete. Please reinstall the RT-Thread ENV."
     $env:ENV_ROOT = $PSScriptRoot
 }
 

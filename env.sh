@@ -5,7 +5,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case "$SCRIPT_DIR" in
     */tools/scripts) ENV_ROOT="${SCRIPT_DIR%/tools/scripts}" ;;
-    *) ENV_ROOT="$SCRIPT_DIR" ;;
+    *) echo "env.sh: not under tools/scripts (legacy layout at $SCRIPT_DIR); the installation is outdated or incomplete. Please reinstall the RT-Thread ENV." >&2; ENV_ROOT="$SCRIPT_DIR" ;;
 esac
 export "ENV_ROOT=$ENV_ROOT"
 
