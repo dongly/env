@@ -45,7 +45,7 @@ DEFAULTS = {
         },
         'sdk': {
             'url': 'https://github.com/RT-Thread/sdk.git',
-            'branch': 'master',
+            'branch': 'main',
         },
         'packages': {
             'url': 'https://github.com/RT-Thread/packages.git',
