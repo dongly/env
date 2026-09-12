@@ -6,10 +6,8 @@
 #
 # Change Logs:
 # Date           Author       Notes
-# 2026-09-12     Dongly       first version
-# 2026-09-12     Dongly       host the env repo upgrade chain moved from
-#                             cmd_package_upgrade (scripts upgrade, editable
-#                             refresh, root activator regeneration)
+# 2026-09-12     Dongly       first version; host the env repo upgrade chain
+#                             moved from cmd_package_upgrade
 
 """Upgrade the env toolchain itself (env repository)."""
 
