@@ -96,13 +96,13 @@ class SdkManager(object):
             packages_root = os.path.join(self.env_root, "packages")
         self.packages_root = os.path.abspath(packages_root)
         self.config_root = os.path.join(self.env_root, "tools", "scripts")
-        self.config_path = os.path.join(self.config_root, ".config")
+        self.config_path = os.path.join(self.env_root, "sdk.config")
         self.kconfig_path = os.path.join(self.config_root, "Kconfig")
         self.hostos = platform_name or platform.system()
         if self.hostos not in ("Linux", "Windows"):
             raise SdkUsageError("SDK management supports Linux and Windows hosts only")
         self.index_root = os.path.join(self.packages_root, "sdk", self.hostos)
-        self.package_state_root = os.path.join(self.config_root, "packages")
+        self.package_state_root = os.path.join(self.env_root, "toolchain")
         self.staging_root = os.path.join(self.package_state_root, ".sdk-staging")
         self.downloader = downloader or self._download
         self._apply_lock = threading.Lock()
@@ -1100,6 +1100,24 @@ class SdkManager(object):
         self._atomic_json(os.path.join(self.package_state_root, "pkgs.json"), entries)
         self._atomic_json(os.path.join(self.package_state_root, "pkgs_error.json"), [])
         self._atomic_json(os.path.join(self.config_root, "sdk_list.json"), sdk_entries)
+
+        # Upstream rt-thread (tools/env_utility.py GetSDKPath) reads
+        # <ENV_ROOT>/tools/scripts/sdk_cfg.json and joins item['path'] onto
+        # the env root, so an absolute payload path wins. Keep it in sync
+        # with every state write; best-effort because a read-only config
+        # root must not fail the SDK operation itself.
+        cfg_entries = [
+            {
+                "name": sdk_entry["name"],
+                "path": os.path.join(self.package_state_root, sdk_entry["path"]),
+                "ver": entry["ver"],
+            }
+            for sdk_entry, entry in zip(sdk_entries, entries)
+        ]
+        try:
+            self._atomic_json(os.path.join(self.config_root, "sdk_cfg.json"), cfg_entries)
+        except OSError:
+            pass
 
     @staticmethod
     def _atomic_json(path, value):

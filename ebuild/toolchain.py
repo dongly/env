@@ -189,46 +189,46 @@ def _env_root() -> str:
 def _detect_sdk_path_from_env(cc_bin: str) -> Optional[str]:
     env_root = _env_root()
     sdk_root = os.path.join(env_root, "tools", "scripts")
-    sdk_pkgs = os.path.join(sdk_root, "packages")
-    if not os.path.isdir(sdk_pkgs):
-        return None
+    # v2 keeps toolchain payloads in <env>/toolchain; legacy installs used
+    # <env>/tools/scripts/packages. The toolchain index itself stayed at
+    # <env>/packages/sdk/<hostos>/..., so the index join below is shared.
+    state_roots = [os.path.join(env_root, "toolchain"), os.path.join(sdk_root, "packages")]
 
-    sdk_cfg_path = os.path.join(sdk_root, "sdk_cfg.json")
-    sdk_cfg = _load_json(sdk_cfg_path)
+    sdk_cfg = _load_json(os.path.join(sdk_root, "sdk_cfg.json"))
     if isinstance(sdk_cfg, list):
         for item in sdk_cfg:
             if item.get("name") != cc_bin:
                 continue
-            candidate = os.path.join(sdk_pkgs, item.get("path", ""))
+            for state_root in state_roots:
+                candidate = os.path.join(state_root, item.get("path", ""))
+                if _is_exec_path_valid(candidate, cc_bin):
+                    return candidate
+                if "gcc" in cc_bin:
+                    candidate_bin = os.path.join(candidate, "bin")
+                    if _is_exec_path_valid(candidate_bin, cc_bin):
+                        return candidate_bin
+
+    for state_root in state_roots:
+        pkgs = _load_json(os.path.join(state_root, "pkgs.json"))
+        if not isinstance(pkgs, list):
+            continue
+        for item in pkgs:
+            package_path = os.path.join(env_root, "packages", item.get("path", ""), "package.json")
+            package = _load_json(package_path)
+            if not isinstance(package, dict):
+                continue
+            if package.get("name") != cc_bin:
+                continue
+            version = item.get("ver", "")
+            if not version:
+                continue
+            candidate = os.path.join(state_root, f"{package['name']}-{version}")
             if _is_exec_path_valid(candidate, cc_bin):
                 return candidate
             if "gcc" in cc_bin:
                 candidate_bin = os.path.join(candidate, "bin")
                 if _is_exec_path_valid(candidate_bin, cc_bin):
                     return candidate_bin
-
-    pkgs_path = os.path.join(sdk_pkgs, "pkgs.json")
-    pkgs = _load_json(pkgs_path)
-    if not isinstance(pkgs, list):
-        return None
-
-    for item in pkgs:
-        package_path = os.path.join(env_root, "packages", item.get("path", ""), "package.json")
-        package = _load_json(package_path)
-        if not isinstance(package, dict):
-            continue
-        if package.get("name") != cc_bin:
-            continue
-        version = item.get("ver", "")
-        if not version:
-            continue
-        candidate = os.path.join(sdk_pkgs, f"{package['name']}-{version}")
-        if _is_exec_path_valid(candidate, cc_bin):
-            return candidate
-        if "gcc" in cc_bin:
-            candidate_bin = os.path.join(candidate, "bin")
-            if _is_exec_path_valid(candidate_bin, cc_bin):
-                return candidate_bin
 
     return None
 

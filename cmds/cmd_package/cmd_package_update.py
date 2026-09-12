@@ -19,6 +19,7 @@
 #  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # Change Logs:
+# 2026-09-12     Dongly          Read the env settings from $ENV_ROOT/rt-env.config
 # Date           Author          Notes
 # 2020-04-08     SummerGift      Optimize program structure
 # 2020-04-13     SummerGift      refactoring
@@ -420,7 +421,7 @@ is_China_ip = None
 
 
 def should_confirm_delete_disabled_git_package():
-    env_config_file = os.path.join(Import('env_root'), 'tools', 'scripts', 'cmds', '.config')
+    env_config_file = os.path.join(Import('env_root'), 'rt-env.config')
     return os.path.isfile(env_config_file) and find_bool_macro_in_config(env_config_file, 'SYS_PKGS_CONFIRM_DELETE')
 
 
@@ -431,7 +432,7 @@ def need_using_mirror_download():
         return is_China_ip
 
     server_decision = ""
-    config_file = os.path.join(Import('env_root'), 'tools', 'scripts', 'cmds', '.config')
+    config_file = os.path.join(Import('env_root'), 'rt-env.config')
     if os.path.isfile(config_file) and find_bool_macro_in_config(config_file, 'SYS_DOWNLOAD_SERVER_GITHUB'):
         is_China_ip = False  # Github which means not China IP
         server_decision = "manually decision"

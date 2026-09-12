@@ -24,6 +24,8 @@
 # 2026-09-12     Dongly      Resolve packages/env repo URLs and statistics endpoint
 #                             via env.json (info.get_source / info.get_api_url); logical
 #                             repos no longer query the mirror server
+# 2026-09-12     Dongly      Refresh rt-env editable install and regenerate the
+#                             root activator after env repo upgrades
 #
 
 import os
@@ -87,22 +89,6 @@ def upgrade_packages_index(force_upgrade=False):
                 print("==============================>  Env %s update done \n" % filename)
 
 
-def upgrade_env_script(force_upgrade=False):
-    """Update env function scripts."""
-
-    env_root = Import('env_root')
-
-    src = get_source('env', use_mirror=need_using_mirror_download())
-
-    env_scripts_root = os.path.join(env_root, 'tools', 'scripts')
-    if force_upgrade:
-        execute_command('git fetch --all', cwd=env_scripts_root)
-        execute_command('git reset --hard origin/%s' % src.branch, cwd=env_scripts_root)
-    print("Begin to upgrade env scripts.")
-    git_pull_repo(env_scripts_root, src.url)
-    print("==============================>  Env scripts upgrade done \n")
-
-
 def get_mac_address():
     mac = uuid.UUID(int=uuid.getnode()).hex[-12:]
     return ":".join([mac[e : e + 2] for e in range(0, 11, 2)])
@@ -110,9 +96,8 @@ def get_mac_address():
 
 def Information_statistics():
     env_root = Import('env_root')
-    # get the .config file from env
-    env_kconfig_path = os.path.join(env_root, 'tools', 'scripts', 'cmds')
-    env_config_file = os.path.join(env_kconfig_path, '.config')
+    # get the config file from the env root
+    env_config_file = os.path.join(env_root, 'rt-env.config')
 
     if os.path.isfile(env_config_file) and find_bool_macro_in_config(env_config_file, 'SYS_PKGS_USING_STATISTICS'):
         mac_addr = get_mac_address()
@@ -139,6 +124,8 @@ def package_upgrade(force_upgrade=False, upgrade_script=False):
     upgrade_packages_index(force_upgrade=force_upgrade)
 
     if upgrade_script:
+        from cmds.cmd_upgrade import upgrade_env_script
+
         upgrade_env_script(force_upgrade=force_upgrade)
 
 
