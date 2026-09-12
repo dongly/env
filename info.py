@@ -80,9 +80,9 @@ def load_env_json():
             env_root = os.getenv("ENV_ROOT")
             if env_root is None:
                 if platform.system() != 'Windows':
-                    env_root = os.path.join(os.getenv('HOME'), '.env')
+                    env_root = os.path.join(os.getenv('HOME'), '.rt-env')
                 else:
-                    env_root = os.path.join(os.getenv('USERPROFILE'), '.env')
+                    env_root = os.path.join(os.getenv('USERPROFILE'), '.rt-env')
             env_json_path = os.path.join(env_root, 'tools', 'scripts', 'env.json')
 
         with open(env_json_path, 'r') as file:
