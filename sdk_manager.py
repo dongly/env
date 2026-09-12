@@ -299,6 +299,27 @@ class SdkManager(object):
         with self._apply_lock:
             return self._config_snapshot()
 
+    def rebuild_state_files(self):
+        """Rebuild the derived SDK state files from sdk.config and the index.
+
+        A reinstall that keeps toolchains preserves toolchain/ payloads and
+        sdk.config, but the tools/ wipe deletes the state files derived from
+        them (including tools/scripts/sdk_cfg.json, the only file the
+        upstream build reads via GetSDKPath). Recompute them from the
+        surviving selection so kept toolchains stay usable without a
+        round-trip through the SDK UI.
+        """
+        with self._apply_lock:
+            snapshot = self._config_snapshot()
+            selection = {}
+            for package in snapshot["packages"]:
+                version = package["expected_version"] or package["installed_version"]
+                selection[package["name"]] = {
+                    "enabled": package["enabled"] and version is not None,
+                    "version": version,
+                }
+            self._write_state_files(selection)
+
     def _normalise_selection(self, request):
         if not isinstance(request, dict) or set(request) != {"packages"} or not isinstance(request["packages"], list):
             raise SdkUsageError("SDK plan must contain a packages list")

@@ -22,6 +22,7 @@
 # Change Logs:
 # Date           Author          Notes
 # 2026-01-30     dongly         Initial version
+# 2026-09-13     Dongly         Rebuild the SDK state files after a reinstall
 #
 # RT-Thread ENV Setup Script (Python)
 # RT-Thread ENV 安装脚本 (Python)
@@ -238,6 +239,8 @@ MESSAGES = {
         'activator_created': 'Created thin activator: {0}',
         'user_config_created': 'Created user customization file: {0}',
         'fixed_guiconfig': 'Fixed guiconfig.py (added missing import)',
+        'sdk_state_rebuilt': 'Rebuilt the SDK state files for the kept toolchains',
+        'sdk_state_rebuild_failed': 'Could not rebuild the SDK state files (kept toolchains may be unusable until re-selected): {0}',
         'setup_complete': 'RT-Thread ENV installation completed!',
         'next_steps': 'Next steps:',
         'activate_env': '1. Activate environment:',
@@ -303,6 +306,8 @@ MESSAGES = {
         'activator_created': '已创建薄激活器: {0}',
         'user_config_created': '已创建用户自定义文件: {0}',
         'fixed_guiconfig': '已修复 guiconfig.py（添加缺失的导入）',
+        'sdk_state_rebuilt': '已为保留的工具链重建 SDK 状态文件',
+        'sdk_state_rebuild_failed': '重建 SDK 状态文件失败（保留的工具链在重新选择前可能不可用）: {0}',
         'setup_complete': 'RT-Thread ENV 安装完成！',
         'next_steps': '后续步骤:',
         'activate_env': '1. 激活环境:',
@@ -853,6 +858,48 @@ def fix_guiconfig_import(config):
         # Fix failure should not interrupt installation
         log_error('fix_guiconfig_failed', str(e))
 
+
+def rebuild_sdk_state_files(config):
+    """
+    Regenerate the derived SDK state files after a reinstall
+
+    Keeping toolchains preserves toolchain/ payloads and sdk.config, but the
+    tools/ wipe deletes tools/scripts/sdk_cfg.json - the only file the
+    upstream build (scons via GetSDKPath) reads. Rebuild it with the venv
+    python (sdk_manager needs its installed dependencies); best-effort, a
+    failure must not fail the installation.
+
+    Args:
+        config: TouchEnvConfig instance
+    """
+    sdk_config = os.path.join(config.env_root, 'sdk.config')
+    toolchain_root = os.path.join(config.env_root, 'toolchain')
+    if not os.path.isfile(sdk_config) or not os.path.isdir(toolchain_root):
+        return
+    if not any(
+        os.path.isdir(os.path.join(toolchain_root, name)) for name in os.listdir(toolchain_root)
+    ):
+        return
+
+    snippet = (
+        "import sys; sys.path.insert(0, {root!r}); "
+        "from sdk_manager import SdkManager; "
+        "SdkManager(env_root={root!r}).rebuild_state_files()"
+    ).format(root=config.env_root)
+    try:
+        result = subprocess.run(
+            [get_python_executable(config), '-c', snippet],
+            capture_output=True,
+            text=True,
+        )
+    except OSError as e:
+        log_warning('sdk_state_rebuild_failed', str(e))
+        return
+    if result.returncode != 0:
+        log_warning('sdk_state_rebuild_failed', (result.stderr or result.stdout).strip())
+    else:
+        log_info('sdk_state_rebuilt')
+
 # ============================================================================
 # Existing Environment Handling
 # ============================================================================
@@ -1321,7 +1368,10 @@ def run_touch_env(args):
         # Step 5: Install packages (includes pyocd)
         install_packages(config)
 
-        # Step 6: Show next steps
+        # Step 6: Rebuild the SDK state files kept across reinstalls
+        rebuild_sdk_state_files(config)
+
+        # Step 7: Show next steps
         show_next_steps(config)
 
         return 0

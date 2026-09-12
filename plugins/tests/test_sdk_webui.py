@@ -187,6 +187,38 @@ endif
             cfg[0]["path"], os.path.join(self.toolchain, "demo-gcc-v1")
         )
 
+    def test_rebuild_state_files_restores_wiped_sdk_cfg(self):
+        task, _ = self._apply(self._selection(True, "v1"))
+        self.assertEqual(task["status"], "succeeded")
+        cfg_path = os.path.join(self.scripts, "sdk_cfg.json")
+        # A reinstall that keeps toolchains wipes tools/, taking the derived
+        # state files with it while sdk.config and the payload survive.
+        os.unlink(cfg_path)
+        os.unlink(os.path.join(self.scripts, "sdk_list.json"))
+        os.unlink(os.path.join(self.toolchain, "pkgs.json"))
+        self.manager.rebuild_state_files()
+        with open(cfg_path, "r", encoding="utf-8") as source:
+            cfg = json.load(source)
+        self.assertEqual(
+            cfg,
+            [
+                {
+                    "name": "demo-gcc",
+                    "path": os.path.join(self.toolchain, "demo-gcc-v1"),
+                    "ver": "v1",
+                }
+            ],
+        )
+        with open(os.path.join(self.scripts, "sdk_list.json"), "r", encoding="utf-8") as source:
+            self.assertEqual(json.load(source)[0]["path"], "demo-gcc-v1")
+        with open(os.path.join(self.toolchain, "pkgs.json"), "r", encoding="utf-8") as source:
+            self.assertEqual(json.load(source)[0]["ver"], "v1")
+
+    def test_rebuild_state_files_without_selection_writes_no_entries(self):
+        self.manager.rebuild_state_files()
+        with open(os.path.join(self.scripts, "sdk_cfg.json"), "r", encoding="utf-8") as source:
+            self.assertEqual(json.load(source), [])
+
     def test_extract_failure_preserves_previous_install_and_config(self):
         task, _ = self._apply(self._selection(True, "v1"))
         self.assertEqual(task["status"], "succeeded")
