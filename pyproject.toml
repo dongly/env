@@ -8,7 +8,7 @@ dynamic = ["version", "description"]
 requires-python = ">=3.7"
 authors = [{ name = "RT-Thread Development Team", email = "rt-thread@rt-thread.org" }]
 keywords = ["rt-thread"]
-license = { text = "Apache License 2.0" }
+license = { text = "GPL-2.0-or-later" }
 urls = { Homepage = "https://github.com/RT-Thread/env", Repository = "https://github.com/RT-Thread/env" }
 dependencies = [
     "SCons>=4.0.0",
