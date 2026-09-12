@@ -22,7 +22,8 @@ pwsh -NoProfile -File tools/tests/windows/run_all.ps1
 
 # 全量真实安装（需网络：真依赖 + pyocd + 真运行工具）
 RT_ENV_TEST_FULL=1 bash tools/tests/linux/run_all.sh
-# 或：$env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/windows/run_all.ps1
+# 或：
+$env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/windows/run_all.ps1
 ```
 
 逐个运行（等价于 run_all 的内容）：
@@ -106,19 +107,19 @@ $env:RT_ENV_TEST_FULL=1; pwsh -NoProfile -File tools/tests/windows/test_install_
 Linux / macOS / Git Bash：
 
 ```bash
-repo=https://raw.githubusercontent.com/dongly/env/refs/heads/install-unified   # raw 内容
-git=https://github.com/dongly/env.git#install-unified                          # git 克隆
+repo=https://raw.githubusercontent.com/dongly/env/refs/heads/install   # raw 内容
+git=https://github.com/dongly/env.git#install                          # git 克隆
 bash -c "$(wget -qO- $repo/tools/install.sh)" -- \
   --touch-env "$repo/tools/touch_env.py" \
   --env "$git" \
-  --env-root /tmp/rt-env-github-test --yes
+  --env-root /tmp/rt-env-test --yes
 ```
 
 Windows PowerShell：
 
 ```powershell
-$repo = 'https://raw.githubusercontent.com/dongly/env/refs/heads/install-unified'  # raw 内容
-$git  = 'https://github.com/dongly/env.git#install-unified'                       # git 克隆
+$repo = 'https://raw.githubusercontent.com/dongly/env/refs/heads/install'  # raw 内容
+$git  = 'https://github.com/dongly/env.git#install'                       # git 克隆
 irm "$repo/tools/install.ps1" -OutFile install.ps1; `
   .\install.ps1 --touch-env "$repo/tools/touch_env.py" `
     --env "$git" `
