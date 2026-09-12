@@ -196,7 +196,7 @@ class WebUIApplication(object):
             return {
                 'available': False,
                 'platform': self.sdk.hostos,
-                'packages_root': self.sdk.packages_root,
+                'packages_root': self.sdk.package_state_root,
                 'index_root': self.sdk.index_root,
                 'config_path': self.sdk.config_path,
                 'revision': self.sdk.revision(),
