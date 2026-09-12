@@ -79,8 +79,12 @@ for bare in "$ENV_BARE" "$PKGS_BARE" "$SDK_BARE"; do
     git init --bare -q "$bare"
 done
 
-# env: push the current repo tree (install-unified) as master
-git -C "$REPO_ROOT" push -q "$ENV_BARE" HEAD:master 2>/dev/null || true
+# env: push the current WORKING TREE (tracked changes included) as master,
+# so the suite tests what the developer is editing, not the last commit.
+# `git stash create` yields a dangling commit without touching index/HEAD.
+STASH_COMMIT="$(git -C "$REPO_ROOT" stash create 2>/dev/null || true)"
+[ -n "$STASH_COMMIT" ] || STASH_COMMIT=HEAD
+git -C "$REPO_ROOT" push -q "$ENV_BARE" "$STASH_COMMIT:refs/heads/master" 2>/dev/null || true
 git --git-dir="$ENV_BARE" symbolic-ref HEAD refs/heads/master
 
 # packages/sdk: empty repositories are fine; ensure their HEAD points at master
@@ -210,6 +214,46 @@ else
     else
         fail 'rt-env console script present for runtime checks'
     fi
+fi
+
+# ---------------------------------------------------------------------------
+section '4c. root activator and user customization'
+# ---------------------------------------------------------------------------
+if bash -n "$ENV_ROOT/env.sh" && bash -n "$ENV_ROOT/tools/scripts/env.sh"; then
+    pass 'activator syntax (bash -n)'
+else
+    fail 'activator syntax (bash -n)'
+fi
+
+if grep -q 'RT_ENV_ROOT' "$ENV_ROOT/env.sh" &&
+    grep -q 'tools/scripts/env.sh' "$ENV_ROOT/env.sh"; then
+    pass 'root activator is a thin delegator'
+else
+    fail 'root activator is a thin delegator'
+fi
+
+if [ -f "$ENV_ROOT/env.user.sh" ]; then
+    pass 'user customization file seeded'
+else
+    fail 'user customization file seeded'
+fi
+
+DELEGATED="$(bash -c ". '$ENV_ROOT/env.sh' >/dev/null 2>&1; printf '%s' \"\$RT_VENV_DIR\"")"
+if [ "$DELEGATED" = "$VENV_DIR" ]; then
+    pass 'delegation activates venv/rt-env'
+else
+    fail "delegation activates venv/rt-env (got: ${DELEGATED:-<empty>})"
+fi
+
+FALLBACK_ROOT="$WORK/fallback-root"
+mkdir -p "$FALLBACK_ROOT/.venv/bin" "$FALLBACK_ROOT/tools/scripts"
+cp "$ENV_ROOT/tools/scripts/env.sh" "$FALLBACK_ROOT/tools/scripts/env.sh"
+printf '# fake legacy venv\nexport RTT_FAKE_VENV=legacy\n' > "$FALLBACK_ROOT/.venv/bin/activate"
+FALLBACKED="$(RT_ENV_ROOT="$FALLBACK_ROOT" bash -c ". '$FALLBACK_ROOT/tools/scripts/env.sh' >/dev/null 2>&1; printf '%s|%s' \"\$RT_VENV_DIR\" \"\$RTT_FAKE_VENV\"")"
+if [ "$FALLBACKED" = "$FALLBACK_ROOT/.venv|legacy" ]; then
+    pass 'legacy .venv fallback activates'
+else
+    fail "legacy .venv fallback activates (got: ${FALLBACKED:-<empty>})"
 fi
 
 section '5. cleanup bookkeeping'

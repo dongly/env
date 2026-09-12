@@ -10,12 +10,14 @@ Run:  python tools/tests/common/test_touch_env_behavior.py
 
 import importlib.util
 import io
+import json
 import os
 import shutil
 import sys
 import tempfile
 import types
 import unittest
+from unittest import mock
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -204,6 +206,211 @@ class ShowNextStepsTest(unittest.TestCase):
             self.assertGreater(pos, cursor, f"expected '- {cmd}' after previous entries")
             cursor = pos
         self.assertIn("Install toolchains", out)
+
+
+class LoadRepoDefaultsTest(unittest.TestCase):
+    """Default packages/sdk sources come from the downloaded env's env.json."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.module = _load_module()
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="rt-env-defs-")
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def _write_env_json(self, payload):
+        scripts = os.path.join(self.root, "tools", "scripts")
+        os.makedirs(scripts, exist_ok=True)
+        path = os.path.join(scripts, "env.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+
+    def _defaults(self):
+        config = types.SimpleNamespace(env_root=self.root, use_cn=False)
+        with redirect_stdout(io.StringIO()):
+            return self.module.load_repo_defaults(config)
+
+    def test_urls_and_branches_from_env_json(self):
+        self._write_env_json({
+            "repositories": {
+                "packages": {
+                    "url": "https://fork.example/packages.git",
+                    "branch": "dev",
+                    "mirror": {
+                        "url": "https://mirror.example/packages.git",
+                        "branch": "dev-cn",
+                    },
+                },
+            },
+        })
+        defaults = self._defaults()
+        self.assertEqual(defaults["packages"]["url"], "https://fork.example/packages.git")
+        self.assertEqual(defaults["packages"]["branch"], "dev")
+        self.assertEqual(defaults["packages"]["mirror_url"], "https://mirror.example/packages.git")
+        self.assertEqual(defaults["packages"]["mirror_branch"], "dev-cn")
+
+    def test_missing_env_json_falls_back_to_constants(self):
+        defaults = self._defaults()
+        self.assertEqual(defaults["packages"]["url"], self.module.REPO_PACKAGES_GITHUB)
+        self.assertEqual(defaults["sdk"]["url"], self.module.REPO_SDK_GITHUB)
+        self.assertEqual(defaults["packages"]["branch"], "")
+        self.assertEqual(defaults["packages"]["mirror_url"], self.module.REPO_PACKAGES_GITEE)
+
+    def test_malformed_env_json_falls_back_to_constants(self):
+        scripts = os.path.join(self.root, "tools", "scripts")
+        os.makedirs(scripts, exist_ok=True)
+        with open(os.path.join(scripts, "env.json"), "w", encoding="utf-8") as f:
+            f.write("{not json")
+        defaults = self._defaults()
+        self.assertEqual(defaults["sdk"]["url"], self.module.REPO_SDK_GITHUB)
+
+    def test_partial_env_json_only_overrides_listed_repos(self):
+        self._write_env_json({
+            "repositories": {
+                "packages": {"url": "https://fork.example/packages.git"},
+            },
+        })
+        defaults = self._defaults()
+        self.assertEqual(defaults["packages"]["url"], "https://fork.example/packages.git")
+        self.assertEqual(defaults["sdk"]["url"], self.module.REPO_SDK_GITHUB)
+        # mirror untouched when env.json carries none for that repo
+        self.assertEqual(defaults["packages"]["mirror_url"], self.module.REPO_PACKAGES_GITEE)
+
+    def test_mirror_without_branch_inherits_primary_branch(self):
+        self._write_env_json({
+            "repositories": {
+                "sdk": {
+                    "url": "https://fork.example/sdk.git",
+                    "branch": "lts-3.2",
+                    "mirror": {"url": "https://mirror.example/sdk.git"},
+                },
+            },
+        })
+        defaults = self._defaults()
+        self.assertEqual(defaults["sdk"]["mirror_branch"], "lts-3.2")
+
+
+class SetupRepositoriesOrderTest(unittest.TestCase):
+    """env is cloned before packages/sdk so env.json can drive their defaults."""
+
+    def setUp(self):
+        self.module = _load_module()
+        self.root = tempfile.mkdtemp(prefix="rt-env-order-")
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.calls = []
+        self._orig_clone = self.module.clone_repository
+        self.module.clone_repository = self._fake_clone
+        self.addCleanup(setattr, self.module, "clone_repository", self._orig_clone)
+
+    def _fake_clone(self, config, repo_name, url, dest_rel, branch="", depth=1):
+        self.calls.append((repo_name, url, branch))
+        if repo_name == "env":
+            # emulate: env.json only exists once env has been cloned
+            scripts = os.path.join(self.root, "tools", "scripts")
+            os.makedirs(scripts, exist_ok=True)
+            with open(os.path.join(scripts, "env.json"), "w", encoding="utf-8") as f:
+                json.dump({
+                    "repositories": {
+                        "packages": {
+                            "url": "https://fork.example/packages.git",
+                            "branch": "dev",
+                        },
+                    },
+                }, f)
+
+    def _run(self, use_cn=False):
+        config = types.SimpleNamespace(
+            env_root=self.root, use_cn=use_cn, custom_repos={})
+        with redirect_stdout(io.StringIO()):
+            self.module.setup_repositories(config)
+        return self.calls
+
+    def test_env_cloned_first(self):
+        calls = self._run()
+        self.assertEqual([name for name, _, _ in calls], ["env", "packages", "sdk"])
+
+    def test_packages_default_from_downloaded_env_json(self):
+        calls = self._run()
+        by_name = dict((name, (url, branch)) for name, url, branch in calls)
+        self.assertEqual(by_name["packages"], ("https://fork.example/packages.git", "dev"))
+        # sdk not listed in env.json -> built-in constant, no branch pin
+        self.assertEqual(by_name["sdk"], (self.module.REPO_SDK_GITHUB, ""))
+
+    def test_cn_mirror_selected_from_env_json_fallback(self):
+        calls = self._run(use_cn=True)
+        by_name = dict((name, (url, branch)) for name, url, branch in calls)
+        # packages has no mirror in the seeded env.json -> gitee constant keeps
+        # its own default branch (a fork's primary branch must not leak into
+        # the built-in official mirror)
+        self.assertEqual(by_name["packages"], (self.module.REPO_PACKAGES_GITEE, ""))
+        self.assertEqual(by_name["sdk"], (self.module.REPO_SDK_GITEE, ""))
+
+    def test_env_repo_uses_builtin_bootstrap_url(self):
+        calls = self._run()
+        env_url = calls[0][1]
+        self.assertEqual(env_url, self.module.REPO_ENV_GITHUB)
+
+    def test_custom_repos_still_win(self):
+        config = types.SimpleNamespace(
+            env_root=self.root,
+            use_cn=False,
+            custom_repos={"packages": {"url": "https://custom.example/p.git", "branch": "x"}},
+        )
+        with redirect_stdout(io.StringIO()):
+            self.module.setup_repositories(config)
+        by_name = dict((name, (url, branch)) for name, url, branch in self.calls)
+        self.assertEqual(by_name["packages"], ("https://custom.example/p.git", "x"))
+
+
+class CopyEnvScriptsTest(unittest.TestCase):
+    """Root activator generation: delegator vs legacy copy, user config."""
+
+    def setUp(self):
+        self.module = _load_module()
+        self.root = tempfile.mkdtemp(prefix="rt-env-activator-")
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.scripts = os.path.join(self.root, "tools", "scripts")
+        os.makedirs(self.scripts, exist_ok=True)
+
+    def _write_inner(self, content):
+        with open(os.path.join(self.scripts, "env.sh"), "w", encoding="utf-8") as f:
+            f.write(content)
+
+    def _run(self):
+        with mock.patch.object(self.module.platform, "system", return_value="Linux"):
+            with redirect_stdout(io.StringIO()):
+                self.module.copy_env_scripts(types.SimpleNamespace(env_root=self.root))
+
+    def test_new_inner_produces_thin_delegator(self):
+        self._write_inner('if [ -n "$RT_ENV_ROOT" ]; then\nfi\n')
+        self._run()
+        with open(os.path.join(self.root, "env.sh"), encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("RT_ENV_ROOT='%s'" % self.root, content)
+        self.assertIn(". '%s'" % os.path.join(self.scripts, "env.sh"), content)
+
+    def test_legacy_inner_is_copied_verbatim(self):
+        self._write_inner("SCRIPT_DIR=legacy\n")
+        self._run()
+        with open(os.path.join(self.root, "env.sh"), encoding="utf-8") as f:
+            self.assertEqual(f.read(), "SCRIPT_DIR=legacy\n")
+
+    def test_user_config_seeded_once_and_never_overwritten(self):
+        self._write_inner("legacy\n")
+        user = os.path.join(self.root, "env.user.sh")
+        self._run()
+        self.assertTrue(os.path.isfile(user))
+        with open(user, "w", encoding="utf-8") as f:
+            f.write("# mine\n")
+        self._run()
+        with open(user, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "# mine\n")
+
+    def test_missing_inner_is_a_no_op(self):
+        self._run()
+        self.assertFalse(os.path.exists(os.path.join(self.root, "env.sh")))
+        self.assertFalse(os.path.exists(os.path.join(self.root, "env.user.sh")))
 
 
 if __name__ == "__main__":

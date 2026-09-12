@@ -1,11 +1,24 @@
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 
-# Overridden by $env:ENV_ROOT environment variable
-$env:ENV_ROOT = $PSScriptRoot
+# ENV_ROOT resolution (see env.sh): $env:RT_ENV_ROOT set by the thin root
+# activator > tools\scripts layout detection > this file's directory.
+if ($env:RT_ENV_ROOT) {
+    $env:ENV_ROOT = $env:RT_ENV_ROOT
+}
+elseif ($PSScriptRoot -like '*\tools\scripts') {
+    $env:ENV_ROOT = Split-Path (Split-Path $PSScriptRoot)
+}
+else {
+    $env:ENV_ROOT = $PSScriptRoot
+}
 
-# Virtual environment directory name
+# Virtual environment: prefer venv\rt-env, fall back to legacy .venv.
 $RT_VENV_DIR = "$env:ENV_ROOT\venv\rt-env"
+if (-not (Test-Path "$RT_VENV_DIR\Scripts\Activate.ps1") -and
+        (Test-Path "$env:ENV_ROOT\.venv\Scripts\Activate.ps1")) {
+    $RT_VENV_DIR = "$env:ENV_ROOT\.venv"
+}
 
 if (Test-Path "$RT_VENV_DIR\Scripts\Activate.ps1") {
     . "$RT_VENV_DIR\Scripts\Activate.ps1"
@@ -16,8 +29,14 @@ if (Test-Path "$RT_VENV_DIR\Scripts\Activate.ps1") {
     }
 }
 else {
-    Write-Host "Virtual environment($RT_VENV_DIR\Scripts\Activate.ps1) not found. Please run the installation `RT-Thread ENV` first."
+    Write-Host "Virtual environment not found (tried $RT_VENV_DIR\Scripts\Activate.ps1 and $env:ENV_ROOT\.venv\Scripts\Activate.ps1). Please run the installation 'RT-Thread ENV' first."
     exit 1
 }
 
 $env:pathext = ".PS1;$env:pathext"
+
+# User customization lives in $ENV_ROOT\env.user.ps1, outside the managed
+# env repository, so upgrades and reinstalls never overwrite it.
+if (Test-Path "$env:ENV_ROOT\env.user.ps1") {
+    . "$env:ENV_ROOT\env.user.ps1"
+}
