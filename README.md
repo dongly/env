@@ -1,92 +1,408 @@
-<p align="center">
-  <img src="assets/env.png" alt="RT-Thread Env" width="406">
-</p>
+<div align="center">
 
-# RT-Thread Env
+<img src="assets/env.png" alt="RT-Thread Env" width="406">
 
-> A command-line toolkit for RT-Thread development.
+# RT-Thread Env Development Environment
 
-> WARNING
+[![License: GPL-2.0](https://img.shields.io/badge/License-GPL--2.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.6+-green.svg)](https://www.python.org/)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)]()
+
+**[简体中文](README_ZH.md) | English**
+
+</div>
+
+---
+
+## ⚠️ Version Compatibility Notice
+
+| RT-Thread Version | Recommended Env Version |
+|-------------------|------------------------|
+| **> v5.1.0** or **master branch** | ✅ **env v2.0** (current version) |
+| **≤ v5.1.0** | ⚠️ [env v1.5.x](https://github.com/RT-Thread/env/tree/v1.5.x) (Linux) / [env-windows v1.5.2](https://github.com/RT-Thread/env-windows/tree/v1.5.2) (Windows) |
+
+### 🔄 Key Changes in v2.0
+
+- ✨ **Python Version Upgrade**: Upgraded from Python 2 to Python 3
+- 🔧 **Configuration System Refactor**: Replaced kconfig-frontends with Python kconfiglib
+- 📦 **Dependency Management Optimization**: Installer automatically handles kconfiglib dependency
+
+> **Note**: env v2.0 is incompatible with kconfiglib from env v1.5.x. If you need to switch versions, please run `pip uninstall kconfiglib` first.
+
+---
+
+## 📚 Table of Contents
+
+- [🚀 Quick Start](#-quick-start)
+  - [Windows Installation](#windows-installation)
+  - [Linux/macOS Installation](#linuxmacos-installation)
+- [⚙️ Installation Script Parameters](#️-installation-script-parameters)
+- [💡 Usage Guide](#-usage-guide)
+- [❓ Troubleshooting](#-troubleshooting)
+- [📖 Resources](#-resources)
+
+---
+
+## 🚀 Quick Start
+
+### Windows Installation
+
+#### Prerequisites
+
+| Item | Requirements |
+|------|-------------|
+| **Privileges** | 📋 First installation requires **administrator privileges** (to set execution policy and long path support)<br>Subsequent updates can use normal user privileges |
+| **PowerShell** | ✅ Windows PowerShell v5.1+<br>✅ PowerShell 7+ |
+
+#### Encoding Compatibility
+
+> ⚠️ **Important Notice**
 >
-> [env v2.0](https://github.com/RT-Thread/env/tree/master) and [env-windows v2.0](https://github.com/RT-Thread/env-windows/tree/v2.0.0) only **FULL SUPPORT** RT-Thread > v5.1.0 or [master](https://github.com/rt-thread/rt-thread) branch. if you work on RT-Thread <= v5.1.0, please use [env v1.5.x](https://github.com/RT-Thread/env/tree/v1.5.x) for linux, [env-windows v1.5.x](https://github.com/RT-Thread/env-windows/tree/v1.5.2) for windows
+> | PowerShell Version | Encoding Support | Notes |
+> |-------------------|------------------|-------|
+> | Windows PowerShell (v5.1) | ⚠️ GB2312 default, requires UTF-8 with BOM | Chinese systems require special handling |
+> | PowerShell 7+ | ✅ Native UTF-8 | No encoding issues |
 >
-> env v2.0 has made the following important changes:
->
-> - Upgrading Python version from v2 to v3
-> - Replacing kconfig-frontends with Python kconfiglib
->
-> env v2.0 require python kconfiglib (install by `pip install kconfiglib`), but env v1.5.x confilt with kconfiglib (please run `pip uninstall kconfiglib`)
+> Installation scripts are configured as UTF-8 with BOM encoding to ensure compatibility.
 
-## Usage under Linux
+#### Installation Commands
 
-### Tutorial
-
-[How to install Env Tool with QEMU simulator in Ubuntu](https://github.com/RT-Thread/rt-thread/blob/master/documentation/quick-start/quick_start_qemu/quick_start_qemu_linux.md)
-
-### Install Env
-
-```
-# 中国大陆网络：
-wget https://gitee.com/RT-Thread-Mirror/env/raw/master/install_ubuntu.sh
-
-# 其他地区网络：
-wget https://raw.githubusercontent.com/RT-Thread/env/master/install_ubuntu.sh
-
-chmod 777 install_ubuntu.sh
-./install_ubuntu.sh
-rm install_ubuntu.sh
-```
-
-请根据自身网络地区选择对应的下载地址来下载安装脚本。安装脚本会自动识别网络区域，使用相应镜像下载后续仓库，完成后将仓库远程地址统一设为 GitHub。
-
-### Prepare Env
-
-Run `source ~/.env/env.sh` to activate Env. The script creates a missing Python
-virtual environment and always attempts to activate it. When the local
-`tools/scripts` source changes, it offers to reinstall Env into the venv and
-synchronize the activation script. To activate Env automatically, add this
-command to `~/.bashrc`.
-
-The upgrade check is local and does not fetch the Env Git repository. Python
-packages use the Alibaba Cloud PyPI mirror when a mainland China IP is detected;
-other regions and detection failures use pip's configured default. Set
-`ENV_PYPI_INDEX_URL` to override the package index or
-`ENV_VENV_AUTO_UPGRADE=1` to accept a pending local-source upgrade without a
-prompt.
-
-### Use Env
-
-Please see: [https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md#bsp-configuration-menuconfig](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md#bsp-configuration-menuconfig)
-
-## Usage under Windows
-
-Tested on the following version of PowerShell:
-
-- PSVersion                      5.1.22621.963
-- PSVersion                      5.1.19041.2673
-
-### Install Env
-
-您需要以管理员身份运行 PowerShell 来设置执行。（You need to run PowerShell as an administrator to set up execution.）
-
-在 PowerShell 中执行（Execute the command in PowerShell）：
+<details>
+<summary><b>🌐 International Users (Official Source)</b></summary>
 
 ```powershell
-wget https://raw.githubusercontent.com/RT-Thread/env/master/install_windows.ps1 -O install_windows.ps1
-set-executionpolicy remotesigned
-.\install_windows.ps1
+Set-ExecutionPolicy -ExecutionPolicy Bypass Process; irm https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.ps1 | Out-File -Encoding utf8 .\install.ps1; .\install.ps1; Remove-Item .\install.ps1
 ```
 
-安装脚本会自动识别网络区域，使用相应镜像下载仓库，完成后将仓库远程地址统一设为 GitHub。
+</details>
 
-注意：
+<details>
+<summary><b>🇨🇳 Users in China (Mirror Source)</b></summary>
 
-1. Powershell要以管理员身份运行。
-2. 将其设置为 remotesigned 后，您可以作为普通用户运行 PowerShell。（ After setting it to remotesigned, you can run PowerShell as a normal user.）
-3. 一定要关闭杀毒软件，否则安装过程可能会被杀毒软件强退
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy Bypass Process; irm https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.ps1 | Out-File -Encoding utf8 .\install.ps1; .\install.ps1; Remove-Item .\install.ps1
+```
 
-### Prepare Env
+</details>
 
-Run `~/.env/env.ps1` to activate Env. It follows the same venv creation, local
-upgrade, mirror selection, and activation behavior as `env.sh`. To activate Env
-automatically, add `~/.env/env.ps1` to your PowerShell profile.
+#### Notes
+
+> 💡 **Tip**: Installation script automatically selects mirror sources based on geographic location. To explicitly specify, use `--cn` or `--official` parameters. See [Installation Script Parameters](#️-installation-script-parameters).
+
+> ⚠️ **Important**:
+> - ✅ First installation requires administrator privileges for execution policy and long path support
+> - 🦠 Antivirus software may block installation, please temporarily disable if needed
+
+#### Activate Environment
+
+After installation, you need to activate environment variables to use the tools.
+
+<details>
+<summary><b>🔧 Option A: Manual Activation (Temporary)</b></summary>
+
+Run the following command each time you start a new PowerShell session:
+
+```powershell
+. ~/.rt-env/env.ps1
+```
+
+</details>
+
+<details>
+<summary><b>⭐ Option B: Auto Activation (Recommended)</b></summary>
+
+Add the activation command to your PowerShell configuration file:
+
+```powershell
+# Open configuration file (creates if it doesn't exist)
+notepad $PROFILE
+
+# Add the following line:
+. ~/.rt-env/env.ps1
+```
+
+**Configuration File Paths:**
+
+| PowerShell Version | Configuration File Path |
+|-------------------|------------------------|
+| Windows PowerShell (v5.1) | `C:\Users\<username>\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1` |
+| PowerShell 7+ | `C:\Users\<username>\Documents\PowerShell\Microsoft.PowerShell_profile.ps1` |
+
+After adding, the environment will be automatically activated each time you open PowerShell.
+
+</details>
+
+### Linux/macOS Installation
+
+#### Installation Commands
+
+<details>
+<summary><b>🌐 International Users (Official Source)</b></summary>
+
+```bash
+bash -c "$(wget https://raw.githubusercontent.com/RT-Thread/env/master/tools/install.sh -O -)"
+```
+
+</details>
+
+<details>
+<summary><b>🇨🇳 Users in China (Mirror Source)</b></summary>
+
+```bash
+bash -c "$(wget https://gitee.com/RT-Thread-Mirror/env/raw/master/tools/install.sh -O -)" -- --cn
+```
+
+</details>
+
+#### Notes
+
+> 💡 **Tips**:
+> - Installation script automatically selects mirror sources based on geographic location
+> - Linux systems automatically use `sudo` to elevate privileges for installing dependencies, no need to manually run as root
+> - Supports installation with normal user privileges, script automatically handles privilege elevation
+
+#### Activate Environment
+
+<details>
+<summary><b>🔧 Option A: Manual Activation (Temporary)</b></summary>
+
+Run the following command each time you open a new terminal:
+
+```bash
+source ~/.rt-env/env.sh
+```
+
+</details>
+
+<details>
+<summary><b>⭐ Option B: Auto Activation (Recommended)</b></summary>
+
+Add the activation command to your shell configuration file:
+
+```bash
+# For bash
+echo 'source ~/.rt-env/env.sh' >> ~/.bashrc
+
+# For zsh
+echo 'source ~/.rt-env/env.sh' >> ~/.zshrc
+```
+
+After adding, the environment will be automatically activated each time you log in.
+
+</details>
+
+#### 📚 Related Tutorials
+
+- [Install Env with QEMU Simulator in Ubuntu](https://github.com/RT-Thread/rt-thread/blob/master/documentation/quick-start/quick_start_qemu/quick_start_qemu_linux.md)
+
+---
+
+## ⚙️ Installation Script Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| **Basic Parameters**||
+| `--yes`, `--auto` | Automatic installation, no interaction |
+| `-h`, `--help` | Display help information |
+|**Source Settings**||
+| `--cn`, `--gitee` | Use China mirror sources (Gitee, PyPI TUNA) |
+| `--official` | Force use of official sources |
+| **Repository Configuration**||
+| `--packages <repo>[#<branch>]` | Specify packages repository address and branch |
+| `--env <repo>[#<branch>]` | Specify env repository address and branch |
+| `--sdk <repo>[#<branch>]` | Specify sdk repository address and branch |
+| `--touch-env <url>` | Specify touch_env.py download URL |
+|**Path & Installation**||
+| `--env-root <path>` | Set custom .rt-env directory path (default: `~/.rt-env`) |
+| `--python [path]` | Install portable Python, installation directory is path (Windows only, default: D:\Tools\Python) |
+|**Other Options**||
+| `--lang <en\|zh>` | Force message language |
+| `--keep-sdk <yes\|no>` | Keep toolchains (local_pkgs) and config when reinstalling (default: `yes`, prompt if omitted) |
+
+### Usage Examples
+
+<details>
+<summary><b>💻 Windows (PowerShell)</b></summary>
+
+```powershell
+# Basic installation
+.\install.ps1
+
+# Use China mirror + automatic installation
+.\install.ps1 --cn --yes
+
+# Install portable Python + custom path
+.\install.ps1 --python "D:\Tools\Python" --env-root "D:\RT-Env"
+
+# Specify custom env repository branch
+.\install.ps1 --env "https://github.com/RT-Thread/env.git#master"
+
+# Official source + fresh install (remove existing toolchains)
+.\install.ps1 --official --keep-sdk no
+```
+
+</details>
+
+<details>
+<summary><b>🐧 Linux/macOS (bash)</b></summary>
+
+```bash
+# Basic installation
+./install.sh
+
+# Use China mirror + automatic installation
+./install.sh --cn --yes
+
+# Specify custom packages repository
+./install.sh --packages "https://gitee.com/RT-Thread-Mirror/packages.git#master"
+
+# Keep existing toolchains while reinstalling
+./install.sh --keep-sdk yes
+
+# Specify custom sdk repository
+./install.sh --sdk "https://github.com/RT-Thread/sdk.git#master"
+```
+
+</details>
+
+---
+
+## 💡 Usage Guide
+
+After installation completes, follow these steps to start using RT-Thread ENV:
+
+### Step 1️⃣: Activate Environment
+
+<details>
+<summary><b>💻 Windows</b></summary>
+
+```powershell
+. ~/.rt-env/env.ps1
+```
+
+</details>
+
+<details>
+<summary><b>🐧 Linux/macOS</b></summary>
+
+```bash
+source ~/.rt-env/env.sh
+```
+
+</details>
+
+> 💡 **Tip**: For auto-activation on startup, please refer to the auto-activation options in the installation section.
+
+### Step 2️⃣: Install Toolchains
+
+Run the `sdk` command to install required toolchains for your development board:
+
+```bash
+sdk
+```
+
+### Step 3️⃣: Use Commands
+
+After activation, you can use the following commands:
+
+| Command | Function | Description |
+|---------|----------|-------------|
+| `menuconfig` | ⚙️ Configure Project | Configure RT-Thread kernel, BSP |
+| `menuconfig -s` | 🔧 Configure ENV | Configure packages, tools |
+| `pkgs` | 📦 Package Manager | Update, upgrade packages |
+| `sdk` | 🛠️ Toolchain Manager | Install development toolchains |
+| `scons` | 🔨 Build Project | Build project |
+
+### Step 4️⃣: Additional Tools
+
+**pyocd** - For debugging Cortex-M devices, installed by default with the environment (no manual step needed). To upgrade manually:
+
+```bash
+pip install --upgrade pyocd
+```
+
+### 📚 Detailed Documentation
+
+- [Env Tool Usage Guide](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md)
+- [Env Official User Manual](https://www.rt-thread.org/document/site/#/development-tools/env/env)
+
+---
+
+## ❓ Troubleshooting
+
+### 🌐 Network & Mirror Issues
+
+**Problem: Slow download or failure**
+
+- ✅ Use `--cn` parameter to enable Gitee mirror
+- ✅ Check network connection
+- ✅ Try switching network environment (e.g., using VPN)
+
+### 🔐 Permission Issues
+
+#### Linux/macOS
+
+Linux installation script automatically uses `sudo` for privilege elevation, usually no manual handling needed.
+
+If you encounter permission issues:
+
+```bash
+# Check .rt-env directory permissions
+ls -la ~/.rt-env
+
+# If directory belongs to root, change ownership
+sudo chown -R $USER:$USER ~/.rt-env
+```
+
+#### Windows
+
+If you encounter permission errors:
+
+1. ✅ Check if antivirus software is blocking installation
+2. ✅ Run PowerShell as administrator
+3. ✅ Ensure execution policy allows script running
+
+### 📝 Other Issues
+
+If you encounter other issues, please:
+
+- 📖 Check [Env Tool Complete Documentation](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md)
+- 🐛 Submit issue on [GitHub Issues](https://github.com/RT-Thread/env/issues)
+- 💬 Join [RT-Thread Forum](https://www.rt-thread.org/qa/forum.html) for help
+
+---
+
+## 📖 Resources
+
+### Official Documentation
+
+- [Env Tool Complete Documentation](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md)
+- [QEMU Quick Start](https://github.com/RT-Thread/rt-thread/blob/master/documentation/quick-start/quick_start_qemu/quick_start_qemu_linux.md)
+- [BSP Configuration Guide](https://github.com/RT-Thread/rt-thread/blob/master/documentation/env/env.md#bsp-configuration-menuconfig)
+
+### Related Links
+
+| Type | Link | Mirror |
+|------|------|--------|
+| 📦 Env Repository | [GitHub](https://github.com/RT-Thread/env) | [Gitee](https://gitee.com/RT-Thread-Mirror/env) |
+| ![RT-Thread](https://www.rt-thread.org/favicon.ico) RT-Thread Repository | [GitHub](https://github.com/RT-Thread/rt-thread) | [Gitee](https://gitee.com/rtthread/rt-thread) |
+| 🌐 Official Website | [RT-Thread Website](https://www.rt-thread.org/) ||
+| 📚 Documentation | [RT-Thread Docs (EN)](https://www.rt-thread.io/document/site/) | [RT-Thread Docs (CN)](https://www.rt-thread.org/document/site/#/) |
+
+### License
+
+[![License: GPL-2.0](https://img.shields.io/badge/License-GPL--2.0-blue.svg)](LICENSE)
+
+This project is open-sourced under the **GPL-2.0** license.
+
+---
+
+<div align="center">
+
+## 🤝 Contributors
+
+Thanks to all developers who have contributed to the RT-Thread Env project!
+
+[![Contributors](https://img.shields.io/github/contributors/RT-Thread/env?style=for-the-badge)](https://github.com/RT-Thread/env/graphs/contributors)
+
+</div>
