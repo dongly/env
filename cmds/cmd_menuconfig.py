@@ -19,6 +19,7 @@
 #  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # Change Logs:
+# 2026-09-12     Dongly          Extract the env settings menuconfig into cmds/cmd_setting; the env config now lives at $ENV_ROOT/rt-env.config
 # Date           Author          Notes
 # 2018-05-28     SummerGift      Add copyright information
 # 2019-01-07     SummerGift      The prompt supports utf-8 encoding

@@ -19,6 +19,7 @@
 #  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # Change Logs:
+# 2026-09-12     Dongly          Read the env settings from $ENV_ROOT/rt-env.config
 # Date           Author          Notes
 # 2020-04-08     SummerGift      Optimize program structure
 # 2026-09-12     Dongly      Resolve mirror query endpoint via info.get_api_url

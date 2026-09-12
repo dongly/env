@@ -11,7 +11,7 @@
 #                             cmd_package_upgrade (scripts upgrade, editable
 #                             refresh, root activator regeneration)
 
-"""Upgrade the env toolchain itself (packages index + env repo)."""
+"""Upgrade the env toolchain itself (env repository)."""
 
 import os
 import shutil

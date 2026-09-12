@@ -13,8 +13,6 @@
 import os
 import sys
 
-import menuconfig
-
 
 def run_env_settings(env_root):
     """Run the env-settings menuconfig; saves to $ENV_ROOT/rt-env.config."""
@@ -24,6 +22,8 @@ def run_env_settings(env_root):
     old_config_env = os.environ.get('KCONFIG_CONFIG')
     os.environ['KCONFIG_CONFIG'] = os.path.join(env_root, 'rt-env.config')
     try:
+        import menuconfig
+
         sys.argv = ['menuconfig', 'Kconfig']
         menuconfig._main()
     finally:
