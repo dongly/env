@@ -24,6 +24,7 @@
 # 2026-01-30     dongly         Initial version
 # 2026-09-13     Dongly         Rebuild the SDK state files after a reinstall
 # 2026-09-13     Dongly         Persist --repo-* overrides to rt-env.config
+# 2026-09-13     Dongly         Create the env root before persisting repository settings
 #
 # RT-Thread ENV Setup Script (Python)
 # RT-Thread ENV 安装脚本 (Python)
@@ -584,7 +585,9 @@ def persist_custom_repos(config):
     # is cleared (its URL/BRANCH lines removed) so an omitted --repo-* on a
     # reinstall retracts the previous persist. No-op when there is neither a
     # CLI override nor an existing config file (never create an empty file).
-    # Failures only log_warning and never fail the install.
+    # Creates the env root when missing: on a fresh install this runs before
+    # the installer creates the directory. Failures only log_warning and
+    # never fail the install.
     config_path = os.path.join(config.env_root, 'rt-env.config')
     if not config.custom_repos and not os.path.isfile(config_path):
         return
@@ -616,6 +619,10 @@ def persist_custom_repos(config):
     persisted_repos = set()
 
     try:
+        config_dir = os.path.dirname(config_path)
+        if config_dir:
+            os.makedirs(config_dir, exist_ok=True)
+
         if os.path.isfile(config_path):
             with open(config_path, 'r', encoding='utf-8') as f:
                 for line in f.read().splitlines():

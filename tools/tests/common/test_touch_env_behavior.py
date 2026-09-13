@@ -477,8 +477,10 @@ class PersistCustomReposTest(unittest.TestCase):
         with open(self._config_path(), encoding="utf-8") as f:
             return f.read()
 
-    def _persist(self, custom_repos):
-        config = types.SimpleNamespace(env_root=self.root, custom_repos=custom_repos)
+    def _persist(self, custom_repos, env_root=None):
+        config = types.SimpleNamespace(
+            env_root=env_root or self.root, custom_repos=custom_repos
+        )
         with redirect_stdout(io.StringIO()):
             self.module.persist_custom_repos(config)
 
@@ -527,6 +529,52 @@ class PersistCustomReposTest(unittest.TestCase):
     def test_no_file_and_no_custom_repos_is_a_no_op(self):
         self._persist({})
         self.assertFalse(os.path.exists(self._config_path()))
+
+    def test_fresh_install_creates_missing_env_root_and_config(self):
+        # regression: on a fresh install persist_custom_repos runs before the
+        # env root exists; the write must create the missing directories
+        # instead of failing with FileNotFoundError
+        nested = os.path.join(self.root, "a", "b")
+        self.assertFalse(os.path.exists(nested))
+        self._persist(
+            {"env": {"url": "https://example.com/env.git", "branch": "dev"}},
+            env_root=nested,
+        )
+        config_file = os.path.join(nested, "rt-env.config")
+        self.assertTrue(os.path.isfile(config_file))
+        self.assertEqual(
+            self._read_file(config_file),
+            'CONFIG_SYS_ENV_REPO_URL="https://example.com/env.git"\n'
+            'CONFIG_SYS_ENV_REPO_BRANCH="dev"\n',
+        )
+
+    def test_fresh_install_persist_then_upsert_in_created_env_root(self):
+        nested = os.path.join(self.root, "a", "b")
+        self._persist(
+            {"env": {"url": "https://example.com/env.git", "branch": "dev"}},
+            env_root=nested,
+        )
+        self._persist(
+            {
+                "env": {"url": "https://example.com/env.git", "branch": "dev2"},
+                "sdk": {"url": "https://example.com/sdk.git", "branch": "s"},
+            },
+            env_root=nested,
+        )
+        config_file = os.path.join(nested, "rt-env.config")
+        self.assertTrue(os.path.isfile(config_file))
+        self.assertEqual(
+            self._read_file(config_file),
+            'CONFIG_SYS_ENV_REPO_URL="https://example.com/env.git"\n'
+            'CONFIG_SYS_ENV_REPO_BRANCH="dev2"\n'
+            'CONFIG_SYS_SDK_REPO_URL="https://example.com/sdk.git"\n'
+            'CONFIG_SYS_SDK_REPO_BRANCH="s"\n',
+        )
+
+    @staticmethod
+    def _read_file(path):
+        with open(path, encoding="utf-8") as f:
+            return f.read()
 
 
 class SetupRepositoriesPriorityTest(unittest.TestCase):
